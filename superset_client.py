@@ -591,6 +591,7 @@ class SupersetClient:
                 "job_id": job_identifier,
                 "company_name": company,
                 "role": chosen_profile or role,
+                "chosen_profile": chosen_profile,
                 "full_role_title": role,
                 "location": location,
                 "ctc": ctc,

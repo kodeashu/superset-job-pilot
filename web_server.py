@@ -5096,6 +5096,7 @@ def tailor_resume_endpoint():
     use_ai = bool(data.get("use_ai", True))
 
     jd_text = custom_jd
+    user_specified_role = bool(role)
     if job_id:
         # Look up cached job metadata first for fast fallback
         cached_jobs, _ = user_manager.get_cached_jobs(user["user_id"])
@@ -5110,7 +5111,11 @@ def tailor_resume_endpoint():
                 bundle = sc.fetch_job_description_bundle(job_id)
                 if bundle:
                     company_name = company_name or bundle.get("company_name") or ""
-                    role = role or bundle.get("role") or ""
+                    # Prefer student's exact applied sub-profile (e.g. 'Full Stack Developer') over generic multi-role title
+                    if not user_specified_role and bundle.get("chosen_profile"):
+                        role = bundle["chosen_profile"]
+                    else:
+                        role = role or bundle.get("role") or ""
                     if bundle.get("jd_text"):
                         jd_text = "\n\n".join(x for x in [bundle["jd_text"], custom_jd] if x)
         except Exception as e:

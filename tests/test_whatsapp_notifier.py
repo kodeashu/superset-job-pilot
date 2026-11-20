@@ -234,7 +234,7 @@ class TestRoleSpecificVenueAndDeduplication(unittest.TestCase):
         self.assertIn("B2B Sales", ev_sales["matched_profile"])
 
     def test_job_opening_whatsapp_deduplication(self):
-        with tempfile.TemporaryDirectory() as td:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as td:
             um, uid = _make_isolated_um_and_user(td, "wa-dedup-u1")
             um.update_user_profile(uid, {
                 "whatsapp_config": {
@@ -302,7 +302,7 @@ class TestFlaskWhatsAppApi(unittest.TestCase):
         r_unauth = client.get("/api/whatsapp/config", headers={"Host": "public.example.com", "X-Forwarded-For": "1.2.3.4"})
         self.assertEqual(r_unauth.status_code, 401)
 
-        with tempfile.TemporaryDirectory() as td:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as td:
             um, uid = _make_isolated_um_and_user(td, "wa-flask-u1")
             um.set_cached_notices(uid, [
                 {

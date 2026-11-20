@@ -188,7 +188,7 @@ class TestNoticeScannerCore(unittest.TestCase):
 
 class TestEndToEndNoticeOrchestrator(unittest.TestCase):
     def setUp(self):
-        self.tmpdir = tempfile.TemporaryDirectory()
+        self.tmpdir = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
         self.db_path = Path(self.tmpdir.name) / "test_vault.sqlite"
         # Prevent migrating host owner into test DB
         with patch.object(UserManager, "_migrate_owner_and_sanitize_files", return_value=None):
@@ -208,7 +208,12 @@ class TestEndToEndNoticeOrchestrator(unittest.TestCase):
         ])
 
     def tearDown(self):
-        self.tmpdir.cleanup()
+        import gc
+        gc.collect()
+        try:
+            self.tmpdir.cleanup()
+        except Exception:
+            pass
 
     def test_scan_caches_pdf_dedupes_spam_and_alerts_once(self):
         mock_client = MagicMock()

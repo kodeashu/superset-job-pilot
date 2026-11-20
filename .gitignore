@@ -11,3 +11,4 @@ data/pending_clarifications.json
 data/clarifications_memory.json
 netlify_dist/
 netlify_safe/
+.netlify/

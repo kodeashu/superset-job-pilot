@@ -6,7 +6,7 @@ import io
 import logging
 import re
 import time
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 import pytz
@@ -316,12 +316,116 @@ def detect_event_type(title: str, body: str = "") -> str:
     return "Campus Notice"
 
 
+MONTH_MAP = {
+    "jan": 1, "january": 1,
+    "feb": 2, "february": 2,
+    "mar": 3, "march": 3,
+    "apr": 4, "april": 4,
+    "may": 5,
+    "jun": 6, "june": 6,
+    "jul": 7, "july": 7,
+    "aug": 8, "august": 8,
+    "sep": 9, "sept": 9, "september": 9,
+    "oct": 10, "october": 10,
+    "nov": 11, "november": 11,
+    "dec": 12, "december": 12,
+}
+
+
+def parse_event_date(
+    date_str: str,
+    fallback_published_ts: int = 0,
+    reference_date: Optional[date] = None,
+) -> Dict[str, Any]:
+    """
+    Parses a KIIT notice event date string (including multi-day ranges like
+    "18th & 19th Nov'2026" or "21st Nov'2026" or "21/11/2026") against IST today.
+    For multi-day ranges, uses the LAST date so active multi-day drives remain visible.
+    Returns {event_date_iso, days_until_event, is_past_event, date_status_label}.
+    """
+    today = reference_date or datetime.now(IST).date()
+    parsed: Optional[date] = None
+
+    if date_str:
+        # Format 1: "18th & 19th Nov'2026" or "21st Nov'2026" or "22nd November 2026"
+        m = re.search(
+            r"(?:\d{1,2}(?:st|nd|rd|th)?\s*(?:&|and|to|-)\s*)?"
+            r"(\d{1,2})(?:st|nd|rd|th)?\s+"
+            r"(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|"
+            r"Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)"
+            r"[\s,'’`-]*(\d{2,4})",
+            date_str,
+            re.IGNORECASE,
+        )
+        if m:
+            day = int(m.group(1))
+            mon = MONTH_MAP.get(m.group(2).lower())
+            yr = int(m.group(3))
+            if yr < 100:
+                yr += 2000
+            if mon:
+                try:
+                    parsed = date(yr, mon, day)
+                except ValueError:
+                    parsed = None
+        else:
+            # Format 2: DD/MM/YYYY or DD-MM-YY
+            m2 = re.search(r"\b(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})\b", date_str)
+            if m2:
+                d_val, m_val, y_val = int(m2.group(1)), int(m2.group(2)), int(m2.group(3))
+                if y_val < 100:
+                    y_val += 2000
+                try:
+                    parsed = date(y_val, m_val, d_val)
+                except ValueError:
+                    parsed = None
+
+    if parsed is not None:
+        delta = (parsed - today).days
+        is_past = delta < 0
+        if delta == 0:
+            label = "Today"
+        elif delta == 1:
+            label = "Tomorrow"
+        elif delta > 1:
+            label = f"In {delta} days"
+        else:
+            label = "Passed"
+        return {
+            "event_date_iso": parsed.isoformat(),
+            "days_until_event": delta,
+            "is_past_event": is_past,
+            "date_status_label": label,
+        }
+
+    # Fallback when no explicit event date was parsed: expire > 7 days after publish
+    if fallback_published_ts and fallback_published_ts > 0:
+        pub_date = datetime.fromtimestamp(fallback_published_ts, tz=IST).date()
+        age_days = (today - pub_date).days
+        if age_days > 7:
+            return {
+                "event_date_iso": "",
+                "days_until_event": -age_days,
+                "is_past_event": True,
+                "date_status_label": "Passed",
+            }
+
+    return {
+        "event_date_iso": "",
+        "days_until_event": None,
+        "is_past_event": False,
+        "date_status_label": "",
+    }
+
+
 def extract_event_details(
     notice_title: str,
     notice_text: str = "",
     pdf_header_text: str = "",
     matched_line: str = "",
-) -> Dict[str, str]:
+    published_ts: int = 0,
+    reference_date: Optional[date] = None,
+) -> Dict[str, Any]:
     """
     Extracts structured Date, Time, Venue/Mode, Meeting Link, and Event Type.
     Prioritizes student-specific matched_line (e.g. GD Panel Time & Meet Link),
@@ -400,13 +504,18 @@ def extract_event_details(
         elif "physical mode" in low_all or "kiit campus" in low_all:
             ev_venue = "KIIT Campus (Physical Mode)"
 
-    # 5. Panel name if present in matched_line (e.g. Intellipaat GD rows)
+    # 5. Resolve date recency / past-event status against IST today
+    date_meta = parse_event_date(ev_date, fallback_published_ts=published_ts, reference_date=reference_date)
     return {
         "event_type": event_type,
         "date": ev_date,
         "time": ev_time,
         "venue": ev_venue,
         "meeting_link": meeting_link,
+        "event_date_iso": date_meta["event_date_iso"],
+        "days_until_event": date_meta["days_until_event"],
+        "is_past_event": date_meta["is_past_event"],
+        "date_status_label": date_meta["date_status_label"],
     }
 
 
@@ -503,7 +612,7 @@ def normalize_raw_notice(raw: Dict[str, Any]) -> Dict[str, Any]:
             "matched": False,
         })
 
-    event_details = extract_event_details(title, plain)
+    event_details = extract_event_details(title, plain, published_ts=published_ts)
 
     return {
         "id": nid,
@@ -514,6 +623,7 @@ def normalize_raw_notice(raw: Dict[str, Any]) -> Dict[str, Any]:
         "category": category,
         "is_spam": is_spam,
         "is_duplicate": False,
+        "is_past_event": bool(event_details.get("is_past_event")),
         "published_ts": published_ts,
         "published_display": published_display,
         "plain_text": plain,
@@ -663,13 +773,16 @@ def scan_notices_for_user(
             notice_text=n["plain_text"],
             pdf_header_text=pdf_header_by_notice.get(n["id"], ""),
             matched_line=(best_match or {}).get("matched_line", ""),
+            published_ts=n.get("published_ts", 0),
         )
+        n["is_past_event"] = bool(n["event_details"].get("is_past_event"))
 
         if best_match:
             n["is_shortlisted"] = True
             n["shortlist_match"] = best_match
 
-            if send_alerts:
+            # Only alert via Telegram for UPCOMING / TODAY shortlists (never spam passed dates!)
+            if send_alerts and not n["is_past_event"]:
                 alert_key = f"shortlist::{n['id']}"
                 if not user_manager.has_sent_alert(user_id, alert_key):
                     chat_id = user.get("telegram_chat_id") or None
@@ -723,15 +836,39 @@ def summarize_notices(
     pending_updated_at: int = 0,
     student_roll: str = "",
     student_name: str = "",
+    reference_date: Optional[date] = None,
 ) -> Dict[str, Any]:
-    """Builds a consistent API response payload for the Smart Notice Feed & Watchdog."""
+    """Builds a consistent API response payload for the Smart Notice Feed & Watchdog.
+    Dynamically refreshes is_past_event against today (IST) so expired events drop off
+    the homepage automatically even when served from cache.
+    """
+    today = reference_date or datetime.now(IST).date()
+    for n in notices:
+        ev = n.get("event_details") or {}
+        dmeta = parse_event_date(
+            ev.get("date", ""),
+            fallback_published_ts=int(n.get("published_ts") or 0),
+            reference_date=today,
+        )
+        ev["event_date_iso"] = dmeta["event_date_iso"]
+        ev["days_until_event"] = dmeta["days_until_event"]
+        ev["is_past_event"] = dmeta["is_past_event"]
+        ev["date_status_label"] = dmeta["date_status_label"]
+        n["event_details"] = ev
+        n["is_past_event"] = bool(dmeta["is_past_event"])
+
     clean_notices = [n for n in notices if not n.get("is_spam") and not n.get("is_duplicate")]
-    shortlisted = [n for n in notices if n.get("is_shortlisted")]
+    shortlisted_all = [n for n in notices if n.get("is_shortlisted")]
+    upcoming_shortlisted = [n for n in shortlisted_all if not n.get("is_past_event")]
+    past_shortlisted = [n for n in shortlisted_all if n.get("is_past_event")]
+    shortlisted_ordered = upcoming_shortlisted + past_shortlisted
 
     counts = {
         "total": len(notices),
         "clean": len(clean_notices),
-        "shortlisted": len(shortlisted),
+        "shortlisted": len(shortlisted_ordered),
+        "shortlisted_upcoming": len(upcoming_shortlisted),
+        "shortlisted_past": len(past_shortlisted),
         "shortlists_tests": sum(1 for n in clean_notices if n.get("category") == "shortlists_tests"),
         "deadlines_revisions": sum(1 for n in clean_notices if n.get("category") == "deadlines_revisions"),
         "job_openings": sum(1 for n in clean_notices if n.get("category") == "job_openings"),
@@ -753,7 +890,9 @@ def summarize_notices(
     return {
         "success": True,
         "notices": notices,
-        "shortlisted_notices": shortlisted,
+        "shortlisted_notices": shortlisted_ordered,
+        "upcoming_shortlisted_notices": upcoming_shortlisted,
+        "past_shortlisted_notices": past_shortlisted,
         "pending_actions": pending_actions,
         "counts": counts,
         "student_roll": student_roll,

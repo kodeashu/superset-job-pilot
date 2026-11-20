@@ -16,15 +16,18 @@ from unittest.mock import MagicMock, patch
 from pypdf import PdfWriter
 from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 
+from datetime import date
 from notice_scanner import (
     classify_notice_category,
     extract_event_details,
     extract_pdf_text_with_pages,
     html_to_plain_text,
+    parse_event_date,
     sanitize_notice_html,
     scan_notices_for_user,
     search_student_in_text,
     split_marked_pages,
+    summarize_notices,
 )
 from user_manager import UserManager
 
@@ -148,6 +151,39 @@ class TestNoticeScannerCore(unittest.TestCase):
 
         cat4, spam4 = classify_notice_category({"title": "DeltaX Recruitment Drive - Online Test on 20th Nov'2026"})
         self.assertEqual((cat4, spam4), ("shortlists_tests", False))
+
+    def test_parse_event_date_filters_past_dates_off_homepage(self):
+        ref = date(2026, 11, 21)
+        # Today (21st Nov'2026) -> NOT past, shows Today
+        d_today = parse_event_date("21st Nov'2026", reference_date=ref)
+        self.assertFalse(d_today["is_past_event"])
+        self.assertEqual(d_today["date_status_label"], "Today")
+        self.assertEqual(d_today["event_date_iso"], "2026-11-21")
+
+        # Past multi-day range (18th & 19th Nov'2026) -> Passed!
+        d_past_range = parse_event_date("18th & 19th Nov'2026", reference_date=ref)
+        self.assertTrue(d_past_range["is_past_event"])
+        self.assertEqual(d_past_range["event_date_iso"], "2026-11-19")
+        self.assertEqual(d_past_range["date_status_label"], "Passed")
+
+        # Active multi-day range (20th & 21st Nov'2026) -> NOT past on day 2!
+        d_active_range = parse_event_date("20th & 21st Nov'2026", reference_date=ref)
+        self.assertFalse(d_active_range["is_past_event"])
+        self.assertEqual(d_active_range["date_status_label"], "Today")
+
+        # summarize_notices excludes expired shortlists from upcoming_shortlisted_notices
+        summary = summarize_notices(
+            notices=[
+                {"id": "n-today", "is_shortlisted": True, "category": "shortlists_tests", "event_details": {"date": "21st Nov'2026"}},
+                {"id": "n-old", "is_shortlisted": True, "category": "shortlists_tests", "event_details": {"date": "15th Nov'2026"}},
+            ],
+            pending_actions=[],
+            reference_date=ref,
+        )
+        self.assertEqual(summary["counts"]["shortlisted_upcoming"], 1)
+        self.assertEqual(summary["counts"]["shortlisted_past"], 1)
+        self.assertEqual([n["id"] for n in summary["upcoming_shortlisted_notices"]], ["n-today"])
+        self.assertEqual([n["id"] for n in summary["past_shortlisted_notices"]], ["n-old"])
 
 
 class TestEndToEndNoticeOrchestrator(unittest.TestCase):

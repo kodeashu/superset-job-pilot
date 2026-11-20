@@ -159,15 +159,15 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
-  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#030712">
-  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#030712">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#09090b">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#09090b">
   <meta name="color-scheme" content="dark">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Superset Job Pilot — Mission Control v2.5</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -178,69 +178,75 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             mono: ['JetBrains Mono', 'monospace'],
           },
           colors: {
-            brand: { 50:'#eef2ff', 100:'#e0e7ff', 200:'#c7d2fe', 300:'#a5b4fc', 400:'#818cf8', 500:'#6366f1', 600:'#4f46e5', 700:'#4338ca', 800:'#3730a3', 900:'#312e81' },
-            surface: { 50:'#f8fafc', 100:'#f1f5f9', 800:'#1e293b', 850:'#141c2e', 900:'#0b1120', 950:'#030712' },
+            brand: { 50:'#f4f4f5', 100:'#e4e4e7', 200:'#d4d4d8', 300:'#a1a1aa', 400:'#818cf8', 500:'#6366f1', 600:'#52525b', 700:'#3f3f46', 800:'#27272a', 900:'#18181b' },
+            surface: { 50:'#fafafa', 100:'#f4f4f5', 800:'#1c1c21', 850:'#16161a', 900:'#111114', 950:'#09090b' },
           },
           animation: {
-            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-            'slide-up': 'slideUp 0.26s cubic-bezier(0.22, 1, 0.36, 1)',
-            'slide-down': 'slideDown 0.26s cubic-bezier(0.22, 1, 0.36, 1)',
-            'fade-in': 'fadeIn 0.2s ease-out',
+            'slide-up': 'slideUp 0.2s cubic-bezier(0.23, 1, 0.32, 1)',
+            'slide-down': 'slideDown 0.2s cubic-bezier(0.23, 1, 0.32, 1)',
+            'fade-in': 'fadeIn 0.16s cubic-bezier(0.23, 1, 0.32, 1)',
           },
           keyframes: {
-            slideUp: { '0%': { transform: 'translateY(18px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
-            slideDown: { '0%': { transform: 'translateY(-12px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
-            fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+            slideUp: { '0%': { transform: 'translateY(12px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
+            slideDown: { '0%': { transform: 'translateY(-8px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
+            fadeIn: { '0%': { transform: 'translateY(4px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
           }
         }
       }
     }
   </script>
   <style>
-    * { scrollbar-width: thin; scrollbar-color: #334155 transparent; }
-    ::-webkit-scrollbar { width: 5px; height: 5px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    :root {
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+      --surface-canvas: #09090b;
+      --surface-card: #111114;
+      --surface-card-hover: #151519;
+      --border-hairline: rgba(255, 255, 255, 0.075);
+      --border-hover: rgba(255, 255, 255, 0.16);
+    }
 
-    /* Mobile Native Platform Baseline */
+    * { scrollbar-width: thin; scrollbar-color: #27272a transparent; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 999px; }
+
+    /* Native 120fps Document Scroll Baseline */
     html {
       -webkit-tap-highlight-color: transparent;
       -webkit-text-size-adjust: 100%;
-      overscroll-behavior: none;
+      background-color: var(--surface-canvas);
+      scroll-behavior: auto;
     }
     body {
-      background-color: #030712;
-      background-image:
-        radial-gradient(ellipse 85% 50% at 50% -15%, rgba(99, 102, 241, 0.22), transparent),
-        radial-gradient(ellipse 60% 45% at 92% 12%, rgba(168, 85, 247, 0.13), transparent),
-        radial-gradient(ellipse 55% 40% at 8% 88%, rgba(16, 185, 129, 0.09), transparent);
-      background-attachment: fixed;
-      color: #e2e8f0;
+      background-color: var(--surface-canvas);
+      color: #e4e4e7;
       min-height: 100dvh;
       padding-top: env(safe-area-inset-top, 0px);
       padding-left: env(safe-area-inset-left, 0px);
       padding-right: env(safe-area-inset-right, 0px);
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
     }
     button, input, select, textarea, a, [role="button"] {
       touch-action: manipulation;
     }
-    button, [role="button"], .mobile-nav-btn, .drives-filter, .ctc-filter, .drives-sort, .drives-view {
+    button, [role="button"], .mobile-nav-btn, .drives-filter, .ctc-filter, .drives-sort, .drives-view, .notices-filter {
       user-select: none;
       -webkit-user-select: none;
       -webkit-touch-callout: none;
-      transition: transform 110ms cubic-bezier(0.22, 1, 0.36, 1), background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+      transition: transform 140ms var(--ease-out), background-color 150ms ease, border-color 150ms ease, color 150ms ease;
     }
-    /* Instant tactile press feedback on pointerdown/active */
+    /* Crisp tactile press feedback */
     button:active:not(:disabled), [role="button"]:active, .mobile-tap:active {
-      transform: scale(0.96);
+      transform: scale(0.97);
     }
-    /* Prevent iOS Safari auto-zoom on input focus without disabling pinch zoom */
+    /* Prevent iOS Safari auto-zoom on input focus */
     @media (pointer: coarse), (max-width: 768px) {
       input, select, textarea {
         font-size: 16px !important;
       }
     }
-    /* Contained scroll bounce on sheets, modals, and drawers */
+    /* Contained scroll ONLY inside inner modal/drawer panels */
     #modal-body, #mobile-drawer, .sheet-scroll {
       overscroll-behavior: contain;
       -webkit-overflow-scrolling: touch;
@@ -248,7 +254,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     /* Horizontal pill carousels */
     .pill-carousel {
       touch-action: pan-x;
-      scroll-snap-type: x mandatory;
+      scroll-snap-type: x proximity;
       -webkit-overflow-scrolling: touch;
     }
     .pill-carousel > * {
@@ -256,78 +262,86 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       flex-shrink: 0;
     }
 
+    /* Defer off-screen rendering for smooth long-list scrolling (strictly applied below the fold) */
+    .deferred-card {
+      content-visibility: auto;
+      contain-intrinsic-size: auto none auto 176px;
+    }
+
+    /* Page switch gentle entrance (compositor-only, opt-in reduced-motion) */
+    @media (prefers-reduced-motion: no-preference) {
+      .page-enter {
+        animation: fadeIn 160ms var(--ease-out) both;
+      }
+    }
+
     /* Toast system responsive */
     .toast-container { position: fixed; top: calc(0.75rem + env(safe-area-inset-top, 0px)); right: 1rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.5rem; pointer-events: none; }
-    .toast { pointer-events: auto; animation: slideDown 0.26s cubic-bezier(0.22, 1, 0.36, 1); min-width: 300px; max-width: 440px; backdrop-filter: blur(16px); }
-    .toast.removing { animation: slideUp 0.18s ease-out reverse forwards; }
+    .toast { pointer-events: auto; min-width: 280px; max-width: 420px; background: #141418; border-color: rgba(255,255,255,0.12); }
+    @media (prefers-reduced-motion: no-preference) {
+      .toast { animation: slideDown 180ms var(--ease-out); }
+      .toast.removing { animation: slideUp 140ms var(--ease-out) reverse forwards; }
+    }
     @media (max-width: 640px) {
       .toast-container { left: 0.75rem; right: 0.75rem; }
       .toast { min-width: 0; width: 100%; max-width: 100%; }
     }
 
     /* Sidebar Desktop & Mobile Off-Canvas */
-    .sidebar { width: 260px; min-width: 260px; transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+    .sidebar { width: 248px; min-width: 248px; transition: width 180ms var(--ease-out), min-width 180ms var(--ease-out); }
     .sidebar.collapsed { width: 64px; min-width: 64px; }
     .sidebar.collapsed .sidebar-label { display: none; }
     .sidebar.collapsed .sidebar-header-text { display: none; }
 
-    /* Active nav */
-    .nav-item { transition: all 0.15s; }
-    .nav-item.active { background: linear-gradient(90deg, rgba(99, 102, 241, 0.22), rgba(99, 102, 241, 0.05)); color: #a5b4fc; border-left: 3px solid #6366f1; box-shadow: inset 0 1px 0 rgba(255,255,255,0.06); }
+    /* Active nav (calm monochrome highlight, zero neon gradient) */
+    .nav-item { color: #a1a1aa; transition: background-color 140ms ease, color 140ms ease; }
+    .nav-item.active { background: rgba(255, 255, 255, 0.08); color: #fafafa; }
 
     /* Mobile Bottom Nav Active */
-    .mobile-nav-btn { position: relative; transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1); }
-    .mobile-nav-btn.active { color: #ffffff; }
+    .mobile-nav-btn { position: relative; transition: color 140ms ease, transform 140ms var(--ease-out); }
+    .mobile-nav-btn.active { color: #fafafa; }
     .mobile-nav-btn.active .mobile-nav-pill {
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.32), rgba(168, 85, 247, 0.22));
-      border-color: rgba(129, 140, 248, 0.45);
-      box-shadow: 0 4px 14px -2px rgba(99, 102, 241, 0.45);
-      transform: translateY(-1px);
+      background: rgba(255, 255, 255, 0.11);
+      border-color: rgba(255, 255, 255, 0.14);
     }
 
-    /* High-craft Glass Cards */
-    .job-card {
-      background: linear-gradient(165deg, rgba(15, 23, 42, 0.82) 0%, rgba(11, 17, 32, 0.92) 100%);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(12px);
-      transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.22s ease, box-shadow 0.22s ease;
-    }
-    .metric-card {
-      background: linear-gradient(145deg, rgba(15, 23, 42, 0.85), rgba(11, 17, 32, 0.75));
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(12px);
+    /* Calm Obsidian Cards — NO per-card backdrop-filter blur or heavy shadows (120fps scroll) */
+    .job-card, .metric-card {
+      background-color: var(--surface-card);
+      border: 1px solid var(--border-hairline);
+      transition: border-color 150ms ease, background-color 150ms ease;
     }
 
-    /* Gate all hover states strictly behind pointer capability so mobile taps never stick */
+    /* Gate hover states strictly behind fine pointers */
     @media (hover: hover) and (pointer: fine) {
-      .nav-item:not(.active):hover { background: rgba(148, 163, 184, 0.08); }
+      .nav-item:not(.active):hover { background: rgba(255, 255, 255, 0.045); color: #e4e4e7; }
       .job-card:hover {
-        border-color: rgba(129, 140, 248, 0.45);
-        transform: translateY(-2px);
-        box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.65), 0 0 20px -5px rgba(99, 102, 241, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+        border-color: var(--border-hover);
+        background-color: var(--surface-card-hover);
       }
-      ::-webkit-scrollbar-thumb:hover { background: #475569; }
+      ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
     }
 
-    /* Status dot animation */
-    @keyframes livePulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.92); } }
-    .live-dot { animation: livePulse 2s infinite; }
+    /* Restrained status dot pulse (opt-in reduced motion) */
+    @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    @media (prefers-reduced-motion: no-preference) {
+      .live-dot { animation: livePulse 2.4s ease-in-out infinite; }
+    }
 
     /* Modal backdrop */
-    .modal-backdrop { background: rgba(2, 6, 23, 0.82); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+    .modal-backdrop { background: rgba(0, 0, 0, 0.78); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 
     /* Profile form */
-    .profile-field input, .profile-field select { background: #0b1120; border: 1px solid #334155; color: #e2e8f0; }
-    .profile-field input:focus, .profile-field select:focus { border-color: #6366f1; outline: none; box-shadow: 0 0 0 2px rgba(99,102,241,0.25); }
+    .profile-field input, .profile-field select { background: #09090b; border: 1px solid #27272a; color: #f4f4f5; }
+    .profile-field input:focus, .profile-field select:focus { border-color: #71717a; outline: none; }
 
-    /* Badge styles */
-    .badge-applied { background: rgba(16, 185, 129, 0.14); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.28); box-shadow: 0 0 12px -3px rgba(16, 185, 129, 0.25); }
-    .badge-open { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.32); box-shadow: 0 0 12px -3px rgba(245, 158, 11, 0.25); }
-    .badge-closed { background: rgba(100, 116, 139, 0.14); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.22); }
-    .badge-ineligible { background: rgba(239, 68, 68, 0.14); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.25); }
-    .badge-shortlisted { background: linear-gradient(135deg, rgba(249, 115, 22, 0.24), rgba(239, 68, 68, 0.22)); color: #fdba74; border: 1px solid rgba(251, 146, 60, 0.5); box-shadow: 0 0 18px -4px rgba(249, 115, 22, 0.45); }
+    /* Quiet Semantic Badges (no colored glow shadows) */
+    .badge-applied { background: rgba(16, 185, 129, 0.10); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.22); }
+    .badge-open { background: rgba(255, 255, 255, 0.08); color: #fafafa; border: 1px solid rgba(255, 255, 255, 0.16); }
+    .badge-closed { background: rgba(255, 255, 255, 0.04); color: #71717a; border: 1px solid rgba(255, 255, 255, 0.07); }
+    .badge-ineligible { background: rgba(244, 63, 94, 0.08); color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.18); }
+    .badge-shortlisted { background: rgba(245, 158, 11, 0.12); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.28); }
+    .badge-passed { background: rgba(255, 255, 255, 0.04); color: #71717a; border: 1px solid rgba(255, 255, 255, 0.08); }
 
     /* Native Modal <dialog> PDF Viewer (modern-web-guidance compliant) */
     dialog:modal {
@@ -336,17 +350,17 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     dialog::backdrop {
       overflow: hidden;
       overscroll-behavior: contain;
-      background: rgba(2, 6, 23, 0.84);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
+      background: rgba(0, 0, 0, 0.80);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
     }
     dialog#pdfViewerDialog {
       margin: auto;
       padding: 0;
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      border-radius: 1.25rem;
-      background: #0b1120;
-      color: #e2e8f0;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 1rem;
+      background: #111114;
+      color: #e4e4e7;
       width: min(96vw, 1080px);
       height: min(92dvh, 880px);
       max-width: 1080px;
@@ -389,15 +403,15 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   <div id="toast-container" class="toast-container"></div>
 
   <!-- ═══ DESKTOP SIDEBAR ═══ -->
-  <aside id="sidebar" class="hidden lg:flex sidebar bg-surface-950 border-r border-slate-800/80 flex-col h-screen sticky top-0 z-40">
+  <aside id="sidebar" class="hidden lg:flex sidebar bg-surface-950 border-r border-white/[0.07] flex-col h-screen sticky top-0 z-40">
     <!-- Logo -->
-    <div class="p-4 border-b border-slate-800/80 flex items-center gap-3">
-      <div class="w-9 h-9 rounded-xl bg-brand-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-lg shadow-brand-600/30">
+    <div class="p-4 border-b border-white/[0.07] flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-950 font-bold text-xs flex-shrink-0">
         SJ
       </div>
       <div class="sidebar-header-text overflow-hidden">
-        <div class="text-sm font-bold text-white tracking-tight truncate">SUPERSET PILOT</div>
-        <div class="text-[10px] text-slate-500 font-mono truncate">Mission Control v2.0</div>
+        <div class="text-xs font-semibold text-zinc-100 tracking-wide truncate">SUPERSET PILOT</div>
+        <div class="text-[10px] text-zinc-500 font-mono truncate">Mission Control</div>
       </div>
     </div>
 
@@ -542,160 +556,160 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   </div>
 
   <!-- ═══ MOBILE BOTTOM APP DOCK ═══ -->
-  <nav class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface-950/85 backdrop-blur-2xl border-t border-white/10 px-2 pt-1.5 flex items-center justify-around shadow-[0_-10px_30px_rgba(0,0,0,0.6)]" style="padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));">
-    <button onclick="switchPage('dashboard')" class="mobile-nav-btn active flex-1 flex flex-col items-center py-1 rounded-xl text-slate-400" data-page="dashboard">
-      <div class="mobile-nav-pill px-3.5 py-1 rounded-full border border-transparent flex items-center justify-center transition-all">
+  <nav class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface-950/90 backdrop-blur-xl border-t border-white/[0.08] px-2 pt-1.5 flex items-center justify-around" style="padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));">
+    <button onclick="switchPage('dashboard')" class="mobile-nav-btn active flex-1 flex flex-col items-center py-1 rounded-xl text-zinc-400" data-page="dashboard">
+      <div class="mobile-nav-pill px-3.5 py-1 rounded-full border border-transparent flex items-center justify-center">
         <span class="text-base leading-none">📊</span>
       </div>
-      <span class="text-[10px] font-semibold tracking-tight mt-1">Overview</span>
+      <span class="text-[10px] font-medium tracking-tight mt-1">Overview</span>
     </button>
-    <button onclick="switchPage('drives')" class="mobile-nav-btn flex-1 flex flex-col items-center py-1 rounded-xl text-slate-400 relative" data-page="drives">
-      <div class="mobile-nav-pill px-3.5 py-1 rounded-full border border-transparent flex items-center justify-center transition-all relative">
+    <button onclick="switchPage('drives')" class="mobile-nav-btn flex-1 flex flex-col items-center py-1 rounded-xl text-zinc-400 relative" data-page="drives">
+      <div class="mobile-nav-pill px-3.5 py-1 rounded-full border border-transparent flex items-center justify-center relative">
         <span class="text-base leading-none">💼</span>
-        <span id="mobile-badge-drives" class="absolute -top-1 -right-1.5 px-1.5 py-0.2 rounded-full bg-brand-600 text-white font-mono text-[8px] font-bold shadow">119</span>
+        <span id="mobile-badge-drives" class="absolute -top-1 -right-1.5 px-1.5 py-0.2 rounded-full bg-zinc-800 border border-white/15 text-zinc-200 font-mono text-[8px] font-semibold">0</span>
       </div>
-      <span class="text-[10px] font-semibold tracking-tight mt-1">Drives</span>
+      <span class="text-[10px] font-medium tracking-tight mt-1">Drives</span>
     </button>
-    <button onclick="switchPage('notices')" class="mobile-nav-btn flex-1 flex flex-col items-center py-1 rounded-xl text-slate-400 relative" data-page="notices">
-      <div class="mobile-nav-pill px-3.5 py-1 rounded-full border border-transparent flex items-center justify-center transition-all relative">
+    <button onclick="switchPage('notices')" class="mobile-nav-btn flex-1 flex flex-col items-center py-1 rounded-xl text-zinc-400 relative" data-page="notices">
+      <div class="mobile-nav-pill px-3.5 py-1 rounded-full border border-transparent flex items-center justify-center relative">
         <span class="text-base leading-none">📢</span>
-        <span id="mobile-badge-notices" class="hidden absolute -top-1 -right-1.5 px-1.5 py-0.2 rounded-full bg-orange-600 text-white font-mono text-[8px] font-bold shadow">0</span>
+        <span id="mobile-badge-notices" class="hidden absolute -top-1 -right-1.5 px-1.5 py-0.2 rounded-full bg-amber-400 text-zinc-950 font-mono text-[8px] font-bold">0</span>
       </div>
-      <span class="text-[10px] font-semibold tracking-tight mt-1">Notices</span>
+      <span class="text-[10px] font-medium tracking-tight mt-1">Notices</span>
     </button>
-    <button onclick="switchPage('applied')" class="mobile-nav-btn flex-1 flex flex-col items-center py-1 rounded-xl text-slate-400 relative" data-page="applied">
-      <div class="mobile-nav-pill px-3.5 py-1 rounded-full border border-transparent flex items-center justify-center transition-all relative">
+    <button onclick="switchPage('applied')" class="mobile-nav-btn flex-1 flex flex-col items-center py-1 rounded-xl text-zinc-400 relative" data-page="applied">
+      <div class="mobile-nav-pill px-3.5 py-1 rounded-full border border-transparent flex items-center justify-center relative">
         <span class="text-base leading-none">✅</span>
-        <span id="mobile-badge-applied" class="absolute -top-1 -right-1.5 px-1.5 py-0.2 rounded-full bg-emerald-600 text-white font-mono text-[8px] font-bold shadow">36</span>
+        <span id="mobile-badge-applied" class="absolute -top-1 -right-1.5 px-1.5 py-0.2 rounded-full bg-zinc-800 border border-white/15 text-zinc-200 font-mono text-[8px] font-semibold">0</span>
       </div>
-      <span class="text-[10px] font-semibold tracking-tight mt-1">Applied</span>
+      <span class="text-[10px] font-medium tracking-tight mt-1">Applied</span>
     </button>
-    <button onclick="openMobileDrawer()" class="mobile-nav-btn flex-1 flex flex-col items-center py-1 rounded-xl text-slate-400">
-      <div class="mobile-nav-pill px-3.5 py-1 rounded-full border border-transparent flex items-center justify-center transition-all">
+    <button onclick="openMobileDrawer()" class="mobile-nav-btn flex-1 flex flex-col items-center py-1 rounded-xl text-zinc-400">
+      <div class="mobile-nav-pill px-3.5 py-1 rounded-full border border-transparent flex items-center justify-center">
         <span class="text-base leading-none">☰</span>
       </div>
-      <span class="text-[10px] font-semibold tracking-tight mt-1">Menu</span>
+      <span class="text-[10px] font-medium tracking-tight mt-1">Menu</span>
     </button>
   </nav>
 
-  <!-- ═══ MAIN CONTENT ═══ -->
-  <main class="flex-1 flex flex-col min-h-screen overflow-hidden pb-24 lg:pb-0">
+  <!-- ═══ MAIN CONTENT (Native Document Scroll — Zero Nested Scroll Trap) ═══ -->
+  <main class="flex-1 flex flex-col min-w-0 min-h-screen pb-24 lg:pb-8">
 
     <!-- Top Bar -->
-    <header class="h-14 border-b border-white/10 bg-surface-950/75 backdrop-blur-xl flex items-center justify-between px-3.5 sm:px-6 sticky top-0 z-30">
-      <div class="flex items-center gap-2.5 sm:gap-4 min-w-0">
-        <button onclick="openMobileDrawer()" class="lg:hidden w-9 h-9 rounded-xl bg-gradient-to-br from-brand-600 to-indigo-700 flex items-center justify-center text-white font-bold text-xs shadow-md shadow-brand-600/30 flex-shrink-0" title="Open Menu">SJ</button>
-        <button onclick="toggleSidebar()" class="hidden lg:block text-slate-400 hover:text-white">☰</button>
+    <header class="h-14 border-b border-white/[0.07] bg-surface-950/85 backdrop-blur-xl flex items-center justify-between px-3.5 sm:px-6 sticky top-0 z-30">
+      <div class="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+        <button onclick="openMobileDrawer()" class="lg:hidden w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-950 font-bold text-xs flex-shrink-0" title="Open Menu">SJ</button>
+        <button onclick="toggleSidebar()" class="hidden lg:block text-zinc-400 hover:text-zinc-100">☰</button>
         <div class="min-w-0">
-          <h1 id="page-title" class="text-xs sm:text-sm font-bold text-white truncate">Dashboard</h1>
-          <div class="lg:hidden text-[9px] font-mono text-slate-400 truncate" id="topbar-student-sub">Signed In • KIIT</div>
+          <h1 id="page-title" class="text-xs sm:text-sm font-semibold text-zinc-100 truncate">Dashboard</h1>
+          <div class="lg:hidden text-[10px] font-mono text-zinc-500 truncate" id="topbar-student-sub">Signed In • KIIT</div>
         </div>
-        <span class="hidden sm:inline-block text-[10px] font-mono text-slate-400 bg-slate-800/70 border border-white/5 px-2.5 py-0.5 rounded-full" id="last-sync-badge">—</span>
+        <span class="hidden sm:inline-block text-[10px] font-mono text-zinc-500 bg-white/[0.04] border border-white/[0.07] px-2.5 py-0.5 rounded-full" id="last-sync-badge">—</span>
       </div>
       <div class="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-        <button id="topbar-clarif-btn" onclick="switchPage('ai')" class="hidden items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-semibold transition-all animate-pulse-slow">
+        <button id="topbar-clarif-btn" onclick="switchPage('ai')" class="hidden items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white/[0.06] border border-amber-400/30 text-amber-300 text-xs font-medium">
           <span>⚠️</span> <span id="topbar-clarif-count" class="hidden sm:inline">0 Clarifications</span>
         </button>
-        <button onclick="toggleUserAutoApply()" id="user-autoapply-btn" class="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl bg-surface-900/90 border border-white/10 text-slate-200 text-xs font-semibold transition-all" title="Toggle Auto-Apply for your account">
-          <span id="user-autoapply-dot" class="w-2 h-2 rounded-full bg-slate-500"></span>
+        <button onclick="toggleUserAutoApply()" id="user-autoapply-btn" class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-surface-900 border border-white/[0.08] text-zinc-300 text-xs font-medium" title="Toggle Auto-Apply for your account">
+          <span id="user-autoapply-dot" class="w-1.5 h-1.5 rounded-full bg-zinc-500"></span>
           <span id="user-autoapply-label" class="text-[11px]">Auto: OFF</span>
         </button>
-        <button onclick="triggerSync()" id="sync-btn" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 text-white text-xs font-semibold transition-all shadow-md shadow-brand-600/25">
-          <span id="sync-icon">🔄</span> <span class="hidden sm:inline">Sync Now</span>
+        <button onclick="triggerSync()" id="sync-btn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold">
+          <span id="sync-icon">🔄</span> <span class="hidden sm:inline">Sync</span>
         </button>
-        <button onclick="toggleDaemon()" id="daemon-toggle-btn" class="hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl bg-surface-900/90 border border-white/10 text-slate-200 text-xs font-semibold transition-all">
-          <span id="daemon-dot" class="w-2 h-2 rounded-full bg-emerald-400 live-dot"></span>
+        <button onclick="toggleDaemon()" id="daemon-toggle-btn" class="hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-surface-900 border border-white/[0.08] text-zinc-300 text-xs font-medium">
+          <span id="daemon-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-400 live-dot"></span>
           <span id="daemon-label" class="hidden sm:inline">Engine ON</span>
         </button>
-        <button onclick="logoutUser()" class="p-2 rounded-xl bg-surface-900/90 border border-white/10 text-slate-400 hover:text-rose-300 text-xs font-semibold transition-all" title="Sign Out">🚪</button>
+        <button onclick="logoutUser()" class="p-1.5 rounded-lg bg-surface-900 border border-white/[0.08] text-zinc-400 hover:text-zinc-100 text-xs" title="Sign Out">🚪</button>
       </div>
     </header>
 
-    <!-- Page Content -->
-    <div class="flex-1 overflow-y-auto sheet-scroll">
+    <!-- Page Content (Natural Window Scroll) -->
+    <div class="flex-1">
 
       <!-- ═══ GLOBAL PENDING OFFER WATCHDOG BANNER (Visible across all tabs when active) ═══ -->
-      <div id="pending-offer-banner" class="hidden mx-3.5 sm:mx-6 mt-3.5 sm:mt-5"></div>
+      <div id="pending-offer-banner" class="hidden mx-3.5 sm:mx-6 mt-4"></div>
 
       <!-- ═══ DASHBOARD PAGE ═══ -->
-      <div id="page-dashboard" class="page p-3.5 sm:p-6 space-y-4 sm:space-y-6">
+      <div id="page-dashboard" class="page p-3.5 sm:p-6 max-w-6xl mx-auto space-y-5">
 
-        <!-- Mobile-First Candidate Mission Hero Banner -->
-        <div class="relative overflow-hidden rounded-2xl p-4 sm:p-6 border border-indigo-500/25 bg-gradient-to-br from-indigo-950/75 via-surface-900/90 to-purple-950/50 shadow-2xl">
+        <!-- Calm Monochrome Candidate Header -->
+        <div class="metric-card rounded-2xl p-4 sm:p-6">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div class="flex items-center gap-3.5">
-              <div id="hero-student-initials" class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-brand-600 via-indigo-500 to-purple-500 flex items-center justify-center text-white font-extrabold text-base sm:text-lg shadow-lg shadow-indigo-500/30 border border-white/20 flex-shrink-0">
+            <div class="flex items-center gap-3.5 min-w-0">
+              <div id="hero-student-initials" class="w-12 h-12 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center text-zinc-100 font-bold text-sm flex-shrink-0">
                 ST
               </div>
               <div class="min-w-0">
                 <div class="flex items-center gap-2 flex-wrap">
-                  <h2 id="hero-student-name" class="text-sm sm:text-base font-extrabold text-white tracking-tight truncate">Student Account</h2>
-                  <span id="hero-student-cgpa" class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-semibold">Verified</span>
+                  <h2 id="hero-student-name" class="text-sm sm:text-base font-semibold text-zinc-50 tracking-tight truncate">Student Account</h2>
+                  <span id="hero-student-cgpa" class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/[0.06] text-zinc-300 border border-white/10">Verified</span>
                 </div>
-                <p id="hero-student-meta" class="text-[11px] sm:text-xs text-slate-300 font-mono mt-0.5 truncate">KIIT University • Encrypted Vault Active</p>
-                <div class="flex items-center gap-2 mt-2">
-                  <div class="h-1.5 w-28 sm:w-40 rounded-full bg-slate-800/90 overflow-hidden">
-                    <div id="hero-progress-bar" class="h-full rounded-full bg-gradient-to-r from-emerald-400 to-brand-400 transition-all duration-500" style="width: 0%"></div>
+                <p id="hero-student-meta" class="text-[11px] sm:text-xs text-zinc-400 font-mono mt-0.5 truncate">KIIT University</p>
+                <div class="flex items-center gap-2.5 mt-2.5">
+                  <div class="h-1 w-28 sm:w-44 rounded-full bg-zinc-800 overflow-hidden">
+                    <div id="hero-progress-bar" class="h-full rounded-full bg-zinc-200 transition-[width] duration-300" style="width: 0%"></div>
                   </div>
-                  <span id="hero-progress-label" class="text-[10px] font-mono text-indigo-200 font-semibold">Syncing drives...</span>
+                  <span id="hero-progress-label" class="text-[10px] font-mono text-zinc-400">Syncing drives...</span>
                 </div>
               </div>
             </div>
             <div class="grid grid-cols-2 sm:flex items-center gap-2 pt-1 sm:pt-0">
-              <button onclick="switchPage('drives')" class="px-3.5 py-2.5 rounded-xl bg-white text-slate-950 font-bold text-xs shadow-lg flex items-center justify-center gap-1.5">
-                <span>⚡</span> <span>Explore Drives</span>
+              <button onclick="switchPage('drives')" class="px-3.5 py-2 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs flex items-center justify-center gap-1.5">
+                <span>Explore Drives</span>
               </button>
-              <button onclick="switchPage('notices')" class="px-3.5 py-2.5 rounded-xl bg-surface-900/80 border border-orange-500/35 text-orange-200 font-semibold text-xs flex items-center justify-center gap-1.5">
-                <span>📢</span> <span>Notices & PDFs</span>
+              <button onclick="switchPage('notices')" class="px-3.5 py-2 rounded-lg bg-white/[0.05] hover:bg-white/[0.09] border border-white/10 text-zinc-200 font-medium text-xs flex items-center justify-center gap-1.5">
+                <span>Notices & PDFs</span>
               </button>
             </div>
           </div>
         </div>
 
-        <!-- 🔥 Auto Shortlist Scanner Dashboard Hero Strip -->
+        <!-- Upcoming Shortlist Strip (Strictly TODAY / UPCOMING — expired dates never appear here) -->
         <div id="dashboard-shortlist-strip" class="hidden space-y-2.5"></div>
 
-        <!-- Metrics Bento Grid -->
-        <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-          <div onclick="switchPage('drives'); setDrivesFilter('all');" class="metric-card rounded-2xl p-4 cursor-pointer mobile-tap">
-            <div class="flex items-center justify-between mb-1.5">
-              <span class="text-[10px] text-slate-400 uppercase font-mono tracking-wider">Total Drives</span>
-              <span class="w-6 h-6 rounded-lg bg-brand-500/15 text-brand-400 flex items-center justify-center text-xs">💼</span>
+        <!-- Metrics Bento Grid (Calm Neutral Hierarchy) -->
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          <div onclick="switchPage('drives'); setDrivesFilter('all');" class="metric-card rounded-xl p-4 cursor-pointer mobile-tap hover:border-white/15">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[10px] text-zinc-500 uppercase font-mono tracking-wider">Total Drives</span>
+              <span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
             </div>
-            <div class="text-2xl sm:text-3xl font-extrabold text-white font-mono" id="m-total">—</div>
-            <div class="text-[10px] text-slate-400 mt-1">Indexed from Superset</div>
+            <div class="text-2xl font-bold text-zinc-100 font-mono tracking-tight" id="m-total">—</div>
+            <div class="text-[11px] text-zinc-500 mt-1">Indexed from Superset</div>
           </div>
-          <div onclick="switchPage('applied')" class="metric-card rounded-2xl p-4 cursor-pointer mobile-tap">
-            <div class="flex items-center justify-between mb-1.5">
-              <span class="text-[10px] text-emerald-300/80 uppercase font-mono tracking-wider">Applied</span>
-              <span class="w-6 h-6 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center text-xs">✓</span>
+          <div onclick="switchPage('applied')" class="metric-card rounded-xl p-4 cursor-pointer mobile-tap hover:border-white/15">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[10px] text-zinc-500 uppercase font-mono tracking-wider">Applied</span>
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
             </div>
-            <div class="text-2xl sm:text-3xl font-extrabold text-emerald-400 font-mono" id="m-applied">—</div>
-            <div class="text-[10px] text-slate-400 mt-1">Confirmed on portal</div>
+            <div class="text-2xl font-bold text-zinc-100 font-mono tracking-tight" id="m-applied">—</div>
+            <div class="text-[11px] text-zinc-500 mt-1">Confirmed on portal</div>
           </div>
-          <div onclick="switchPage('drives'); setDrivesFilter('open');" class="metric-card rounded-2xl p-4 cursor-pointer mobile-tap">
-            <div class="flex items-center justify-between mb-1.5">
-              <span class="text-[10px] text-amber-300/80 uppercase font-mono tracking-wider">Active Open</span>
-              <span class="w-6 h-6 rounded-lg bg-amber-500/15 text-amber-400 flex items-center justify-center text-xs">⚡</span>
+          <div onclick="switchPage('drives'); setDrivesFilter('open');" class="metric-card rounded-xl p-4 cursor-pointer mobile-tap hover:border-white/15">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[10px] text-zinc-500 uppercase font-mono tracking-wider">Active Open</span>
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
             </div>
-            <div class="text-2xl sm:text-3xl font-extrabold text-amber-400 font-mono" id="m-open">—</div>
-            <div class="text-[10px] text-slate-400 mt-1">Ready for 1-click apply</div>
+            <div class="text-2xl font-bold text-zinc-100 font-mono tracking-tight" id="m-open">—</div>
+            <div class="text-[11px] text-zinc-500 mt-1">Ready to apply</div>
           </div>
-          <div onclick="switchPage('drives'); setDrivesFilter('eligible');" class="metric-card rounded-2xl p-4 cursor-pointer mobile-tap">
-            <div class="flex items-center justify-between mb-1.5">
-              <span class="text-[10px] text-indigo-300/80 uppercase font-mono tracking-wider">Eligible</span>
-              <span class="w-6 h-6 rounded-lg bg-indigo-500/15 text-indigo-400 flex items-center justify-center text-xs">🎯</span>
+          <div onclick="switchPage('drives'); setDrivesFilter('eligible');" class="metric-card rounded-xl p-4 cursor-pointer mobile-tap hover:border-white/15">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[10px] text-zinc-500 uppercase font-mono tracking-wider">Eligible</span>
+              <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
             </div>
-            <div class="text-2xl sm:text-3xl font-extrabold text-brand-400 font-mono" id="m-eligible">—</div>
-            <div class="text-[10px] text-slate-400 mt-1">Matching criteria</div>
+            <div class="text-2xl font-bold text-zinc-100 font-mono tracking-tight" id="m-eligible">—</div>
+            <div class="text-[11px] text-zinc-500 mt-1">Matching criteria</div>
           </div>
-          <div onclick="switchPage('drives'); setDrivesFilter('closed');" class="col-span-2 lg:col-span-1 metric-card rounded-2xl p-4 cursor-pointer mobile-tap">
-            <div class="flex items-center justify-between mb-1.5">
-              <span class="text-[10px] text-slate-400 uppercase font-mono tracking-wider">Closed / Past</span>
-              <span class="w-6 h-6 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center text-xs">🔒</span>
+          <div onclick="switchPage('drives'); setDrivesFilter('closed');" class="col-span-2 lg:col-span-1 metric-card rounded-xl p-4 cursor-pointer mobile-tap hover:border-white/15">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[10px] text-zinc-500 uppercase font-mono tracking-wider">Closed / Past</span>
+              <span class="w-1.5 h-1.5 rounded-full bg-zinc-600"></span>
             </div>
-            <div class="text-2xl sm:text-3xl font-extrabold text-slate-300 font-mono" id="m-closed">—</div>
-            <div class="text-[10px] text-slate-400 mt-1">Deadline completed</div>
+            <div class="text-2xl font-bold text-zinc-400 font-mono tracking-tight" id="m-closed">—</div>
+            <div class="text-[11px] text-zinc-500 mt-1">Deadline completed</div>
           </div>
         </div>
 
@@ -766,73 +780,71 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       </div>
 
       <!-- ═══ SMART NOTICE FEED & AUTO SHORTLIST SCANNER PAGE ═══ -->
-      <div id="page-notices" class="page hidden p-3.5 sm:p-6 space-y-4">
-        <!-- Scanner & Watchdog Header Card -->
-        <div class="relative overflow-hidden rounded-2xl p-4 sm:p-5 border border-orange-500/25 bg-gradient-to-br from-surface-900/95 via-slate-900/90 to-orange-950/25 shadow-xl">
+      <div id="page-notices" class="page hidden p-3.5 sm:p-6 max-w-5xl mx-auto space-y-5">
+        <!-- Calm Monochrome Scanner & Watchdog Header -->
+        <div class="metric-card rounded-2xl p-4 sm:p-5">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
             <div class="space-y-1 min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
-                <h2 class="text-sm sm:text-base font-extrabold text-white tracking-tight flex items-center gap-2">
-                  <span>📢</span> <span>Smart Notice Feed & Shortlist Scanner</span>
-                </h2>
-                <span id="notices-roll-pill" class="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">Scanning Roll —</span>
+                <h2 class="text-sm sm:text-base font-semibold text-zinc-100 tracking-tight">Smart Notice Feed & Shortlist Scanner</h2>
+                <span id="notices-roll-pill" class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/[0.06] text-zinc-300 border border-white/10">Roll —</span>
               </div>
-              <p class="text-xs text-slate-400">
-                Auto-downloads KIIT shortlist PDFs, checks your roll number & name, extracts venue/date/time, hides duplicate spam, and watches <code class="text-slate-300 font-mono">/pending_actions</code> for job offers.
+              <p class="text-xs text-zinc-400">
+                Scans KIIT shortlist PDFs for your roll number & name, hides duplicate spam, and watches <code class="text-zinc-300 font-mono">/pending_actions</code> for job offers.
               </p>
-              <div class="flex items-center gap-3 flex-wrap pt-1 text-[11px] font-mono text-slate-400">
+              <div class="flex items-center gap-2.5 flex-wrap pt-1 text-[11px] font-mono text-zinc-500">
                 <span id="notices-last-scan">Last scan: —</span>
-                <span class="text-slate-600">•</span>
-                <span id="notices-offer-pill" class="text-emerald-400">🏆 Offer Watchdog: 0 Pending</span>
+                <span>·</span>
+                <span id="notices-offer-pill" class="text-zinc-400">Offer Watchdog: 0 Pending</span>
               </div>
             </div>
             <div class="flex items-center gap-2 flex-shrink-0">
-              <button onclick="scanNoticesLive()" id="notices-scan-btn" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-rose-600 text-white font-bold text-xs shadow-lg shadow-orange-600/25 flex items-center justify-center gap-1.5">
+              <button onclick="scanNoticesLive()" id="notices-scan-btn" class="w-full sm:w-auto px-3.5 py-2 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs flex items-center justify-center gap-1.5">
                 <span id="notices-scan-icon">🔍</span> <span>Scan Shortlist PDFs</span>
               </button>
             </div>
           </div>
         </div>
 
-        <!-- 🔥 Shortlist Matches Spotlight (Pinned when >= 1 match) -->
+        <!-- Upcoming Shortlist Matches Spotlight (Strictly Today / Upcoming — expired dates omitted) -->
         <div id="notices-shortlist-spotlight" class="hidden space-y-2.5"></div>
 
         <!-- Search & Smart Filter Ribbon -->
         <div class="space-y-2.5">
           <div class="flex items-center gap-2">
             <div class="relative flex-1">
-              <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none">🔍</span>
+              <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500 text-xs pointer-events-none">🔍</span>
               <input id="notices-search" type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false"
                 placeholder="Search company, venue, test date, PDF name..."
-                class="w-full bg-surface-900/90 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25 transition-all"
+                class="w-full bg-surface-900 border border-white/[0.08] rounded-xl pl-9 pr-4 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-zinc-500 focus:outline-none"
                 oninput="renderNotices()">
             </div>
-            <label class="hidden sm:flex items-center gap-2 px-3 py-2.5 rounded-xl bg-surface-900/90 border border-white/10 text-xs text-slate-300 cursor-pointer select-none whitespace-nowrap">
-              <input id="notices-show-spam" type="checkbox" onchange="renderNotices()" class="rounded border-slate-700 text-brand-600 focus:ring-0">
+            <label class="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-surface-900 border border-white/[0.08] text-xs text-zinc-400 cursor-pointer select-none whitespace-nowrap">
+              <input id="notices-show-spam" type="checkbox" onchange="renderNotices()" class="rounded border-zinc-700 bg-zinc-900 text-zinc-100 focus:ring-0">
               <span>Show spam (<span id="notices-spam-count">0</span>)</span>
             </label>
           </div>
 
           <!-- Swipeable Category Filter Pills -->
           <div class="pill-carousel flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-            <button onclick="setNoticesFilter('all')" class="notices-filter active px-3.5 py-1.5 rounded-full text-xs font-semibold bg-brand-600 text-white shadow-sm" data-nfilter="all">All Clean <span class="opacity-75 font-mono" id="nf-count-all">0</span></button>
-            <button onclick="setNoticesFilter('shortlisted')" class="notices-filter px-3.5 py-1.5 rounded-full text-xs font-semibold bg-surface-900/90 border border-orange-500/35 text-orange-300" data-nfilter="shortlisted">🔥 Shortlisted <span class="opacity-85 font-mono" id="nf-count-shortlisted">0</span></button>
-            <button onclick="setNoticesFilter('shortlists_tests')" class="notices-filter px-3.5 py-1.5 rounded-full text-xs font-semibold bg-surface-900/90 border border-white/10 text-slate-300" data-nfilter="shortlists_tests">🎯 Shortlists & Tests <span class="opacity-75 font-mono" id="nf-count-tests">0</span></button>
-            <button onclick="setNoticesFilter('deadlines_revisions')" class="notices-filter px-3.5 py-1.5 rounded-full text-xs font-semibold bg-surface-900/90 border border-white/10 text-slate-300" data-nfilter="deadlines_revisions">⏰ Deadlines & Revisions <span class="opacity-75 font-mono" id="nf-count-deadlines">0</span></button>
-            <button onclick="setNoticesFilter('job_openings')" class="notices-filter px-3.5 py-1.5 rounded-full text-xs font-semibold bg-surface-900/90 border border-white/10 text-slate-300" data-nfilter="job_openings">💼 Job Openings <span class="opacity-75 font-mono" id="nf-count-jobs">0</span></button>
+            <button onclick="setNoticesFilter('all')" class="notices-filter active px-3 py-1.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-950" data-nfilter="all">All Clean <span class="opacity-65 font-mono" id="nf-count-all">0</span></button>
+            <button onclick="setNoticesFilter('shortlisted')" class="notices-filter px-3 py-1.5 rounded-full text-xs font-medium bg-surface-900 border border-white/[0.08] text-zinc-300" data-nfilter="shortlisted">Shortlisted <span class="opacity-65 font-mono" id="nf-count-shortlisted">0</span></button>
+            <button onclick="setNoticesFilter('shortlists_tests')" class="notices-filter px-3 py-1.5 rounded-full text-xs font-medium bg-surface-900 border border-white/[0.08] text-zinc-300" data-nfilter="shortlists_tests">Shortlists & Tests <span class="opacity-65 font-mono" id="nf-count-tests">0</span></button>
+            <button onclick="setNoticesFilter('deadlines_revisions')" class="notices-filter px-3 py-1.5 rounded-full text-xs font-medium bg-surface-900 border border-white/[0.08] text-zinc-300" data-nfilter="deadlines_revisions">Deadlines & Revisions <span class="opacity-65 font-mono" id="nf-count-deadlines">0</span></button>
+            <button onclick="setNoticesFilter('job_openings')" class="notices-filter px-3 py-1.5 rounded-full text-xs font-medium bg-surface-900 border border-white/[0.08] text-zinc-300" data-nfilter="job_openings">Job Openings <span class="opacity-65 font-mono" id="nf-count-jobs">0</span></button>
           </div>
-          <div class="flex items-center justify-between text-[11px] font-mono text-slate-400">
+          <div class="flex items-center justify-between text-[11px] font-mono text-zinc-500">
             <span id="notices-result-meta">Loading campus notices...</span>
-            <label class="sm:hidden inline-flex items-center gap-1.5 text-slate-400">
-              <input id="notices-show-spam-mob" type="checkbox" onchange="document.getElementById('notices-show-spam').checked=this.checked; renderNotices();" class="rounded border-slate-700 text-brand-600 focus:ring-0">
+            <label class="sm:hidden inline-flex items-center gap-1.5 text-zinc-500">
+              <input id="notices-show-spam-mob" type="checkbox" onchange="document.getElementById('notices-show-spam').checked=this.checked; renderNotices();" class="rounded border-zinc-700 text-zinc-100 focus:ring-0">
               <span>Show spam</span>
             </label>
           </div>
         </div>
 
         <!-- Notices Feed Container -->
-        <div id="notices-list" class="space-y-3">
-          <div class="metric-card rounded-2xl p-8 text-center text-slate-400 text-xs font-mono">Loading notices from Superset...</div>
+        <div id="notices-list" class="space-y-2.5">
+          <div class="metric-card rounded-xl p-8 text-center text-zinc-500 text-xs font-mono">Loading notices from Superset...</div>
         </div>
       </div>
 
@@ -1354,8 +1366,8 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
           </label>
         </div>
 
-        <button id="auth-submit-btn" type="submit" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 text-white font-bold text-xs shadow-lg shadow-brand-600/30 flex items-center justify-center gap-2">
-          <span>⚡</span> <span id="auth-submit-label">Sign In</span>
+        <button id="auth-submit-btn" type="submit" class="w-full py-2.5 px-4 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs flex items-center justify-center gap-2">
+          <span id="auth-submit-label">Sign In</span>
         </button>
       </form>
     </div>
@@ -1376,25 +1388,25 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 
   <!-- ═══ 1-CLICK NATIVE <dialog> PDF VIEWER (modern-web-guidance compliant) ═══ -->
   <dialog id="pdfViewerDialog" closedby="any" aria-labelledby="pdfViewerTitle">
-    <div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-white/10 bg-surface-950/95 flex-shrink-0">
+    <div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-white/[0.08] bg-surface-950 flex-shrink-0">
       <div class="min-w-0 flex items-center gap-2.5">
-        <span class="w-8 h-8 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-300 flex items-center justify-center text-sm flex-shrink-0">📄</span>
+        <span class="w-8 h-8 rounded-lg bg-white/[0.06] border border-white/10 text-zinc-200 flex items-center justify-center text-sm flex-shrink-0">📄</span>
         <div class="min-w-0">
-          <h2 id="pdfViewerTitle" class="text-xs sm:text-sm font-bold text-white truncate">Attachment Preview</h2>
-          <div id="pdfViewerSubtitle" class="text-[10px] font-mono text-slate-400 truncate">Loading pre-signed PDF...</div>
+          <h2 id="pdfViewerTitle" class="text-xs sm:text-sm font-semibold text-zinc-100 truncate">Attachment Preview</h2>
+          <div id="pdfViewerSubtitle" class="text-[10px] font-mono text-zinc-500 truncate">Loading pre-signed PDF...</div>
         </div>
       </div>
       <div class="flex items-center gap-1.5 flex-shrink-0">
-        <a id="pdfViewerNewTab" href="#" target="_blank" rel="noopener noreferrer" class="hidden px-2.5 py-1.5 rounded-lg bg-surface-800 border border-white/10 text-slate-200 text-xs font-semibold">↗ Open</a>
-        <a id="pdfViewerDownload" href="#" download class="hidden px-2.5 py-1.5 rounded-lg bg-brand-600/90 text-white text-xs font-semibold">⬇ Save</a>
+        <a id="pdfViewerNewTab" href="#" target="_blank" rel="noopener noreferrer" class="hidden px-2.5 py-1.5 rounded-lg bg-white/[0.06] border border-white/10 text-zinc-200 text-xs font-medium">↗ Open</a>
+        <a id="pdfViewerDownload" href="#" download class="hidden px-2.5 py-1.5 rounded-lg bg-zinc-100 text-zinc-950 text-xs font-semibold">⬇ Save</a>
         <form method="dialog" class="inline">
-          <button type="submit" autofocus aria-label="Close PDF viewer" class="w-8 h-8 rounded-full bg-surface-800/90 border border-white/10 text-slate-300 hover:text-white flex items-center justify-center text-sm">✕</button>
+          <button type="submit" autofocus aria-label="Close PDF viewer" class="w-8 h-8 rounded-full bg-white/[0.06] border border-white/10 text-zinc-400 hover:text-zinc-100 flex items-center justify-center text-sm">✕</button>
         </form>
       </div>
     </div>
-    <div id="pdfViewerMatchBanner" class="hidden px-4 py-2.5 bg-gradient-to-r from-orange-950/90 via-rose-950/80 to-amber-950/80 border-b border-orange-500/35 text-xs text-orange-100 flex-shrink-0"></div>
-    <div id="pdfViewerBody" class="flex-1 bg-slate-950 relative overflow-hidden flex items-center justify-center">
-      <div class="text-slate-400 font-mono text-xs">Loading document...</div>
+    <div id="pdfViewerMatchBanner" class="hidden px-4 py-2.5 bg-[#151410] border-b border-amber-400/25 text-xs text-zinc-200 flex-shrink-0"></div>
+    <div id="pdfViewerBody" class="flex-1 bg-surface-950 relative overflow-hidden flex items-center justify-center">
+      <div class="text-zinc-500 font-mono text-xs">Loading document...</div>
     </div>
   </dialog>
 
@@ -1424,18 +1436,7 @@ let drivesView = 'grid';
 const esc = s => { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; };
 
 function getCompanyAvatarStyle(name) {
-  const palettes = [
-    'from-indigo-500 to-purple-600 shadow-indigo-500/25',
-    'from-emerald-500 to-teal-600 shadow-emerald-500/25',
-    'from-rose-500 to-orange-500 shadow-rose-500/25',
-    'from-cyan-500 to-blue-600 shadow-cyan-500/25',
-    'from-amber-500 to-orange-600 shadow-amber-500/25',
-    'from-fuchsia-500 to-pink-600 shadow-fuchsia-500/25'
-  ];
-  let hash = 0;
-  const s = String(name || 'Company');
-  for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
-  return palettes[hash % palettes.length];
+  return 'bg-zinc-900 border-white/10 text-zinc-200';
 }
 
 function getCompanyInitials(name) {
@@ -1447,14 +1448,14 @@ function getCompanyInitials(name) {
 function toast(msg, type = 'info') {
   const container = document.getElementById('toast-container');
   const colors = {
-    success: 'bg-emerald-950/95 border-emerald-500/50 text-emerald-100 shadow-emerald-950/50',
-    error: 'bg-red-950/95 border-red-500/50 text-red-100 shadow-red-950/50',
-    warn: 'bg-amber-950/95 border-amber-500/50 text-amber-100 shadow-amber-950/50',
-    info: 'bg-slate-900/95 border-indigo-500/40 text-slate-100 shadow-slate-950/50'
+    success: 'bg-[#121614] border-emerald-500/30 text-zinc-100',
+    error: 'bg-[#181214] border-rose-500/30 text-zinc-100',
+    warn: 'bg-[#171510] border-amber-500/30 text-zinc-100',
+    info: 'bg-[#141418] border-white/15 text-zinc-100'
   };
   const icons = { success: '✓', error: '✕', warn: '⚠', info: 'ℹ' };
   const el = document.createElement('div');
-  el.className = `toast rounded-2xl px-4 py-3 border text-xs font-medium shadow-2xl flex items-start gap-3 ${colors[type] || colors.info}`;
+  el.className = `toast rounded-xl px-4 py-3 border text-xs font-medium shadow-xl flex items-start gap-3 ${colors[type] || colors.info}`;
   el.innerHTML = `<span class="text-sm mt-0.5 font-bold">${icons[type] || icons.info}</span><div class="flex-1 break-words leading-relaxed">${esc(msg)}</div><button onclick="this.parentElement.remove()" class="text-current opacity-60 hover:opacity-100 ml-2">✕</button>`;
   container.appendChild(el);
   setTimeout(() => { if (el.parentElement) { el.classList.add('removing'); setTimeout(() => el.remove(), 200); } }, 6000);
@@ -1481,10 +1482,10 @@ function getCtcLevel(j) {
 function getJobBadge(j) {
   const isApplied = j.is_applied || j.app_status === 'APPLIED';
   const isClosed = isJobClosed(j);
-  if (isApplied) return '<span class="badge-applied text-[10px] font-mono px-2.5 py-1 rounded-full font-semibold flex-shrink-0">✓ Applied</span>';
-  if (!isClosed && j.is_eligible) return '<span class="badge-open text-[10px] font-mono px-2.5 py-1 rounded-full font-semibold animate-pulse-slow flex-shrink-0">⚡ Open</span>';
-  if (isClosed) return '<span class="badge-closed text-[10px] font-mono px-2.5 py-1 rounded-full font-semibold flex-shrink-0">Closed</span>';
-  return '<span class="badge-ineligible text-[10px] font-mono px-2.5 py-1 rounded-full font-semibold flex-shrink-0">Ineligible</span>';
+  if (isApplied) return '<span class="badge-applied text-[10px] font-mono px-2.5 py-0.5 rounded-full font-medium flex-shrink-0 inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>Applied</span>';
+  if (!isClosed && j.is_eligible) return '<span class="badge-open text-[10px] font-mono px-2.5 py-0.5 rounded-full font-medium flex-shrink-0 inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>Open</span>';
+  if (isClosed) return '<span class="badge-closed text-[10px] font-mono px-2.5 py-0.5 rounded-full font-medium flex-shrink-0">Closed</span>';
+  return '<span class="badge-ineligible text-[10px] font-mono px-2.5 py-0.5 rounded-full font-medium flex-shrink-0">Ineligible</span>';
 }
 
 function getJobActions(j) {
@@ -1492,14 +1493,14 @@ function getJobActions(j) {
   const isClosed = isJobClosed(j);
   let html = '';
   if (!isApplied && !isClosed && j.is_eligible) {
-    html += `<button onclick="applyToJob('${j.id}','${esc(j.company_name)}','${esc(j.job_role)}')" class="flex-1 min-h-[42px] py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-brand-600/25"><span>⚡</span> <span>Apply Now</span></button>`;
+    html += `<button onclick="applyToJob('${j.id}','${esc(j.company_name)}','${esc(j.job_role)}')" class="flex-1 min-h-[40px] py-2 px-3.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold flex items-center justify-center gap-1.5"><span>Apply Now</span></button>`;
   } else if (isApplied) {
-    html += `<button disabled class="flex-1 min-h-[42px] py-2.5 px-3.5 rounded-xl bg-emerald-500/10 text-emerald-300 text-xs font-bold cursor-default border border-emerald-500/25 flex items-center justify-center gap-1.5"><span>✓</span> <span>Applied on Superset</span></button>`;
+    html += `<button disabled class="flex-1 min-h-[40px] py-2 px-3.5 rounded-lg bg-white/[0.04] text-emerald-300/90 text-xs font-medium cursor-default border border-white/[0.08] flex items-center justify-center gap-1.5"><span>✓</span> <span>Applied</span></button>`;
   } else {
-    html += `<button disabled class="flex-1 min-h-[42px] py-2.5 px-3.5 rounded-xl bg-surface-800/60 text-slate-500 text-xs font-semibold cursor-not-allowed border border-white/5">${isClosed ? 'Deadline Passed' : 'Not Eligible'}</button>`;
+    html += `<button disabled class="flex-1 min-h-[40px] py-2 px-3.5 rounded-lg bg-white/[0.03] text-zinc-500 text-xs font-medium cursor-not-allowed border border-white/[0.05]">${isClosed ? 'Deadline Passed' : 'Not Eligible'}</button>`;
   }
-  html += `<button onclick="showJobQuestions('${j.id}', '${esc(j.company_name)}')" class="min-w-[42px] min-h-[42px] p-2.5 rounded-xl bg-surface-800/80 text-purple-300 border border-white/10 transition-all text-xs flex items-center justify-center" title="Inspect Custom Questions & Answers">📝</button>`;
-  html += `<a href="${j.profile_url || '#'}" target="_blank" class="min-w-[42px] min-h-[42px] p-2.5 rounded-xl bg-surface-800/80 text-slate-300 border border-white/10 transition-all text-xs flex items-center justify-center" title="Open on Superset Portal">↗</a>`;
+  html += `<button onclick="showJobQuestions('${j.id}', '${esc(j.company_name)}')" class="min-w-[40px] min-h-[40px] p-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.08] text-xs flex items-center justify-center" title="Inspect Custom Questions & Answers">📝</button>`;
+  html += `<a href="${j.profile_url || '#'}" target="_blank" class="min-w-[40px] min-h-[40px] p-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.08] text-xs flex items-center justify-center" title="Open on Superset Portal">↗</a>`;
   return html;
 }
 
@@ -1508,9 +1509,16 @@ function getJobActions(j) {
 // ═══════════════════════════════════════════════════════════════════
 function switchPage(page) {
   currentPage = page;
-  document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+  document.querySelectorAll('.page').forEach(p => {
+    p.classList.add('hidden');
+    p.classList.remove('page-enter');
+  });
   const target = document.getElementById('page-' + page);
-  if (target) target.classList.remove('hidden');
+  if (target) {
+    target.classList.remove('hidden');
+    target.classList.add('page-enter');
+  }
+  window.scrollTo({ top: 0, behavior: 'instant' });
 
   // Update desktop nav
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -1876,8 +1884,8 @@ function updateDashboardMetrics() {
   ctcEl.innerHTML = sortedCtc.map(([cat, count]) => {
     const pct = Math.round((count / maxCtc) * 100);
     return `<div>
-      <div class="flex justify-between text-[11px] mb-1"><span class="text-slate-300 truncate mr-2">${esc(cat)}</span><span class="text-white font-mono font-semibold">${count}</span></div>
-      <div class="h-1.5 rounded-full bg-surface-800 overflow-hidden"><div class="h-full rounded-full bg-gradient-to-r from-brand-500 to-purple-500" style="width:${pct}%"></div></div>
+      <div class="flex justify-between text-[11px] mb-1"><span class="text-zinc-300 truncate mr-2">${esc(cat)}</span><span class="text-zinc-100 font-mono font-medium">${count}</span></div>
+      <div class="h-1 rounded-full bg-zinc-800 overflow-hidden"><div class="h-full rounded-full bg-zinc-200/85" style="width:${pct}%"></div></div>
     </div>`;
   }).join('');
 
@@ -1893,8 +1901,8 @@ function updateDashboardMetrics() {
   locEl.innerHTML = sortedLoc.map(([loc, count]) => {
     const pct = Math.round((count / maxLoc) * 100);
     return `<div>
-      <div class="flex justify-between text-[11px] mb-1"><span class="text-slate-300 truncate mr-2">${esc(loc)}</span><span class="text-white font-mono font-semibold">${count}</span></div>
-      <div class="h-1.5 rounded-full bg-surface-800 overflow-hidden"><div class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400" style="width:${pct}%"></div></div>
+      <div class="flex justify-between text-[11px] mb-1"><span class="text-zinc-300 truncate mr-2">${esc(loc)}</span><span class="text-zinc-100 font-mono font-medium">${count}</span></div>
+      <div class="h-1 rounded-full bg-zinc-800 overflow-hidden"><div class="h-full rounded-full bg-zinc-400/80" style="width:${pct}%"></div></div>
     </div>`;
   }).join('');
 }
@@ -1906,9 +1914,9 @@ function setDrivesFilter(f) {
   drivesFilter = f;
   document.querySelectorAll('.drives-filter').forEach(b => {
     if (b.dataset.filter === f) {
-      b.className = 'drives-filter active px-3.5 py-1.5 rounded-full text-xs font-semibold bg-brand-600 text-white shadow-sm shadow-brand-600/30';
+      b.className = 'drives-filter active px-3.5 py-1.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-950';
     } else {
-      b.className = 'drives-filter px-3.5 py-1.5 rounded-full text-xs font-semibold bg-surface-900/90 border border-white/10 text-slate-300';
+      b.className = 'drives-filter px-3.5 py-1.5 rounded-full text-xs font-medium bg-surface-900 border border-white/[0.08] text-zinc-300';
     }
   });
   renderDrives();
@@ -1918,9 +1926,9 @@ function setCtcFilter(tier) {
   ctcFilter = tier;
   document.querySelectorAll('.ctc-filter').forEach(b => {
     if (b.dataset.ctc === tier) {
-      b.className = 'ctc-filter active px-3 py-1.5 rounded-full text-[11px] font-semibold bg-brand-600 text-white shadow-sm shadow-brand-600/30';
+      b.className = 'ctc-filter active px-3 py-1.5 rounded-full text-[11px] font-medium bg-zinc-100 text-zinc-950';
     } else {
-      b.className = 'ctc-filter px-3 py-1.5 rounded-full text-[11px] font-semibold bg-surface-900/90 border border-white/10 text-slate-300';
+      b.className = 'ctc-filter px-3 py-1.5 rounded-full text-[11px] font-medium bg-surface-900 border border-white/[0.08] text-zinc-300';
     }
   });
   renderDrives();
@@ -1977,43 +1985,44 @@ function renderDrives() {
   // Grid
   const grid = document.getElementById('drives-grid');
   if (jobs.length === 0) {
-    grid.innerHTML = '<div class="col-span-full text-center py-16 text-slate-400"><div class="text-4xl mb-2">📭</div><div class="text-sm font-medium">No drives match your current filters</div></div>';
+    grid.innerHTML = '<div class="col-span-full text-center py-16 text-zinc-500"><div class="text-3xl mb-2">📭</div><div class="text-sm font-medium">No drives match your current filters</div></div>';
   } else {
-    grid.innerHTML = jobs.map(j => {
+    grid.innerHTML = jobs.map((j, idx) => {
       const initials = getCompanyInitials(j.company_name);
-      const avatarGradient = getCompanyAvatarStyle(j.company_name);
+      const avatarStyle = getCompanyAvatarStyle(j.company_name);
       const sector = j.raw?.sectorName || '';
       const posType = j.raw?.positionTypeLabel || '';
+      const deferClass = idx >= 6 ? 'deferred-card' : '';
       return `
-        <div class="job-card rounded-2xl p-4 sm:p-5 flex flex-col gap-3.5">
+        <div class="job-card ${deferClass} rounded-xl p-4 sm:p-5 flex flex-col gap-3">
           <div class="flex items-start justify-between gap-3">
             <div class="flex items-center gap-3 min-w-0">
-              <div class="w-11 h-11 rounded-2xl bg-gradient-to-br ${avatarGradient} border border-white/20 shadow-lg flex items-center justify-center font-extrabold text-white text-xs tracking-wider flex-shrink-0">${initials}</div>
+              <div class="w-10 h-10 rounded-lg ${avatarStyle} border flex items-center justify-center font-semibold text-xs tracking-wide flex-shrink-0">${initials}</div>
               <div class="min-w-0">
-                <h3 class="font-bold text-sm text-white truncate leading-snug">${esc(j.company_name)}</h3>
-                <div class="text-xs text-indigo-200/80 truncate mt-0.5">${esc(j.job_role)}</div>
+                <h3 class="font-semibold text-sm text-zinc-100 truncate leading-snug">${esc(j.company_name)}</h3>
+                <div class="text-xs text-zinc-400 truncate mt-0.5">${esc(j.job_role)}</div>
               </div>
             </div>
             ${getJobBadge(j)}
           </div>
           <div class="grid grid-cols-2 gap-2 text-[11px]">
-            <div class="p-2.5 rounded-xl bg-surface-950/70 border border-white/5">
-              <div class="text-[9px] text-slate-400 uppercase font-mono mb-0.5 flex items-center gap-1"><span>💰</span> CTC Package</div>
-              <div class="font-bold text-white truncate font-mono text-[11px]">${esc(j.ctc_display || 'As per Policy')}</div>
+            <div class="p-2.5 rounded-lg bg-surface-950 border border-white/[0.06]">
+              <div class="text-[9px] text-zinc-500 uppercase font-mono mb-0.5">CTC Package</div>
+              <div class="font-semibold text-zinc-100 truncate font-mono text-[11px]">${esc(j.ctc_display || 'As per Policy')}</div>
             </div>
-            <div class="p-2.5 rounded-xl bg-surface-950/70 border border-white/5">
-              <div class="text-[9px] text-slate-400 uppercase font-mono mb-0.5 flex items-center gap-1"><span>📍</span> Location</div>
-              <div class="font-semibold text-slate-200 truncate text-[11px]">${esc(j.location || 'Pan India')}</div>
+            <div class="p-2.5 rounded-lg bg-surface-950 border border-white/[0.06]">
+              <div class="text-[9px] text-zinc-500 uppercase font-mono mb-0.5">Location</div>
+              <div class="font-medium text-zinc-300 truncate text-[11px]">${esc(j.location || 'Pan India')}</div>
             </div>
           </div>
           ${sector || posType ? `<div class="flex flex-wrap gap-1.5">
-            ${sector ? `<span class="text-[9px] font-mono px-2.5 py-0.5 rounded-full bg-surface-800/80 text-slate-300 border border-white/5">${esc(sector)}</span>` : ''}
-            ${posType ? `<span class="text-[9px] font-mono px-2.5 py-0.5 rounded-full bg-indigo-950/60 text-indigo-300 border border-indigo-500/20">${esc(posType)}</span>` : ''}
+            ${sector ? `<span class="text-[10px] font-mono px-2 py-0.5 rounded bg-white/[0.04] text-zinc-400 border border-white/[0.06]">${esc(sector)}</span>` : ''}
+            ${posType ? `<span class="text-[10px] font-mono px-2 py-0.5 rounded bg-white/[0.04] text-zinc-400 border border-white/[0.06]">${esc(posType)}</span>` : ''}
           </div>` : ''}
-          <div class="text-[10px] text-slate-400 font-mono flex items-center justify-between">
-            <span class="flex items-center gap-1.5">⏰ ${esc(j.deadline_display || 'Open Window')}</span>
+          <div class="text-[11px] text-zinc-500 font-mono flex items-center justify-between">
+            <span>${esc(j.deadline_display || 'Open Window')}</span>
           </div>
-          <div class="flex items-center gap-2 pt-2.5 border-t border-white/10 mt-auto">
+          <div class="flex items-center gap-2 pt-2.5 border-t border-white/[0.06] mt-auto">
             ${getJobActions(j)}
           </div>
         </div>`;
@@ -3185,10 +3194,11 @@ async function scanNoticesLive() {
       renderNotices();
       const c = data.counts || {};
       const s = data.scan_stats || {};
-      if ((c.shortlisted || 0) > 0) {
-        toast(`🔥 ${c.shortlisted} SHORTLIST MATCH(ES) FOUND! Scanned ${s.pdfs_scanned_total || 0} PDFs (${s.pdfs_downloaded_now || 0} fresh).`, 'success');
+      const upCount = c.shortlisted_upcoming ?? 0;
+      if (upCount > 0) {
+        toast(`${upCount} upcoming shortlist match(es) active! Scanned ${s.pdfs_scanned_total || 0} PDFs.`, 'success');
       } else {
-        toast(`Scanned ${s.pdfs_scanned_total || 0} PDFs across ${c.clean || 0} notices. Offer Watchdog: ${c.pending_offers || 0} pending.`, 'success');
+        toast(`Scanned ${s.pdfs_scanned_total || 0} PDFs across ${c.clean || 0} notices (${c.shortlisted_past || 0} past archive).`, 'success');
       }
     } else {
       toast((data && (data.message || data.error)) || 'Notice scan could not complete.', 'warn');
@@ -3203,36 +3213,33 @@ async function scanNoticesLive() {
 
 function updateNoticeBadgesAndBanners() {
   const c = noticesPayload.counts || {};
-  const shortlistedCount = c.shortlisted || 0;
+  const upcomingShortlisted = c.shortlisted_upcoming ?? (noticesPayload.upcoming_shortlisted_notices || []).length;
+  const totalShortlisted = c.shortlisted || 0;
   const cleanCount = c.clean || 0;
   const pendingCount = c.pending_offers || 0;
 
-  // Sidebar, Drawer, and Mobile Dock badges
+  // Sidebar, Drawer, and Mobile Dock badges — highlight ONLY UPCOMING / TODAY shortlists!
   const navBadge = document.getElementById('badge-nav-notices');
   const drawerBadge = document.getElementById('drawer-badge-notices');
   const mobBadge = document.getElementById('mobile-badge-notices');
 
   if (navBadge) {
-    if (shortlistedCount > 0) {
-      navBadge.textContent = `🔥 ${shortlistedCount}`;
-      navBadge.className = 'sidebar-label text-[10px] font-mono px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-300 border border-orange-500/40 font-bold';
+    if (upcomingShortlisted > 0) {
+      navBadge.textContent = String(upcomingShortlisted);
+      navBadge.className = 'sidebar-label text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-300 border border-amber-400/30 font-semibold';
     } else {
       navBadge.textContent = cleanCount || '0';
-      navBadge.className = 'sidebar-label text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-800 text-slate-400';
+      navBadge.className = 'sidebar-label text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-zinc-400';
     }
   }
   if (drawerBadge) {
-    drawerBadge.textContent = shortlistedCount > 0 ? `🔥 ${shortlistedCount}` : String(cleanCount || 0);
+    drawerBadge.textContent = upcomingShortlisted > 0 ? `${upcomingShortlisted} active` : String(cleanCount || 0);
   }
   if (mobBadge) {
-    if (shortlistedCount > 0) {
-      mobBadge.textContent = `🔥${shortlistedCount}`;
+    if (upcomingShortlisted > 0) {
+      mobBadge.textContent = String(upcomingShortlisted);
       mobBadge.classList.remove('hidden');
-      mobBadge.className = 'absolute -top-1 -right-2 px-1.5 py-0.2 rounded-full bg-orange-600 text-white font-mono text-[8px] font-bold shadow';
-    } else if (c.shortlists_tests > 0) {
-      mobBadge.textContent = String(c.shortlists_tests);
-      mobBadge.classList.remove('hidden');
-      mobBadge.className = 'absolute -top-1 -right-1.5 px-1.5 py-0.2 rounded-full bg-brand-600 text-white font-mono text-[8px] font-bold shadow';
+      mobBadge.className = 'absolute -top-1 -right-1.5 px-1.5 py-0.2 rounded-full bg-amber-400 text-zinc-950 font-mono text-[8px] font-bold';
     } else {
       mobBadge.classList.add('hidden');
     }
@@ -3242,11 +3249,11 @@ function updateNoticeBadgesAndBanners() {
   const dashOffer = document.getElementById('dash-offer-watchdog');
   if (dashOffer) {
     if (pendingCount > 0) {
-      dashOffer.textContent = `🏆 ${pendingCount} PENDING OFFER!`;
-      dashOffer.className = 'font-mono font-bold text-amber-300 animate-pulse';
+      dashOffer.textContent = `${pendingCount} PENDING OFFER`;
+      dashOffer.className = 'font-mono font-semibold text-amber-300';
     } else {
-      dashOffer.textContent = 'ACTIVE • 0 Pending';
-      dashOffer.className = 'font-mono font-semibold text-emerald-400';
+      dashOffer.textContent = 'ACTIVE · 0 Pending';
+      dashOffer.className = 'font-mono font-medium text-emerald-400';
     }
   }
 
@@ -3256,23 +3263,23 @@ function updateNoticeBadgesAndBanners() {
   const offerPill = document.getElementById('notices-offer-pill');
   if (rollPill) {
     const r = noticesPayload.student_roll || statusData.student_id || 'Profile';
-    rollPill.textContent = `Auto-Scan Roll: ${r}`;
+    rollPill.textContent = `Roll ${r}`;
   }
   if (lastScanEl) lastScanEl.textContent = `Last scan: ${noticesPayload.last_scanned_display || '—'}`;
   if (offerPill) {
     if (pendingCount > 0) {
-      offerPill.textContent = `🏆 Offer Watchdog: ${pendingCount} ACTION REQUIRED!`;
-      offerPill.className = 'text-amber-300 font-bold';
+      offerPill.textContent = `Offer Watchdog: ${pendingCount} Action Required`;
+      offerPill.className = 'text-amber-300 font-medium';
     } else {
-      offerPill.textContent = `🏆 Offer Watchdog: 0 Pending (${noticesPayload.pending_checked_display || 'Active'})`;
-      offerPill.className = 'text-emerald-400';
+      offerPill.textContent = `Offer Watchdog: 0 Pending`;
+      offerPill.className = 'text-zinc-400';
     }
   }
 
   // Filter pill counts
   const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = String(v ?? 0); };
   setTxt('nf-count-all', c.clean || 0);
-  setTxt('nf-count-shortlisted', shortlistedCount);
+  setTxt('nf-count-shortlisted', totalShortlisted);
   setTxt('nf-count-tests', c.shortlists_tests || 0);
   setTxt('nf-count-deadlines', c.deadlines_revisions || 0);
   setTxt('nf-count-jobs', c.job_openings || 0);
@@ -3294,21 +3301,20 @@ function renderPendingOfferBanner() {
 
   container.classList.remove('hidden');
   container.innerHTML = actions.map(a => `
-    <div class="rounded-2xl p-4 sm:p-5 border border-amber-400/50 bg-gradient-to-r from-amber-950/90 via-yellow-950/75 to-emerald-950/80 shadow-2xl shadow-amber-900/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-      <div class="flex items-start gap-3 min-w-0">
-        <div class="w-11 h-11 rounded-xl bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-2xl flex-shrink-0">🏆</div>
-        <div class="min-w-0">
-          <div class="flex items-center gap-2 flex-wrap">
-            <span class="text-[10px] font-mono font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400/25 text-amber-200 border border-amber-300/40">PENDING JOB OFFER • ACTION REQUIRED</span>
-            ${a.hours_left !== null && a.hours_left !== undefined ? `<span class="text-[10px] font-mono font-bold text-rose-300">⏳ ${esc(String(a.hours_left))}h remaining</span>` : ''}
-          </div>
-          <div class="text-sm sm:text-base font-extrabold text-white mt-1 truncate">${esc(a.company_name)} — ${esc(a.title)}</div>
-          <div class="text-xs font-mono text-amber-200/90 mt-0.5">⏰ Acceptance Deadline: ${esc(a.deadline_display || 'Check Superset immediately')}</div>
+    <div class="rounded-xl p-4 sm:p-5 border border-white/10 border-l-2 border-l-amber-400 bg-[#13120f] max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div class="space-y-1 min-w-0">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="badge-shortlisted text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider inline-flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>Pending Job Offer
+          </span>
+          ${a.hours_left !== null && a.hours_left !== undefined ? `<span class="text-[11px] font-mono text-zinc-400">${esc(String(a.hours_left))}h left</span>` : ''}
         </div>
+        <div class="text-sm sm:text-base font-semibold text-zinc-50 truncate">${esc(a.company_name)} — ${esc(a.title)}</div>
+        <div class="text-xs font-mono text-zinc-400">Deadline: ${esc(a.deadline_display || 'Check Superset immediately')}</div>
       </div>
       <a href="${esc(a.portal_url || 'https://app.joinsuperset.com/students/')}" target="_blank" rel="noopener noreferrer"
-        class="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-xs shadow-lg flex items-center justify-center gap-1.5 flex-shrink-0">
-        <span>🚀</span> <span>Respond on Superset</span>
+        class="px-4 py-2 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs flex items-center justify-center gap-1.5 flex-shrink-0">
+        <span>Respond on Superset ↗</span>
       </a>
     </div>
   `).join('');
@@ -3319,27 +3325,27 @@ function renderShortlistCardHtml(n, compact = false) {
   const ev = n.event_details || {};
   const matchPdf = m.attachment_id ? (n.attachments || []).find(a => a.id === m.attachment_id) : null;
   const pageNum = m.page_number || 1;
+  const dateStatus = ev.date_status_label ? ` · ${ev.date_status_label}` : '';
+  const metaParts = [ev.event_type, ev.date, ev.time, ev.venue].filter(Boolean);
+
   return `
-    <div class="rounded-2xl p-4 border border-orange-500/45 bg-gradient-to-br from-orange-950/60 via-rose-950/35 to-surface-900/95 shadow-xl shadow-orange-950/30">
-      <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+    <div class="rounded-xl p-4 sm:p-5 bg-[#121216] border border-white/[0.09] border-l-2 border-l-amber-400/85">
+      <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3.5">
         <div class="space-y-1.5 min-w-0 flex-1">
           <div class="flex items-center gap-2 flex-wrap">
-            <span class="badge-shortlisted text-[10px] font-mono px-2.5 py-0.5 rounded-full font-extrabold uppercase tracking-wider">🔥 YOU ARE SHORTLISTED!</span>
-            <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-surface-950/80 border border-white/10 text-orange-200">${esc(m.match_type || 'MATCH')} • ${esc(m.attachment_name || 'Notice')}${m.page_number ? ' (p.' + m.page_number + ')' : ''}</span>
+            <span class="badge-shortlisted text-[10px] font-mono px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wider inline-flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>Shortlisted${esc(dateStatus)}
+            </span>
+            <span class="text-[11px] font-mono text-zinc-500">Page ${pageNum} · ${esc(m.match_type === 'EXACT_ROLL' ? 'Roll Verified' : (m.match_type || 'Matched'))}</span>
           </div>
-          <div class="text-sm font-extrabold text-white leading-snug">${esc(n.title)}</div>
-          <div class="flex items-center gap-2 flex-wrap pt-0.5 text-[11px] font-mono">
-            ${ev.event_type ? `<span class="px-2 py-0.5 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-200">🎯 ${esc(ev.event_type)}</span>` : ''}
-            ${ev.date ? `<span class="px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-200">📅 ${esc(ev.date)}</span>` : ''}
-            ${ev.time ? `<span class="px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-200">🕒 ${esc(ev.time)}</span>` : ''}
-            ${ev.venue ? `<span class="px-2 py-0.5 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-200">📍 ${esc(ev.venue)}</span>` : ''}
-          </div>
-          ${m.matched_line ? `<div class="mt-1.5 p-2 rounded-xl bg-surface-950/80 border border-orange-500/25 text-[11px] font-mono text-orange-100/90 break-all">Matched row: ${esc(m.matched_line)}</div>` : ''}
+          <div class="text-sm font-semibold text-zinc-50 leading-snug">${esc(n.title)}</div>
+          ${metaParts.length ? `<div class="text-xs text-zinc-300 leading-relaxed">${metaParts.map(p => `<span>${esc(p)}</span>`).join('<span class="text-zinc-600 mx-1.5">·</span>')}</div>` : ''}
+          ${m.matched_line ? `<div class="pt-1 text-[11px] font-mono text-zinc-500 truncate" title="${esc(m.matched_line)}">${esc(m.matched_line)}</div>` : ''}
         </div>
         <div class="flex sm:flex-col gap-2 flex-shrink-0">
-          ${matchPdf ? `<button onclick="openPdfByAttachment('${encodeURIComponent(n.id)}','${encodeURIComponent(matchPdf.id)}',${pageNum})" class="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-rose-600 text-white font-bold text-xs shadow-lg flex items-center justify-center gap-1.5 whitespace-nowrap"><span>📄</span> <span>View PDF (p.${pageNum})</span></button>` : ''}
-          ${ev.meeting_link ? `<a href="${esc(ev.meeting_link)}" target="_blank" rel="noopener noreferrer" class="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-emerald-600/90 text-white font-bold text-xs flex items-center justify-center gap-1.5 whitespace-nowrap"><span>🎥</span> <span>Join Meet</span></a>` : ''}
-          ${compact ? `<button onclick="switchPage('notices'); setNoticesFilter('shortlisted');" class="px-3 py-2 rounded-xl bg-surface-900/90 border border-white/15 text-slate-200 text-xs font-semibold whitespace-nowrap">All Notices →</button>` : ''}
+          ${matchPdf ? `<button onclick="openPdfByAttachment('${encodeURIComponent(n.id)}','${encodeURIComponent(matchPdf.id)}',${pageNum})" class="flex-1 sm:flex-none px-3.5 py-2 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs flex items-center justify-center gap-1.5 whitespace-nowrap"><span>View PDF (p.${pageNum})</span></button>` : ''}
+          ${ev.meeting_link ? `<a href="${esc(ev.meeting_link)}" target="_blank" rel="noopener noreferrer" class="flex-1 sm:flex-none px-3.5 py-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-zinc-100 font-medium text-xs flex items-center justify-center gap-1.5 whitespace-nowrap"><span>Join Meet ↗</span></a>` : ''}
+          ${compact ? `<button onclick="switchPage('notices'); setNoticesFilter('shortlisted');" class="px-3 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-zinc-300 text-xs font-medium whitespace-nowrap">Notices →</button>` : ''}
         </div>
       </div>
     </div>
@@ -3349,14 +3355,16 @@ function renderShortlistCardHtml(n, compact = false) {
 function renderDashboardShortlistStrip() {
   const strip = document.getElementById('dashboard-shortlist-strip');
   if (!strip) return;
-  const hits = noticesPayload.shortlisted_notices || [];
-  if (!hits.length) {
+  // Strictly show ONLY TODAY / UPCOMING shortlists on Homepage (never passed dates!)
+  const upcomingHits = noticesPayload.upcoming_shortlisted_notices
+    || (noticesPayload.shortlisted_notices || []).filter(n => !n.is_past_event);
+  if (!upcomingHits.length) {
     strip.classList.add('hidden');
     strip.innerHTML = '';
     return;
   }
   strip.classList.remove('hidden');
-  strip.innerHTML = hits.slice(0, 3).map(n => renderShortlistCardHtml(n, true)).join('');
+  strip.innerHTML = upcomingHits.slice(0, 3).map(n => renderShortlistCardHtml(n, true)).join('');
 }
 
 function setNoticesFilter(f) {
@@ -3364,13 +3372,9 @@ function setNoticesFilter(f) {
   document.querySelectorAll('.notices-filter').forEach(btn => {
     const active = btn.dataset.nfilter === f;
     if (active) {
-      btn.className = f === 'shortlisted'
-        ? 'notices-filter active px-3.5 py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-orange-500 to-rose-600 text-white shadow'
-        : 'notices-filter active px-3.5 py-1.5 rounded-full text-xs font-semibold bg-brand-600 text-white shadow-sm';
+      btn.className = 'notices-filter active px-3 py-1.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-950';
     } else {
-      btn.className = btn.dataset.nfilter === 'shortlisted'
-        ? 'notices-filter px-3.5 py-1.5 rounded-full text-xs font-semibold bg-surface-900/90 border border-orange-500/35 text-orange-300'
-        : 'notices-filter px-3.5 py-1.5 rounded-full text-xs font-semibold bg-surface-900/90 border border-white/10 text-slate-300';
+      btn.className = 'notices-filter px-3 py-1.5 rounded-full text-xs font-medium bg-surface-900 border border-white/[0.08] text-zinc-300';
     }
   });
   renderNotices();
@@ -3389,18 +3393,19 @@ function renderNotices() {
   if (!listEl) return;
 
   const allNotices = noticesPayload.notices || [];
-  const hits = noticesPayload.shortlisted_notices || [];
+  const upcomingHits = noticesPayload.upcoming_shortlisted_notices
+    || (noticesPayload.shortlisted_notices || []).filter(n => !n.is_past_event);
 
-  // Pinned spotlight when not already viewing the Shortlisted-only tab
+  // Pinned spotlight shows ONLY upcoming/today shortlists (never expired past dates!)
   if (spotEl) {
-    if (hits.length > 0 && noticesFilter !== 'shortlisted') {
+    if (upcomingHits.length > 0 && noticesFilter !== 'shortlisted') {
       spotEl.classList.remove('hidden');
       spotEl.innerHTML = `
-        <div class="flex items-center justify-between px-1">
-          <span class="text-xs font-extrabold uppercase tracking-wider text-orange-300 flex items-center gap-1.5">🔥 Shortlist Matches Detected (${hits.length})</span>
-          <button onclick="setNoticesFilter('shortlisted')" class="text-[11px] font-mono text-orange-300 hover:underline">View only shortlisted →</button>
+        <div class="flex items-center justify-between px-0.5">
+          <span class="text-[11px] font-mono uppercase tracking-wider text-zinc-400">Upcoming Shortlist (${upcomingHits.length})</span>
+          <button onclick="setNoticesFilter('shortlisted')" class="text-[11px] font-mono text-zinc-400 hover:text-zinc-200">View all shortlisted →</button>
         </div>
-        ${hits.slice(0, 2).map(n => renderShortlistCardHtml(n, false)).join('')}
+        ${upcomingHits.slice(0, 2).map(n => renderShortlistCardHtml(n, false)).join('')}
       `;
     } else {
       spotEl.classList.add('hidden');
@@ -3428,37 +3433,65 @@ function renderNotices() {
     return true;
   });
 
+  // Inside Shortlisted filter, show upcoming first and past/completed second
+  if (noticesFilter === 'shortlisted') {
+    filtered.sort((a, b) => Number(Boolean(a.is_past_event)) - Number(Boolean(b.is_past_event)));
+  }
+
   if (metaEl) {
     const hiddenSpam = (noticesPayload.counts || {}).spam_hidden || 0;
-    metaEl.textContent = `Showing ${filtered.length} notice${filtered.length === 1 ? '' : 's'}${!showSpam && hiddenSpam ? ` • ${hiddenSpam} promo/duplicate hidden` : ''}`;
+    metaEl.textContent = `Showing ${filtered.length} notice${filtered.length === 1 ? '' : 's'}${!showSpam && hiddenSpam ? ` · ${hiddenSpam} promo/duplicate hidden` : ''}`;
   }
 
   if (!filtered.length) {
     listEl.innerHTML = `
-      <div class="metric-card rounded-2xl p-8 text-center space-y-2">
-        <div class="text-2xl">📭</div>
-        <div class="text-sm font-bold text-slate-200">No notices match this filter</div>
-        <div class="text-xs text-slate-400">Try switching filters or clicking <strong>Scan Shortlist PDFs</strong> to pull fresh notices from Superset.</div>
+      <div class="metric-card rounded-xl p-8 text-center space-y-1.5">
+        <div class="text-sm font-medium text-zinc-200">No notices match this filter</div>
+        <div class="text-xs text-zinc-500">Switch filters or click <strong>Scan Shortlist PDFs</strong> to pull fresh notices.</div>
       </div>
     `;
     return;
   }
 
   const catBadge = n => {
-    if (n.is_shortlisted) return '<span class="badge-shortlisted text-[10px] font-mono px-2.5 py-0.5 rounded-full font-bold">🔥 SHORTLISTED</span>';
-    if (n.category === 'shortlists_tests') return '<span class="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-semibold">🎯 Shortlist / Test</span>';
-    if (n.category === 'deadlines_revisions') return '<span class="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold">⏰ Deadline / Revision</span>';
-    if (n.category === 'job_openings') return '<span class="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-semibold">💼 Job Opening</span>';
-    return '<span class="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">System / Promo</span>';
+    if (n.is_shortlisted && !n.is_past_event) {
+      const lbl = n.event_details?.date_status_label ? ` · ${esc(n.event_details.date_status_label)}` : '';
+      return `<span class="badge-shortlisted text-[10px] font-mono px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>Shortlisted${lbl}</span>`;
+    }
+    if (n.is_shortlisted && n.is_past_event) {
+      return '<span class="badge-passed text-[10px] font-mono px-2 py-0.5 rounded-full font-medium">Shortlisted · Passed</span>';
+    }
+    if (n.category === 'shortlists_tests') {
+      return n.is_past_event
+        ? '<span class="badge-passed text-[10px] font-mono px-2 py-0.5 rounded-full font-medium">Test / Drive · Passed</span>'
+        : '<span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/[0.06] text-zinc-200 border border-white/10 font-medium">Shortlist / Test</span>';
+    }
+    if (n.category === 'deadlines_revisions') return '<span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/[0.05] text-zinc-300 border border-white/[0.08] font-medium">Deadline / Revision</span>';
+    if (n.category === 'job_openings') return '<span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/[0.04] text-zinc-400 border border-white/[0.07] font-medium">Job Opening</span>';
+    return '<span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/[0.03] text-zinc-500 border border-white/[0.06]">System</span>';
   };
 
   listEl.innerHTML = '';
-  for (const n of filtered) {
+  let insertedPastDivider = false;
+
+  filtered.forEach((n, idx) => {
+    // Clean divider between upcoming and passed items in Shortlisted tab
+    if (noticesFilter === 'shortlisted' && n.is_past_event && !insertedPastDivider) {
+      insertedPastDivider = true;
+      const div = document.createElement('div');
+      div.className = 'flex items-center gap-3 pt-3 pb-1 text-[10px] font-mono uppercase tracking-wider text-zinc-500';
+      div.innerHTML = '<span>Completed / Past Date</span><div class="flex-1 h-px bg-white/[0.07]"></div>';
+      listEl.appendChild(div);
+    }
+
     const ev = n.event_details || {};
     const m = n.shortlist_match || null;
     const isExpanded = expandedNoticeIds.has(n.id);
+    const isUpcomingShortlist = n.is_shortlisted && !n.is_past_event;
+    const deferClass = idx >= 6 ? 'deferred-card' : '';
+
     const card = document.createElement('article');
-    card.className = `job-card rounded-2xl p-4 sm:p-5 space-y-3 ${n.is_shortlisted ? 'border-orange-500/45 ring-1 ring-orange-500/25' : ''}`;
+    card.className = `job-card ${deferClass} rounded-xl p-4 sm:p-5 space-y-2.5 ${isUpcomingShortlist ? 'border-l-2 border-l-amber-400/85' : ''} ${n.is_past_event ? 'opacity-75' : ''}`;
 
     const attHtml = (n.attachments || []).length ? `
       <div class="flex flex-wrap gap-2 pt-1">
@@ -3466,76 +3499,73 @@ function renderNotices() {
           const isMatchedAtt = a.matched || (m && m.attachment_id === a.id);
           const jumpPage = isMatchedAtt && m && m.page_number ? m.page_number : 1;
           return `
-            <div class="inline-flex items-center rounded-xl overflow-hidden border ${isMatchedAtt ? 'border-orange-400/60 bg-orange-950/50' : 'border-white/10 bg-surface-950/80'} max-w-full">
+            <div class="inline-flex items-center rounded-lg overflow-hidden border ${isMatchedAtt && !n.is_past_event ? 'border-amber-400/40 bg-white/[0.05]' : 'border-white/[0.08] bg-surface-950'} max-w-full">
               <button type="button" onclick="openPdfByAttachment('${encodeURIComponent(n.id)}','${encodeURIComponent(a.id)}',${jumpPage})"
-                class="px-3 py-2 text-xs font-semibold ${isMatchedAtt ? 'text-orange-200' : 'text-slate-200'} flex items-center gap-1.5 min-w-0">
-                <span>${a.is_pdf ? '📄' : '🖼️'}</span>
-                <span class="truncate max-w-[210px] sm:max-w-[320px]">${esc(a.name)}</span>
-                ${a.page_count ? `<span class="text-[10px] font-mono text-slate-400">(${a.page_count}p)</span>` : ''}
-                ${isMatchedAtt ? `<span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-orange-500/30 text-orange-100 font-bold">🔥 p.${jumpPage}</span>` : ''}
+                class="px-3 py-1.5 text-xs font-medium text-zinc-200 hover:text-white flex items-center gap-1.5 min-w-0">
+                <span class="text-zinc-400">${a.is_pdf ? '📄' : '🖼️'}</span>
+                <span class="truncate max-w-[200px] sm:max-w-[320px]">${esc(a.name)}</span>
+                ${a.page_count ? `<span class="text-[10px] font-mono text-zinc-500">(${a.page_count}p)</span>` : ''}
+                ${isMatchedAtt ? `<span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-zinc-100">p.${jumpPage}</span>` : ''}
               </button>
               <button type="button" onclick="downloadPdfByAttachment('${encodeURIComponent(n.id)}','${encodeURIComponent(a.id)}')" title="Download file"
-                class="px-2.5 py-2 border-l border-white/10 text-slate-400 hover:text-white text-xs">⬇</button>
+                class="px-2.5 py-1.5 border-l border-white/[0.08] text-zinc-500 hover:text-zinc-100 text-xs">⬇</button>
             </div>
           `;
         }).join('')}
       </div>
     ` : '';
 
-    const logisticsHtml = (ev.date || ev.time || ev.venue || ev.meeting_link) ? `
-      <div class="flex items-center gap-1.5 flex-wrap text-[11px] font-mono">
-        ${ev.date ? `<span class="px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-200">📅 ${esc(ev.date)}</span>` : ''}
-        ${ev.time ? `<span class="px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-200">🕒 ${esc(ev.time)}</span>` : ''}
-        ${ev.venue ? `<span class="px-2 py-0.5 rounded-lg bg-sky-500/10 border border-sky-500/25 text-sky-200">📍 ${esc(ev.venue)}</span>` : ''}
-        ${ev.meeting_link ? `<a href="${esc(ev.meeting_link)}" target="_blank" rel="noopener noreferrer" class="px-2 py-0.5 rounded-lg bg-purple-500/15 border border-purple-500/35 text-purple-200 underline">🎥 Join Link</a>` : ''}
+    const logisticsParts = [ev.date, ev.time, ev.venue].filter(Boolean);
+    const logisticsHtml = (logisticsParts.length || ev.meeting_link) ? `
+      <div class="flex items-center gap-2 flex-wrap text-xs text-zinc-400">
+        <span>${logisticsParts.map(esc).join(' <span class="text-zinc-600 mx-1">·</span> ')}</span>
+        ${ev.meeting_link ? `<a href="${esc(ev.meeting_link)}" target="_blank" rel="noopener noreferrer" class="text-zinc-200 underline underline-offset-2 font-mono text-[11px]">Join Meet ↗</a>` : ''}
       </div>
     ` : '';
 
     const matchBoxHtml = n.is_shortlisted && m ? `
-      <div class="p-2.5 rounded-xl bg-orange-950/45 border border-orange-500/35 text-xs text-orange-100 space-y-1">
-        <div class="font-bold text-orange-200">🔥 Roll / Name Verified in ${esc(m.attachment_name || 'Notice')}${m.page_number ? ` — Page ${m.page_number}` : ''}</div>
-        ${m.matched_line ? `<div class="font-mono text-[11px] text-orange-100/90 break-all">${esc(m.matched_line)}</div>` : ''}
+      <div class="px-3 py-2 rounded-lg bg-surface-950 border border-white/[0.07] text-[11px] font-mono text-zinc-400 space-y-0.5">
+        <div class="text-zinc-200 font-medium">Verified in ${esc(m.attachment_name || 'Notice')}${m.page_number ? ` · Page ${m.page_number}` : ''}</div>
+        ${m.matched_line ? `<div class="truncate" title="${esc(m.matched_line)}">${esc(m.matched_line)}</div>` : ''}
       </div>
     ` : '';
 
     card.innerHTML = `
-      <div class="flex items-start justify-between gap-3">
-        <div class="min-w-0 space-y-1">
-          <div class="flex items-center gap-2 flex-wrap">
-            ${catBadge(n)}
-            <span class="text-[11px] font-mono text-slate-400">${esc(n.published_display || '')}</span>
-            <span class="text-[11px] text-slate-500">• ${esc(n.author || 'T&P Cell')}</span>
-          </div>
-          <h3 class="text-sm font-bold text-white leading-snug">${esc(n.title)}</h3>
+      <div class="space-y-1">
+        <div class="flex items-center gap-2 flex-wrap">
+          ${catBadge(n)}
+          <span class="text-[11px] font-mono text-zinc-500">${esc(n.published_display || '')}</span>
+          <span class="text-[11px] text-zinc-600">· ${esc(n.author || 'T&P Cell')}</span>
         </div>
+        <h3 class="text-sm font-semibold text-zinc-100 leading-snug">${esc(n.title)}</h3>
       </div>
       ${matchBoxHtml}
       ${logisticsHtml}
       <div class="notice-body-slot"></div>
       ${attHtml}
-      <div class="flex items-center justify-between pt-1 border-t border-white/5">
-        <button type="button" onclick="toggleNoticeBody('${esc(n.id)}')" class="text-xs font-semibold text-indigo-300 hover:text-indigo-200">
-          ${isExpanded ? '▲ Hide full notice' : '▼ Read full notice'}
+      <div class="flex items-center justify-between pt-2 border-t border-white/[0.06]">
+        <button type="button" onclick="toggleNoticeBody('${esc(n.id)}')" class="text-xs font-medium text-zinc-400 hover:text-zinc-100">
+          ${isExpanded ? 'Hide full notice' : 'Read full notice'}
         </button>
-        <span class="text-[10px] font-mono text-slate-500">${(n.attachments || []).length} attachment${(n.attachments || []).length === 1 ? '' : 's'}</span>
+        <span class="text-[10px] font-mono text-zinc-600">${(n.attachments || []).length} attachment${(n.attachments || []).length === 1 ? '' : 's'}</span>
       </div>
     `;
 
     const bodySlot = card.querySelector('.notice-body-slot');
     if (isExpanded) {
       const richDiv = document.createElement('div');
-      richDiv.className = 'notice-html p-3 rounded-xl bg-surface-950/75 border border-white/10 max-h-96 overflow-y-auto sheet-scroll';
+      richDiv.className = 'notice-html p-3 rounded-lg bg-surface-950 border border-white/[0.07] max-h-96 overflow-y-auto sheet-scroll';
       safeSetNoticeHtml(richDiv, n.safe_html || esc(n.plain_text || ''));
       bodySlot.appendChild(richDiv);
     } else if (n.snippet) {
       const p = document.createElement('p');
-      p.className = 'text-xs text-slate-400 leading-relaxed line-clamp-2';
+      p.className = 'text-xs text-zinc-400 leading-relaxed line-clamp-2';
       p.textContent = n.snippet;
       bodySlot.appendChild(p);
     }
 
     listEl.appendChild(card);
-  }
+  });
 }
 
 function _findNoticeAttachment(noticeIdEnc, attachmentIdEnc) {
@@ -3912,7 +3942,7 @@ def get_status():
     applied_count = sum(1 for j in jobs_list if j.get("is_applied") or j.get("app_status") == "APPLIED")
     open_count = sum(1 for j in jobs_list if j.get("is_open"))
     total_jobs = len(jobs_list)
-    shortlisted_count = sum(1 for n in cached_notices if n.get("is_shortlisted"))
+    shortlisted_count = sum(1 for n in cached_notices if n.get("is_shortlisted") and not n.get("is_past_event"))
     prof = user["profile"]
 
     return jsonify({

@@ -24,6 +24,17 @@ class Config:
     # Telegram Notifications
     TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
     TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+
+    # WhatsApp Notifications (Optional env defaults; per-user config stored in encrypted vault)
+    WHATSAPP_PROVIDER = os.getenv("WHATSAPP_PROVIDER", "callmebot")
+    WHATSAPP_PHONE = os.getenv("WHATSAPP_PHONE", "")
+    WHATSAPP_API_KEY = os.getenv("WHATSAPP_API_KEY", "")
+    WHATSAPP_META_PHONE_ID = os.getenv("WHATSAPP_META_PHONE_ID", "")
+    WHATSAPP_META_TOKEN = os.getenv("WHATSAPP_META_TOKEN", "")
+    TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
+    TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
+    TWILIO_WHATSAPP_FROM = os.getenv("TWILIO_WHATSAPP_FROM", "whatsapp:+14155238886")
+    WHATSAPP_WEBHOOK_URL = os.getenv("WHATSAPP_WEBHOOK_URL", "")
     
     # Gmail Monitoring (Optional IMAP sync)
     GMAIL_USER = os.getenv("GMAIL_USER", "")

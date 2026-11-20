@@ -6,27 +6,29 @@ An automated assistant built specifically for final year college students to **n
 
 ## ⚡ Key Highlights
 
-1. **🔥 Auto Shortlist Roll-Number PDF Scanner**:
+1. **🔥 Auto Shortlist Roll-Number PDF Scanner (Role-Specific Venue Precision)**:
    - Automatically downloads pre-signed PDF attachments from Superset homepage notices (e.g., shortlist lists, online test & GD schedules), caches extracted text in SQLite, and searches for your **Roll Number, Email, or Full Name** with exact page-number tracking.
-   - Immediately triggers a **🔥 YOU ARE SHORTLISTED!** dashboard banner & deduplicated Telegram alert with extracted **Venue, Date, Time Slot, and Google Meet/Test Link**.
+   - Parses multi-profile campus schedule tables so your exact shortlisted profile's **Reporting Venue, Date, Time Slot, Process, and Meet Link** are extracted accurately.
+   - Immediately triggers a **🔥 YOU ARE SHORTLISTED!** dashboard banner plus deduplicated **WhatsApp & Telegram** alerts.
 
-2. **📢 Smart Notice Feed & 1-Click Inline PDF Viewer**:
+2. **💬 Instant WhatsApp & Telegram Alerts (Job Profiles + Shortlist Venues + Offers)**:
+   - Per-student WhatsApp delivery supporting **CallMeBot (Free · 30-second setup)**, **Meta WhatsApp Cloud API**, **Twilio WhatsApp**, and **Custom Webhooks** (`n8n` / `Make` / `WAHA`).
+   - Sends instant structured WhatsApp notifications for newly opened eligible **Job Profiles** (Company, Role, CTC, Location, Deadline, Apply & Calendar links), upcoming **Shortlist Venue/Date/Time PDF matches**, and urgent **Pending Job Offers**, plus an on-demand **Send Live Digest Now** button.
+
+3. **📢 Smart Notice Feed & 1-Click Inline PDF Viewer**:
    - Categorizes campus notices into **🔥 Shortlisted**, **🎯 Shortlists & Tests**, **⏰ Deadlines & Revisions**, and **💼 Job Openings**, automatically hiding system promos & duplicate spam.
    - Built-in **1-click native modal PDF viewer** streams pre-signed Superset PDFs inline and jumps directly to the page containing your roll number.
 
-3. **🏆 Pending Offer Watchdog**:
-   - Continuously polls Superset's `/pending_actions` endpoint and raises a persistent top-of-app banner + urgent Telegram alert whenever a job offer with an acceptance deadline arrives.
+4. **🏆 Pending Offer Watchdog**:
+   - Continuously polls Superset's `/pending_actions` endpoint and raises a persistent top-of-app banner + urgent WhatsApp & Telegram alert whenever a job offer with an acceptance deadline arrives.
 
-4. **📄 Company Resume Tailor & 1-Page A4 PDF Studio**:
+5. **📄 Company Resume Tailor & 1-Page A4 PDF Studio**:
    - Click **Tailor CV** on any Superset campus drive or upcoming shortlist card to fetch the live Superset JD (+ attached JD PDF), rank your strongest projects from your encrypted portfolio, compute ATS keyword alignment, preview live in classic A4 Arial, and download a print-ready 1-page PDF (with optional formal passport photo toggle & existing-PDF CV importer).
 
-5. **Multi-User Encrypted Vault & Pre-Submission Review**:
-   - Per-student isolated accounts (`PBKDF2-HMAC-SHA256` encrypted SQLite vault), friend invite codes, pre-submission review modal, and optional per-user Auto-Apply toggle.
+6. **Multi-User Vault, Pre-Submission Review & Google Calendar Sync**:
+   - Per-student isolated accounts, friend invite codes, pre-submission review modal, optional per-user Auto-Apply toggle, and 1-click Google Calendar reminders.
 
-5. **Instant Telegram Alerts & Google Calendar Sync**:
-   - Formatted alerts with company name, CTC, deadline countdown, and 1-click Google Calendar reminders.
-
-6. **Zero-Server Cloud Runner (GitHub Actions) & Tampermonkey Script**:
+7. **Zero-Server Cloud Runner (GitHub Actions) & Web Mission Control**:
    - Supports scheduled headless monitoring (`python3 main.py run` / `scan-notices`) as well as the mobile-first Flask Web Mission Control (`python3 web_server.py`).
 
 ---

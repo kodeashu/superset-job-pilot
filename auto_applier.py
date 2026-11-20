@@ -6,6 +6,7 @@ from config import Config
 from calendar_sync import CalendarSync
 from superset_client import SupersetClient
 from telegram_notifier import TelegramNotifier
+from whatsapp_notifier import WhatsAppNotifier
 from gmail_monitor import GmailMonitor
 
 logger = logging.getLogger(__name__)
@@ -16,6 +17,7 @@ class AutoApplier:
         self.db_path = Config.DB_PATH
         self.superset = SupersetClient()
         self.telegram = TelegramNotifier()
+        self.whatsapp = WhatsAppNotifier()
         self.gmail = GmailMonitor()
         self._init_db()
 
@@ -205,14 +207,24 @@ class AutoApplier:
                 description=cal_desc
             )
 
-            # 4. Dispatch Telegram Notification (only for active/new jobs)
+            # 4. Dispatch Telegram & WhatsApp Notifications (only for active/new jobs)
             if not is_closed and not is_expired:
+                sent_any = False
                 try:
                     notified = self.telegram.send_job_alert(job, cal_url=cal_url, auto_applied=applied)
                     if notified:
-                        results["notified"] += 1
+                        sent_any = True
                 except Exception as te:
                     logger.warning(f"Telegram notification dispatch failed for {company}: {te}")
+                try:
+                    if self.whatsapp.is_configured():
+                        wa_sent = self.whatsapp.send_job_alert(job, cal_url=cal_url, auto_applied=applied)
+                        if wa_sent:
+                            sent_any = True
+                except Exception as we:
+                    logger.warning(f"WhatsApp notification dispatch failed for {company}: {we}")
+                if sent_any:
+                    results["notified"] += 1
 
             # 5. Record to SQLite database
             self.record_job(job, status=status, applied=applied)

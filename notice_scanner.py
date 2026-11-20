@@ -14,6 +14,8 @@ from bs4 import BeautifulSoup
 from pypdf import PdfReader
 
 from telegram_notifier import TelegramNotifier
+from whatsapp_notifier import WhatsAppNotifier
+from calendar_sync import CalendarSync
 
 logger = logging.getLogger(__name__)
 IST = pytz.timezone("Asia/Kolkata")
@@ -418,6 +420,74 @@ def parse_event_date(
     }
 
 
+def _extract_role_specific_schedule(safe_html: str, matched_line: str) -> Dict[str, str]:
+    """
+    When a KIIT notice contains a multi-profile schedule table (e.g. Row 1: B2B Sales -> Campus-20,
+    Row 2: Full Stack Developer & QA Engineer -> Computer Labs, Campus-6), matches the student's
+    shortlisted profile from `matched_line` against the table rows to return THAT profile's exact
+    venue, reporting time, and process!
+    """
+    if not safe_html or not matched_line or "<table" not in safe_html.lower():
+        return {}
+    ml_low = re.sub(r"\s+", " ", matched_line).strip().lower()
+    try:
+        soup = BeautifulSoup(safe_html, "html.parser")
+        for tbl in soup.find_all("table"):
+            rows = tbl.find_all("tr")
+            if len(rows) < 2:
+                continue
+            headers = [re.sub(r"\s+", " ", c.get_text(" ", strip=True)).lower() for c in rows[0].find_all(["th", "td"])]
+            if not headers:
+                continue
+            prof_col = next((i for i, h in enumerate(headers) if any(k in h for k in ("profile", "role", "position", "branch", "stream"))), -1)
+            venue_col = next((i for i, h in enumerate(headers) if any(k in h for k in ("venue", "location", "lab", "room"))), -1)
+            time_col = next((i for i, h in enumerate(headers) if "time" in h or "slot" in h), -1)
+            proc_col = next((i for i, h in enumerate(headers) if any(k in h for k in ("process", "stage", "round", "activity"))), -1)
+            if prof_col == -1 or (venue_col == -1 and time_col == -1):
+                continue
+
+            best_row = None
+            best_hits = 0
+            best_profile_name = ""
+
+            for tr in rows[1:]:
+                cells = [re.sub(r"\s+", " ", c.get_text(" ", strip=True)) for c in tr.find_all(["td", "th"])]
+                if len(cells) <= prof_col:
+                    continue
+                prof_cell = cells[prof_col]
+                # Split combined profile names like "Full Stack Developer & QA Engineer"
+                sub_profiles = [sp.strip() for sp in re.split(r"\s*(?:&|,|/|\band\b)\s*", prof_cell, flags=re.I) if len(sp.strip()) >= 3]
+                for sp in sub_profiles or [prof_cell]:
+                    sp_low = sp.lower()
+                    if sp_low in ml_low:
+                        score = len(sp_low) + 20
+                        if score > best_hits:
+                            best_hits = score
+                            best_row = cells
+                            best_profile_name = sp
+                    else:
+                        # Token overlap fallback (require >= 2 meaningful tokens matching)
+                        toks = [t for t in re.findall(r"[a-z0-9]+", sp_low) if len(t) >= 2 and t not in ("in", "of", "for", "and", "the")]
+                        matched_toks = [t for t in toks if re.search(rf"\b{re.escape(t)}\b", ml_low)]
+                        if len(matched_toks) >= 2 and len(matched_toks) > best_hits:
+                            best_hits = len(matched_toks)
+                            best_row = cells
+                            best_profile_name = sp
+
+            if best_row:
+                out: Dict[str, str] = {"matched_profile": best_profile_name}
+                if venue_col != -1 and len(best_row) > venue_col and best_row[venue_col]:
+                    out["venue"] = best_row[venue_col][:140]
+                if time_col != -1 and len(best_row) > time_col and best_row[time_col]:
+                    out["time"] = best_row[time_col][:60]
+                if proc_col != -1 and len(best_row) > proc_col and best_row[proc_col]:
+                    out["process"] = best_row[proc_col][:140]
+                return out
+    except Exception as e:
+        logger.debug(f"Role-specific table extraction warning: {e}")
+    return {}
+
+
 def extract_event_details(
     notice_title: str,
     notice_text: str = "",
@@ -425,6 +495,7 @@ def extract_event_details(
     matched_line: str = "",
     published_ts: int = 0,
     reference_date: Optional[date] = None,
+    safe_html: str = "",
 ) -> Dict[str, Any]:
     """
     Extracts structured Date, Time, Venue/Mode, Meeting Link, and Event Type.
@@ -504,10 +575,21 @@ def extract_event_details(
         elif "physical mode" in low_all or "kiit campus" in low_all:
             ev_venue = "KIIT Campus (Physical Mode)"
 
+    # 4b. Multi-profile table precision override (e.g. Empulz Full Stack -> Campus-6 instead of B2B Sales -> Campus-20)
+    role_sched = _extract_role_specific_schedule(safe_html, matched_line)
+    matched_profile = role_sched.get("matched_profile", "")
+    process_desc = role_sched.get("process", "")
+    if role_sched.get("venue"):
+        ev_venue = role_sched["venue"]
+    if role_sched.get("time") and not (matched_line and any(p.search(matched_line) for p in TIME_PATTERNS)):
+        ev_time = role_sched["time"]
+
     # 5. Resolve date recency / past-event status against IST today
     date_meta = parse_event_date(ev_date, fallback_published_ts=published_ts, reference_date=reference_date)
     return {
         "event_type": event_type,
+        "matched_profile": matched_profile,
+        "process": process_desc,
         "date": ev_date,
         "time": ev_time,
         "venue": ev_venue,
@@ -767,13 +849,14 @@ def scan_notices_for_user(
                 body_match["source"] = "NOTICE_BODY"
                 best_match = body_match
 
-        # 3. Enrich event logistics with PDF page-1 header + student's specific matched row!
+        # 3. Enrich event logistics with PDF page-1 header + student's specific matched row + role-specific schedule table!
         n["event_details"] = extract_event_details(
             notice_title=n["title"],
             notice_text=n["plain_text"],
             pdf_header_text=pdf_header_by_notice.get(n["id"], ""),
             matched_line=(best_match or {}).get("matched_line", ""),
             published_ts=n.get("published_ts", 0),
+            safe_html=n.get("safe_html", ""),
         )
         n["is_past_event"] = bool(n["event_details"].get("is_past_event"))
 
@@ -781,7 +864,7 @@ def scan_notices_for_user(
             n["is_shortlisted"] = True
             n["shortlist_match"] = best_match
 
-            # Only alert via Telegram for UPCOMING / TODAY shortlists (never spam passed dates!)
+            # Only alert for UPCOMING / TODAY shortlists (never spam passed dates!)
             if send_alerts and not n["is_past_event"]:
                 alert_key = f"shortlist::{n['id']}"
                 if not user_manager.has_sent_alert(user_id, alert_key):
@@ -789,8 +872,15 @@ def scan_notices_for_user(
                     notifier = TelegramNotifier(chat_id=chat_id)
                     if notifier.send_shortlist_alert(n, best_match, full_name, roll_number):
                         new_shortlist_alerts += 1
-                    # Mark as alerted even if Telegram isn't paired for this friend so we don't retry forever
                     user_manager.mark_alert_sent(user_id, alert_key)
+
+                # Also dispatch WhatsApp Shortlist Alert (venue, date, time, profile, page #) if configured!
+                wa_key = f"shortlist_wa::{n['id']}"
+                wa_notifier = WhatsAppNotifier.from_user_profile(user)
+                if wa_notifier.is_configured() and not user_manager.has_sent_alert(user_id, wa_key):
+                    if wa_notifier.send_shortlist_alert(n, best_match, full_name, roll_number):
+                        new_shortlist_alerts += 1
+                        user_manager.mark_alert_sent(user_id, wa_key)
 
     # Persist scanned notices cache
     user_manager.set_cached_notices(user_id, normalized)
@@ -803,12 +893,19 @@ def scan_notices_for_user(
     if send_alerts and pending_actions:
         chat_id = user.get("telegram_chat_id") or None
         notifier = TelegramNotifier(chat_id=chat_id)
+        wa_notifier = WhatsAppNotifier.from_user_profile(user)
         for act in pending_actions:
             offer_key = f"pending_offer::{act['id']}"
             if not user_manager.has_sent_alert(user_id, offer_key):
                 if notifier.send_pending_offer_alert(act, full_name):
                     new_offer_alerts += 1
                 user_manager.mark_alert_sent(user_id, offer_key)
+
+            wa_offer_key = f"pending_offer_wa::{act['id']}"
+            if wa_notifier.is_configured() and not user_manager.has_sent_alert(user_id, wa_offer_key):
+                if wa_notifier.send_pending_offer_alert(act, full_name):
+                    new_offer_alerts += 1
+                    user_manager.mark_alert_sent(user_id, wa_offer_key)
 
     now_ts = int(time.time())
     summary = summarize_notices(
@@ -902,3 +999,48 @@ def summarize_notices(
         "pending_checked_ts": pending_updated_at,
         "pending_checked_display": offer_checked_str,
     }
+
+
+def notify_new_job_openings_for_user(user_manager, user: Dict[str, Any], jobs: List[Dict[str, Any]]) -> int:
+    """
+    Dispatches deduplicated WhatsApp alerts for newly discovered OPEN & ELIGIBLE
+    job profiles in a student's Superset job_profiles feed.
+    """
+    wa = WhatsAppNotifier.from_user_profile(user)
+    if not wa.is_configured() or not wa.notify_jobs:
+        return 0
+
+    user_id = user["user_id"]
+    sent_count = 0
+    for j in jobs or []:
+        jid = str(j.get("id") or "")
+        if not jid:
+            continue
+        if not j.get("is_open") or not j.get("is_eligible") or j.get("is_applied"):
+            continue
+        wa_key = f"job_open_wa::{jid}"
+        if user_manager.has_sent_alert(user_id, wa_key):
+            continue
+
+        dl = j.get("deadline_dt")
+        cal_url = ""
+        if dl is not None:
+            try:
+                if isinstance(dl, str):
+                    dl_parsed = datetime.fromisoformat(dl.replace("Z", "+00:00"))
+                elif hasattr(dl, "strftime"):
+                    dl_parsed = dl
+                else:
+                    dl_parsed = datetime.now(IST)
+                cal_url = CalendarSync.generate_google_calendar_url(
+                    title=f"{j.get('company_name', 'Company')} - {j.get('job_role', 'Role')} Deadline",
+                    deadline_dt=dl_parsed,
+                    description=f"CTC: {j.get('ctc_display', 'N/A')} | Portal: {j.get('profile_url', '')}",
+                )
+            except Exception:
+                cal_url = ""
+
+        if wa.send_job_alert(j, cal_url=cal_url, auto_applied=False):
+            user_manager.mark_alert_sent(user_id, wa_key)
+            sent_count += 1
+    return sent_count

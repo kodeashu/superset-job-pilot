@@ -16,12 +16,13 @@ from config import Config, BASE_DIR
 from superset_client import SupersetClient
 from auto_applier import AutoApplier
 from telegram_notifier import TelegramNotifier
+from whatsapp_notifier import WhatsAppNotifier, normalize_whatsapp_phone
 from calendar_sync import CalendarSync
 from ai_engine import AIEngine
 from rag_engine import RAGEngine
 from error_healer import ErrorHealer
 from ambiguity_manager import AmbiguityManager
-from notice_scanner import scan_notices_for_user, summarize_notices
+from notice_scanner import notify_new_job_openings_for_user, scan_notices_for_user, summarize_notices
 from resume_tailor import (
     get_resume_master,
     import_resume_from_pdf,
@@ -116,13 +117,23 @@ def background_monitor_worker():
             # Invalidate cache so next /api/jobs fetch is fresh
             _cache_time = 0
 
-            # Also scan homepage notices, shortlist PDFs & pending offers for every vault user
+            # Also sync per-user open jobs (for WhatsApp job-opening alerts) & scan notices, shortlist PDFs & pending offers
             um = globals().get("user_manager")
             if um is not None:
                 for u_obj in um.get_all_users():
                     try:
                         sc_u = SupersetClient(email=u_obj["email"], password=u_obj["superset_password"])
                         if sc_u.login():
+                            u_jobs = sc_u.fetch_job_profiles()
+                            if u_jobs:
+                                sorted_u_jobs = sorted(u_jobs, key=lambda x: x.get("raw", {}).get("createdAt") or 0, reverse=True)
+                                um.set_cached_jobs(u_obj["user_id"], sorted_u_jobs)
+                                wa_jobs_sent = notify_new_job_openings_for_user(um, u_obj, sorted_u_jobs)
+                                if wa_jobs_sent:
+                                    log_event(
+                                        f"WhatsApp Job Alerts ({u_obj['full_name']}): dispatched {wa_jobs_sent} new job opening alert(s).",
+                                        "SUCCESS",
+                                    )
                             n_res = scan_notices_for_user(
                                 sc_u, um, u_obj, max_pages=2, page_size=25, max_pdfs_to_download=12, send_alerts=True
                             )
@@ -483,10 +494,10 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       </button>
       <button onclick="switchPage('telegram')" class="nav-item w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-left" data-page="telegram">
         <div class="flex items-center gap-3 truncate">
-          <span class="text-base w-5 text-center">📨</span>
-          <span class="sidebar-label">Telegram</span>
+          <span class="text-base w-5 text-center">💬</span>
+          <span class="sidebar-label">WhatsApp & Alerts</span>
         </div>
-        <span class="sidebar-label text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">Bot</span>
+        <span class="sidebar-label text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-zinc-400" id="badge-nav-alerts">WA</span>
       </button>
       <button onclick="switchPage('ai')" class="nav-item w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-left" data-page="ai">
         <div class="flex items-center gap-3 truncate">
@@ -558,8 +569,9 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       <button onclick="switchPage('engine'); closeMobileDrawer();" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 text-left">
         <span class="text-base">⚙️</span> <span>Engine & Logs</span>
       </button>
-      <button onclick="switchPage('telegram'); closeMobileDrawer();" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 text-left">
-        <span class="text-base">📨</span> <span>Telegram Alerts</span>
+      <button onclick="switchPage('telegram'); closeMobileDrawer();" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 text-left">
+        <div class="flex items-center gap-3"><span class="text-base">💬</span> <span>WhatsApp & Alerts</span></div>
+        <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-zinc-400">WA</span>
       </button>
       <button onclick="switchPage('settings'); closeMobileDrawer();" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 text-left">
         <span class="text-base">🔧</span> <span>System & Invite Codes</span>
@@ -764,6 +776,10 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
               <div class="flex justify-between text-xs">
                 <span class="text-slate-400">Poll Interval</span>
                 <span id="dash-poll" class="font-mono text-slate-200">15m</span>
+              </div>
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-400">WhatsApp Alerts</span>
+                <button onclick="switchPage('telegram')" id="dash-whatsapp" class="font-mono font-semibold text-zinc-400 hover:text-white transition-colors">SETUP →</button>
               </div>
               <div class="flex justify-between text-xs">
                 <span class="text-slate-400">Telegram Bot</span>
@@ -1067,69 +1083,217 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         </div>
       </div>
 
-      <!-- ═══ TELEGRAM PAGE ═══ -->
-      <div id="page-telegram" class="page hidden p-6 space-y-6">
-        <div class="flex items-center justify-between">
+      <!-- ═══ WHATSAPP & TELEGRAM ALERTS PAGE ═══ -->
+      <div id="page-telegram" class="page hidden p-4 sm:p-6 space-y-6 max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 class="text-lg font-bold text-white">Telegram Push Notifications</h2>
-            <p class="text-xs text-slate-500">Instant alerts to your phone for new drives and auto-applications via @XSuperset_bot</p>
+            <h2 class="text-lg font-semibold text-zinc-50 tracking-tight">WhatsApp & Telegram Alerts</h2>
+            <p class="text-xs text-zinc-400 mt-0.5">Instant phone notifications for new eligible Job Profiles, exact Shortlist Venue/Date/Time PDF matches, and Pending Offers.</p>
           </div>
-          <button onclick="testTelegram()" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-all shadow-md shadow-blue-600/20">
-            📨 Send Test Alert
-          </button>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div class="bg-surface-900/60 rounded-xl p-5 border border-slate-800/60">
-            <h3 class="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-4">Bot Configuration</h3>
-            <div class="space-y-4">
-              <div class="flex justify-between items-center">
-                <span class="text-sm text-slate-400">Bot Handle</span>
-                <span class="text-sm font-mono text-white">@XSuperset_bot</span>
-              </div>
-              <div class="flex justify-between items-center">
-                <span class="text-sm text-slate-400">Chat ID</span>
-                <span class="text-sm font-mono text-white" id="tg-chat-id">Not Configured</span>
-              </div>
-              <div class="flex justify-between items-center">
-                <span class="text-sm text-slate-400">Status</span>
-                <span class="text-sm font-semibold text-emerald-400" id="tg-status">● Connected</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="bg-surface-900/60 rounded-xl p-5 border border-slate-800/60">
-            <h3 class="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-4">Active Alert Policies</h3>
-            <div class="space-y-4 text-sm">
-              <div class="flex justify-between items-center">
-                <span class="text-slate-400">New Campus Drive Alert</span>
-                <span class="text-emerald-400 font-semibold font-mono text-xs">IMMEDIATE</span>
-              </div>
-              <div class="flex justify-between items-center">
-                <span class="text-slate-400">Auto-Apply Confirmation Receipt</span>
-                <span class="text-emerald-400 font-semibold font-mono text-xs">INSTANT</span>
-              </div>
-              <div class="flex justify-between items-center">
-                <span class="text-slate-400">Application Error / Rejection Alert</span>
-                <span class="text-emerald-400 font-semibold font-mono text-xs">ENABLED</span>
-              </div>
-              <div class="flex justify-between items-center">
-                <span class="text-slate-400">1-Click Google Calendar Button</span>
-                <span class="text-emerald-400 font-semibold font-mono text-xs">INCLUDED</span>
-              </div>
-            </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="sendWhatsappDigest()" id="btn-wa-digest" class="px-3.5 py-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-zinc-100 text-xs font-medium">
+              Send Live Digest Now
+            </button>
+            <button onclick="testWhatsapp()" id="btn-wa-test" class="px-3.5 py-2 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold">
+              Send Test WhatsApp
+            </button>
           </div>
         </div>
 
-        <!-- Custom Telegram Dispatcher -->
-        <div class="bg-surface-900/60 rounded-xl p-5 border border-slate-800/60 space-y-3">
-          <h3 class="text-xs font-semibold text-blue-400 uppercase tracking-wider">Custom Message Dispatcher</h3>
-          <p class="text-xs text-slate-400">Send an immediate customized text notification directly to your phone via the bot.</p>
-          <div class="flex gap-3">
-            <input type="text" id="tg-custom-text" placeholder="Type notification text to send to your phone..."
-              class="flex-1 bg-surface-950 border border-slate-700 rounded-lg px-4 py-2 text-xs text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none font-mono">
-            <button onclick="sendCustomTelegram()" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-all">
-              Send Alert
+        <!-- PRIMARY: WHATSAPP CONFIGURATION STUDIO -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          <!-- Left: Provider Config & Toggles -->
+          <div class="lg:col-span-7 metric-card rounded-2xl p-5 space-y-5">
+            <div class="flex items-center justify-between gap-3 border-b border-white/[0.07] pb-3.5">
+              <div>
+                <div class="text-xs font-semibold uppercase tracking-wider text-zinc-300">WhatsApp Delivery</div>
+                <div class="text-[11px] text-zinc-500 mt-0.5">Stored privately per student inside your account vault</div>
+              </div>
+              <span id="wa-status-pill" class="text-[11px] font-mono px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/10 text-zinc-400">○ Not Configured</span>
+            </div>
+
+            <!-- Master Toggle + Provider -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="space-y-1.5">
+                <label for="wa-provider" class="block text-[11px] font-medium uppercase tracking-wider text-zinc-400">Delivery Provider</label>
+                <select id="wa-provider" onchange="onWhatsappProviderChange()" class="w-full bg-[#09090b] border border-white/10 focus:border-zinc-500 rounded-lg px-3 py-2.5 text-xs text-zinc-100 focus:outline-none">
+                  <option value="callmebot">CallMeBot (Free · 30s Personal Setup)</option>
+                  <option value="meta">Meta WhatsApp Cloud API (Official)</option>
+                  <option value="twilio">Twilio WhatsApp API</option>
+                  <option value="webhook">Custom Webhook (n8n / Make / WAHA)</option>
+                </select>
+              </div>
+              <div class="space-y-1.5">
+                <label for="wa-phone" class="block text-[11px] font-medium uppercase tracking-wider text-zinc-400">WhatsApp Number</label>
+                <input id="wa-phone" type="tel" autocomplete="tel" placeholder="919876543210 or 10-digit mobile"
+                  class="w-full bg-[#09090b] border border-white/10 focus:border-zinc-500 rounded-lg px-3 py-2.5 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none font-mono">
+              </div>
+            </div>
+
+            <!-- CallMeBot 30-Second Setup Guide -->
+            <div id="wa-guide-callmebot" class="rounded-xl bg-[#09090b] border border-white/[0.08] p-3.5 space-y-2 text-xs">
+              <div class="text-[11px] font-semibold text-zinc-200 uppercase tracking-wider">30-Second Free Setup (CallMeBot)</div>
+              <ol class="list-decimal list-inside space-y-1 text-zinc-400 leading-relaxed">
+                <li>Add <span class="font-mono text-zinc-200">+34 644 71 98 38</span> to your phone contacts (e.g., <span class="text-zinc-200">CallMeBot</span>).</li>
+                <li>Open WhatsApp and send this exact message to that contact: <code class="px-1.5 py-0.5 rounded bg-white/[0.06] text-zinc-100 select-all">I allow callmebot to send me messages</code></li>
+                <li>Wait ~10 seconds for the reply with your <span class="text-zinc-200">API Key</span>, paste it below, and click <span class="text-zinc-200">Save WhatsApp Config</span>.</li>
+              </ol>
+            </div>
+
+            <!-- Provider-Specific Credential Inputs -->
+            <div id="wa-fields-callmebot" class="space-y-1.5">
+              <label for="wa-apikey" class="block text-[11px] font-medium uppercase tracking-wider text-zinc-400">CallMeBot API Key</label>
+              <input id="wa-apikey" type="password" autocomplete="off" placeholder="Enter your CallMeBot API key"
+                class="w-full bg-[#09090b] border border-white/10 focus:border-zinc-500 rounded-lg px-3 py-2.5 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none font-mono">
+              <div id="wa-apikey-hint" class="text-[11px] text-zinc-500"></div>
+            </div>
+
+            <div id="wa-fields-meta" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="space-y-1.5">
+                <label for="wa-meta-phone-id" class="block text-[11px] font-medium uppercase tracking-wider text-zinc-400">Meta Phone Number ID</label>
+                <input id="wa-meta-phone-id" type="text" placeholder="e.g. 123456789012345"
+                  class="w-full bg-[#09090b] border border-white/10 focus:border-zinc-500 rounded-lg px-3 py-2.5 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none font-mono">
+              </div>
+              <div class="space-y-1.5">
+                <label for="wa-meta-token" class="block text-[11px] font-medium uppercase tracking-wider text-zinc-400">Meta Permanent Access Token</label>
+                <input id="wa-meta-token" type="password" autocomplete="off" placeholder="EAAG..."
+                  class="w-full bg-[#09090b] border border-white/10 focus:border-zinc-500 rounded-lg px-3 py-2.5 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none font-mono">
+              </div>
+            </div>
+
+            <div id="wa-fields-twilio" class="hidden grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div class="space-y-1.5">
+                <label for="wa-twilio-sid" class="block text-[11px] font-medium uppercase tracking-wider text-zinc-400">Account SID</label>
+                <input id="wa-twilio-sid" type="text" placeholder="ACxxxxxxxx"
+                  class="w-full bg-[#09090b] border border-white/10 focus:border-zinc-500 rounded-lg px-3 py-2.5 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none font-mono">
+              </div>
+              <div class="space-y-1.5">
+                <label for="wa-twilio-token" class="block text-[11px] font-medium uppercase tracking-wider text-zinc-400">Auth Token</label>
+                <input id="wa-twilio-token" type="password" autocomplete="off" placeholder="Auth Token"
+                  class="w-full bg-[#09090b] border border-white/10 focus:border-zinc-500 rounded-lg px-3 py-2.5 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none font-mono">
+              </div>
+              <div class="space-y-1.5">
+                <label for="wa-twilio-from" class="block text-[11px] font-medium uppercase tracking-wider text-zinc-400">Twilio From</label>
+                <input id="wa-twilio-from" type="text" placeholder="whatsapp:+14155238886"
+                  class="w-full bg-[#09090b] border border-white/10 focus:border-zinc-500 rounded-lg px-3 py-2.5 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none font-mono">
+              </div>
+            </div>
+
+            <div id="wa-fields-webhook" class="hidden space-y-1.5">
+              <label for="wa-webhook-url" class="block text-[11px] font-medium uppercase tracking-wider text-zinc-400">Webhook POST Endpoint</label>
+              <input id="wa-webhook-url" type="url" placeholder="https://your-n8n-or-waha-webhook/whatsapp"
+                class="w-full bg-[#09090b] border border-white/10 focus:border-zinc-500 rounded-lg px-3 py-2.5 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none font-mono">
+              <div class="text-[11px] text-zinc-500">Receives JSON payload: <code class="text-zinc-300">{"phone", "text", "event_type"}</code></div>
+            </div>
+
+            <!-- Alert Subscriptions -->
+            <div class="space-y-2.5 pt-1">
+              <div class="text-[11px] font-medium uppercase tracking-wider text-zinc-400">What to Notify on WhatsApp</div>
+              <label class="flex items-start gap-3 p-3 rounded-xl bg-[#09090b] border border-white/[0.07] cursor-pointer">
+                <input id="wa-enabled" type="checkbox" checked class="mt-0.5 rounded bg-zinc-900 border-zinc-600 accent-zinc-100">
+                <div>
+                  <div class="text-xs font-medium text-zinc-100">Enable WhatsApp Notifications</div>
+                  <div class="text-[11px] text-zinc-500">Master toggle for automated 24/7 WhatsApp push delivery</div>
+                </div>
+              </label>
+              <label class="flex items-start gap-3 p-3 rounded-xl bg-[#09090b] border border-white/[0.07] cursor-pointer">
+                <input id="wa-notify-jobs" type="checkbox" checked class="mt-0.5 rounded bg-zinc-900 border-zinc-600 accent-zinc-100">
+                <div>
+                  <div class="text-xs font-medium text-zinc-100">New Eligible Job Openings (Job Profiles)</div>
+                  <div class="text-[11px] text-zinc-500">Company, Role, CTC, Location, Registration Deadline, Direct Apply & Calendar links</div>
+                </div>
+              </label>
+              <label class="flex items-start gap-3 p-3 rounded-xl bg-[#09090b] border border-white/[0.07] cursor-pointer">
+                <input id="wa-notify-shortlists" type="checkbox" checked class="mt-0.5 rounded bg-zinc-900 border-zinc-600 accent-zinc-100">
+                <div>
+                  <div class="text-xs font-medium text-zinc-100">Shortlist PDF Matches (Role-Specific Venue, Date & Time)</div>
+                  <div class="text-[11px] text-zinc-500">Extracts your exact profile's reporting campus/lab, date, time, process, page #, and Meet link</div>
+                </div>
+              </label>
+              <label class="flex items-start gap-3 p-3 rounded-xl bg-[#09090b] border border-white/[0.07] cursor-pointer">
+                <input id="wa-notify-offers" type="checkbox" checked class="mt-0.5 rounded bg-zinc-900 border-zinc-600 accent-zinc-100">
+                <div>
+                  <div class="text-xs font-medium text-zinc-100">Urgent Pending Job Offers</div>
+                  <div class="text-[11px] text-zinc-500">Immediate watchdog alert whenever Superset posts an offer with an acceptance deadline</div>
+                </div>
+              </label>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2.5 pt-2">
+              <button onclick="saveWhatsappConfig()" id="btn-wa-save" class="px-4 py-2.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold">
+                Save WhatsApp Config
+              </button>
+              <button onclick="testWhatsapp()" class="px-4 py-2.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-zinc-200 text-xs font-medium">
+                Send Test Message
+              </button>
+              <span id="wa-save-feedback" class="text-xs text-zinc-400"></span>
+            </div>
+          </div>
+
+          <!-- Right: Live Message Format Previews -->
+          <div class="lg:col-span-5 space-y-4">
+            <div class="metric-card rounded-2xl p-5 space-y-3">
+              <div class="flex items-center justify-between">
+                <div class="text-xs font-semibold uppercase tracking-wider text-zinc-300">WhatsApp Alert Preview</div>
+                <span class="text-[10px] font-mono text-zinc-500">Exact Format</span>
+              </div>
+
+              <!-- Sample Shortlist Bubble -->
+              <div class="rounded-xl bg-[#0b141a] border border-emerald-500/20 p-3.5 text-[11px] leading-relaxed text-zinc-200 font-sans space-y-1">
+                <div class="font-semibold text-amber-300">🔥 YOU ARE SHORTLISTED!</div>
+                <div><span class="text-zinc-400">Shortlisted Profile:</span> <span class="font-medium text-zinc-100">Full Stack Developer</span></div>
+                <div><span class="text-zinc-400">Process:</span> Technical GD (Live Coding) & Interview</div>
+                <div><span class="text-zinc-400">Date:</span> 21st Nov 2026 (Today)</div>
+                <div><span class="text-zinc-400">Reporting Time:</span> 9.30 AM</div>
+                <div><span class="text-zinc-400">Venue / Mode:</span> <span class="font-medium text-zinc-50">Computer Labs, Campus-6</span></div>
+                <div class="text-zinc-400 pt-1 text-[10px] font-mono">Verified In: Shortlisted_List.pdf (Page 3)</div>
+              </div>
+
+              <!-- Sample Job Opening Bubble -->
+              <div class="rounded-xl bg-[#0b141a] border border-white/10 p-3.5 text-[11px] leading-relaxed text-zinc-200 font-sans space-y-1">
+                <div class="font-semibold text-zinc-50">📢 NEW SUPERSET JOB OPENING</div>
+                <div><span class="text-zinc-400">Company:</span> Campus Recruiter</div>
+                <div><span class="text-zinc-400">Role:</span> Software Engineer (Full Stack)</div>
+                <div><span class="text-zinc-400">CTC:</span> 10.5 LPA</div>
+                <div><span class="text-zinc-400">Location:</span> Bengaluru / Hybrid</div>
+                <div><span class="text-zinc-400">Deadline:</span> Tomorrow, 11:59 PM IST</div>
+                <div><span class="text-zinc-400">Status:</span> <span class="text-emerald-400 font-medium">ELIGIBLE — ACTION REQUIRED</span></div>
+                <div class="text-zinc-400 pt-1 text-[10px] font-mono">Apply: https://app.joinsuperset.com/...</div>
+              </div>
+            </div>
+
+            <!-- Instant Digest Explanation -->
+            <div class="metric-card rounded-2xl p-4 space-y-2">
+              <div class="text-xs font-semibold text-zinc-200">On-Demand Digest</div>
+              <p class="text-[11px] text-zinc-400 leading-relaxed">
+                Click <span class="text-zinc-200 font-medium">Send Live Digest Now</span> anytime to immediately push your active upcoming shortlist venues + currently open eligible job profiles straight to WhatsApp.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECONDARY: TELEGRAM BOT ALERTS (Monochrome Restyled) -->
+        <div class="metric-card rounded-2xl p-5 space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/[0.07] pb-3.5">
+            <div>
+              <h3 class="text-xs font-semibold text-zinc-200 uppercase tracking-wider">Telegram Push Notifications</h3>
+              <p class="text-[11px] text-zinc-500 mt-0.5">Backup channel via <span class="font-mono text-zinc-300">@XSuperset_bot</span></p>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-xs font-mono text-zinc-400">Chat ID: <span id="tg-chat-id" class="text-zinc-200">Not Configured</span></span>
+              <span class="text-xs font-semibold text-emerald-400" id="tg-status">● Connected</span>
+              <button onclick="testTelegram()" class="px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-zinc-100 text-xs font-medium">
+                Test Telegram
+              </button>
+            </div>
+          </div>
+
+          <div class="flex flex-col sm:flex-row gap-2.5">
+            <input type="text" id="tg-custom-text" placeholder="Send a quick custom message to your Telegram..."
+              class="flex-1 bg-[#09090b] border border-white/10 focus:border-zinc-500 rounded-lg px-3.5 py-2 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none font-mono">
+            <button onclick="sendCustomTelegram()" class="px-4 py-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-zinc-100 text-xs font-medium whitespace-nowrap">
+              Send Telegram
             </button>
           </div>
         </div>
@@ -1780,7 +1944,7 @@ function switchPage(page) {
     resume:'Company Resume Tailor Studio',
     profile:'Profile & Custom Question Answers',
     engine:'Engine Telemetry & Logs',
-    telegram:'Telegram Notifications',
+    telegram:'WhatsApp & Telegram Alerts',
     ai:'AI Copilot, RAG & Live Error Healer',
     settings:'System Settings'
   };
@@ -2069,6 +2233,23 @@ function updateStatusUI() {
   document.getElementById('dash-daemon').textContent = da ? 'ACTIVE' : 'PAUSED';
   document.getElementById('dash-daemon').className = `font-mono font-semibold ${da ? 'text-emerald-400' : 'text-red-400'}`;
   document.getElementById('dash-poll').textContent = (d.poll_interval || 15) + 'm';
+  const dashWa = document.getElementById('dash-whatsapp');
+  if (dashWa) {
+    if (d.whatsapp_paired) {
+      dashWa.textContent = `ACTIVE (${String(d.whatsapp_provider || 'WA').toUpperCase()})`;
+      dashWa.className = 'font-mono font-semibold text-emerald-400 hover:text-emerald-300 transition-colors';
+    } else {
+      dashWa.textContent = 'SETUP →';
+      dashWa.className = 'font-mono font-semibold text-zinc-400 hover:text-white transition-colors';
+    }
+  }
+  const badgeAlerts = document.getElementById('badge-nav-alerts');
+  if (badgeAlerts) {
+    badgeAlerts.textContent = d.whatsapp_paired ? 'LIVE' : 'WA';
+    badgeAlerts.className = d.whatsapp_paired
+      ? 'sidebar-label text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400'
+      : 'sidebar-label text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-zinc-400';
+  }
   document.getElementById('dash-telegram').textContent = d.telegram_paired !== false ? 'PAIRED' : 'NOT PAIRED';
   document.getElementById('dash-telegram').className = `font-mono font-semibold ${d.telegram_paired !== false ? 'text-emerald-400' : 'text-red-400'}`;
   document.getElementById('dash-lastsync').textContent = d.last_sync || 'Just now';
@@ -2597,14 +2778,168 @@ function renderEngine() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// TELEGRAM PAGE
+// WHATSAPP & TELEGRAM ALERTS PAGE
 // ═══════════════════════════════════════════════════════════════════
+let whatsappConfigCache = null;
+
+function onWhatsappProviderChange() {
+  const prov = (document.getElementById('wa-provider')?.value || 'callmebot').toLowerCase();
+  const blocks = ['callmebot', 'meta', 'twilio', 'webhook'];
+  blocks.forEach(p => {
+    const el = document.getElementById(`wa-fields-${p}`);
+    if (el) el.classList.toggle('hidden', p !== prov);
+  });
+  const guide = document.getElementById('wa-guide-callmebot');
+  if (guide) guide.classList.toggle('hidden', prov !== 'callmebot');
+}
+
+function applyWhatsappConfigToUi(cfg) {
+  whatsappConfigCache = cfg || {};
+  const provEl = document.getElementById('wa-provider');
+  const phoneEl = document.getElementById('wa-phone');
+  const apiKeyEl = document.getElementById('wa-apikey');
+  const apiHintEl = document.getElementById('wa-apikey-hint');
+  const metaPidEl = document.getElementById('wa-meta-phone-id');
+  const metaTokEl = document.getElementById('wa-meta-token');
+  const twSidEl = document.getElementById('wa-twilio-sid');
+  const twTokEl = document.getElementById('wa-twilio-token');
+  const twFromEl = document.getElementById('wa-twilio-from');
+  const whEl = document.getElementById('wa-webhook-url');
+
+  if (provEl) provEl.value = cfg.provider || 'callmebot';
+  if (phoneEl) phoneEl.value = cfg.phone || '';
+  if (apiKeyEl) {
+    apiKeyEl.value = '';
+    apiKeyEl.placeholder = cfg.has_api_key ? 'Saved (leave blank to keep current key)' : 'Enter your CallMeBot API key';
+  }
+  if (apiHintEl) {
+    apiHintEl.textContent = cfg.has_api_key ? '● API key securely stored in your vault.' : '';
+  }
+  if (metaPidEl) metaPidEl.value = cfg.meta_phone_number_id || '';
+  if (metaTokEl) {
+    metaTokEl.value = '';
+    metaTokEl.placeholder = cfg.has_meta_token ? 'Saved (leave blank to keep current token)' : 'EAAG...';
+  }
+  if (twSidEl) twSidEl.value = cfg.twilio_account_sid || '';
+  if (twTokEl) {
+    twTokEl.value = '';
+    twTokEl.placeholder = cfg.has_twilio_token ? 'Saved (leave blank to keep current token)' : 'Auth Token';
+  }
+  if (twFromEl) twFromEl.value = cfg.twilio_from || 'whatsapp:+14155238886';
+  if (whEl) whEl.value = cfg.webhook_url || '';
+
+  const setCheck = (id, val) => { const el = document.getElementById(id); if (el) el.checked = val !== false; };
+  setCheck('wa-enabled', cfg.enabled !== false);
+  setCheck('wa-notify-jobs', cfg.notify_jobs !== false);
+  setCheck('wa-notify-shortlists', cfg.notify_shortlists !== false);
+  setCheck('wa-notify-offers', cfg.notify_offers !== false);
+
+  const pill = document.getElementById('wa-status-pill');
+  if (pill) {
+    if (cfg.configured) {
+      pill.textContent = `● Active · ${String(cfg.provider || 'callmebot').toUpperCase()}`;
+      pill.className = 'text-[11px] font-mono px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-300';
+    } else {
+      pill.textContent = '○ Not Configured';
+      pill.className = 'text-[11px] font-mono px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/10 text-zinc-400';
+    }
+  }
+  onWhatsappProviderChange();
+}
+
+async function loadWhatsappConfig() {
+  try {
+    const { ok, data } = await apiFetch('/api/whatsapp/config');
+    if (ok && data && data.success) {
+      applyWhatsappConfigToUi(data.config || {});
+    }
+  } catch (e) {
+    console.warn('WhatsApp config fetch failed:', e);
+  }
+}
+
+async function saveWhatsappConfig() {
+  const btn = document.getElementById('btn-wa-save');
+  const fb = document.getElementById('wa-save-feedback');
+  const payload = {
+    provider: document.getElementById('wa-provider')?.value || 'callmebot',
+    phone: (document.getElementById('wa-phone')?.value || '').trim(),
+    api_key: (document.getElementById('wa-apikey')?.value || '').trim(),
+    meta_phone_number_id: (document.getElementById('wa-meta-phone-id')?.value || '').trim(),
+    meta_access_token: (document.getElementById('wa-meta-token')?.value || '').trim(),
+    twilio_account_sid: (document.getElementById('wa-twilio-sid')?.value || '').trim(),
+    twilio_auth_token: (document.getElementById('wa-twilio-token')?.value || '').trim(),
+    twilio_from: (document.getElementById('wa-twilio-from')?.value || '').trim(),
+    webhook_url: (document.getElementById('wa-webhook-url')?.value || '').trim(),
+    enabled: Boolean(document.getElementById('wa-enabled')?.checked),
+    notify_jobs: Boolean(document.getElementById('wa-notify-jobs')?.checked),
+    notify_shortlists: Boolean(document.getElementById('wa-notify-shortlists')?.checked),
+    notify_offers: Boolean(document.getElementById('wa-notify-offers')?.checked),
+  };
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+  try {
+    const { ok, data } = await apiFetch('/api/whatsapp/config', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    if (ok && data && data.success) {
+      applyWhatsappConfigToUi(data.config || {});
+      toast(data.config?.configured ? 'WhatsApp alerts saved & armed!' : 'WhatsApp settings saved (add key/phone to activate).', 'success');
+      if (fb) fb.textContent = 'Saved.';
+      fetchStatus();
+    } else {
+      toast('Could not save WhatsApp config: ' + ((data && data.message) || 'Error'), 'error');
+    }
+  } catch (e) {
+    toast('Network error saving WhatsApp config: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Save WhatsApp Config'; }
+  }
+}
+
+async function testWhatsapp() {
+  toast('Sending test WhatsApp alert...', 'info');
+  try {
+    const { ok, data } = await apiFetch('/api/whatsapp/test', { method: 'POST' });
+    if (ok && data && data.success) {
+      toast(data.message || 'Test message sent to your WhatsApp!', 'success');
+    } else {
+      toast((data && data.message) || 'WhatsApp test failed — save Phone + API Key first.', 'error');
+    }
+  } catch (e) {
+    toast('Network error: ' + e.message, 'error');
+  }
+}
+
+async function sendWhatsappDigest() {
+  const btn = document.getElementById('btn-wa-digest');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending Digest...'; }
+  toast('Sending active Shortlist venues + open Job Profiles to WhatsApp...', 'info');
+  try {
+    const { ok, data } = await apiFetch('/api/whatsapp/send-digest', { method: 'POST' });
+    if (ok && data && data.success) {
+      toast(data.message || 'WhatsApp live digest delivered!', 'success');
+    } else {
+      toast((data && data.message) || 'Could not send digest — configure WhatsApp first.', 'error');
+    }
+  } catch (e) {
+    toast('Network error: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Send Live Digest Now'; }
+  }
+}
+
 function renderTelegram() {
-  const d = statusData;
-  document.getElementById('tg-chat-id').textContent = d.telegram_chat_id || 'Not Configured';
+  const d = statusData || {};
+  const tgId = document.getElementById('tg-chat-id');
+  if (tgId) tgId.textContent = d.telegram_chat_id || 'Not Configured';
   const tgStatus = document.getElementById('tg-status');
-  if (d.telegram_paired) { tgStatus.textContent = '● Connected & Paired'; tgStatus.className = 'text-sm font-semibold text-emerald-400'; }
-  else { tgStatus.textContent = '○ Not paired'; tgStatus.className = 'text-sm font-semibold text-red-400'; }
+  if (tgStatus) {
+    if (d.telegram_paired) { tgStatus.textContent = '● Connected'; tgStatus.className = 'text-xs font-semibold text-emerald-400'; }
+    else { tgStatus.textContent = '○ Not paired'; tgStatus.className = 'text-xs font-semibold text-zinc-500'; }
+  }
+  loadWhatsappConfig();
 }
 
 async function testTelegram() {
@@ -3574,7 +3909,7 @@ function renderShortlistCardHtml(n, compact = false) {
   const matchPdf = m.attachment_id ? (n.attachments || []).find(a => a.id === m.attachment_id) : null;
   const pageNum = m.page_number || 1;
   const dateStatus = ev.date_status_label ? ` · ${ev.date_status_label}` : '';
-  const metaParts = [ev.event_type, ev.date, ev.time, ev.venue].filter(Boolean);
+  const metaParts = [ev.process || ev.event_type, ev.date, ev.time, ev.venue].filter(Boolean);
 
   return `
     <div class="rounded-xl p-4 sm:p-5 bg-[#121216] border border-white/[0.09] border-l-2 border-l-amber-400/85">
@@ -3584,6 +3919,7 @@ function renderShortlistCardHtml(n, compact = false) {
             <span class="badge-shortlisted text-[10px] font-mono px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wider inline-flex items-center gap-1.5">
               <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>Shortlisted${esc(dateStatus)}
             </span>
+            ${ev.matched_profile ? `<span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/[0.06] border border-white/10 text-zinc-200">${esc(ev.matched_profile)}</span>` : ''}
             <span class="text-[11px] font-mono text-zinc-500">Page ${pageNum} · ${esc(m.match_type === 'EXACT_ROLL' ? 'Roll Verified' : (m.match_type || 'Matched'))}</span>
           </div>
           <div class="text-sm font-semibold text-zinc-50 leading-snug">${esc(n.title)}</div>
@@ -4708,6 +5044,7 @@ def get_status():
     total_jobs = len(jobs_list)
     shortlisted_count = sum(1 for n in cached_notices if n.get("is_shortlisted") and not n.get("is_past_event"))
     prof = user["profile"]
+    wa_notifier = WhatsAppNotifier.from_user_profile(user)
 
     return jsonify({
         "student_name": user["full_name"],
@@ -4723,6 +5060,8 @@ def get_status():
         "open_jobs": open_count,
         "shortlisted_count": shortlisted_count,
         "pending_offers_count": len(cached_pending),
+        "whatsapp_paired": wa_notifier.is_configured(),
+        "whatsapp_provider": wa_notifier.provider if wa_notifier.is_configured() else "",
         "telegram_paired": bool(user["telegram_chat_id"] or Config.TELEGRAM_CHAT_ID),
         "telegram_chat_id": user["telegram_chat_id"] or ("Configured" if Config.TELEGRAM_CHAT_ID else ""),
         "daemon_active": daemon_active,
@@ -4796,8 +5135,14 @@ def trigger_sync():
         timestamp = datetime.now(IST).strftime("%d %b %Y, %I:%M:%S %p IST")
         user_manager.set_user_last_sync(user["user_id"], timestamp)
 
-        # Also refresh homepage notices, shortlist PDFs & pending offers in background (non-blocking)
-        def _bg_notice_scan(u_obj):
+        # Also dispatch WhatsApp alerts for new open eligible jobs + refresh notices/shortlist PDFs/pending offers in background
+        def _bg_notice_scan(u_obj, jobs_snapshot):
+            try:
+                wa_sent = notify_new_job_openings_for_user(user_manager, u_obj, jobs_snapshot)
+                if wa_sent:
+                    log_event(f"WhatsApp Job Alerts ({u_obj['full_name']}): dispatched {wa_sent} new job opening alert(s).", "SUCCESS")
+            except Exception as wa_err:
+                logger.debug(f"Background WhatsApp job alert warning: {wa_err}")
             try:
                 sc_n = _get_superset_for_user(u_obj)
                 if sc_n.login():
@@ -4805,7 +5150,7 @@ def trigger_sync():
             except Exception as bg_err:
                 logger.debug(f"Background notice scan warning: {bg_err}")
 
-        threading.Thread(target=_bg_notice_scan, args=(user,), daemon=True).start()
+        threading.Thread(target=_bg_notice_scan, args=(user, sorted_jobs), daemon=True).start()
 
         global last_sync_info
         last_sync_info = {
@@ -5324,6 +5669,18 @@ def manual_apply(job_id):
                     notifier.send_message(tg_msg)
             except Exception as te:
                 log_event(f"Telegram alert delivery note: {te}", "WARN")
+            try:
+                wa = WhatsAppNotifier.from_user_profile(user)
+                if wa.is_configured() and wa.notify_jobs:
+                    wa.send_message(
+                        f"⚡ *Application Confirmed & Submitted!*\n"
+                        f"*Student:* {user['full_name']}\n"
+                        f"*Company:* {company}\n"
+                        f"*Status:* Registered successfully on Superset.",
+                        event_type="application_confirmed",
+                    )
+            except Exception as we:
+                log_event(f"WhatsApp alert delivery note: {we}", "WARN")
 
             # Invalidate user's job cache
             user_manager.set_cached_jobs(user["user_id"], [])
@@ -5474,6 +5831,204 @@ def send_telegram_custom():
         log_event(f"Custom Telegram message sent: {text[:40]}...", "SUCCESS")
         return jsonify({"success": True})
     return jsonify({"success": False, "message": "Failed to send Telegram message"}), 500
+
+
+# ─── WHATSAPP ALERTS API ────────────────────────────────────────────────────
+
+def _safe_whatsapp_config_payload(user: dict) -> dict:
+    prof = user.get("profile") or {}
+    cfg = prof.get("whatsapp_config") if isinstance(prof.get("whatsapp_config"), dict) else {}
+    wa = WhatsAppNotifier.from_user_profile(user)
+    return {
+        "configured": wa.is_configured(),
+        "enabled": cfg.get("enabled", True) if cfg else wa.enabled,
+        "provider": wa.provider,
+        "phone": cfg.get("phone") or wa.phone or "",
+        "has_api_key": bool(cfg.get("api_key") or (user.get("is_admin") and Config.WHATSAPP_API_KEY)),
+        "meta_phone_number_id": cfg.get("meta_phone_number_id") or "",
+        "has_meta_token": bool(cfg.get("meta_access_token") or (user.get("is_admin") and Config.WHATSAPP_META_TOKEN)),
+        "twilio_account_sid": cfg.get("twilio_account_sid") or "",
+        "has_twilio_token": bool(cfg.get("twilio_auth_token") or (user.get("is_admin") and Config.TWILIO_AUTH_TOKEN)),
+        "twilio_from": cfg.get("twilio_from") or Config.TWILIO_WHATSAPP_FROM or "whatsapp:+14155238886",
+        "webhook_url": cfg.get("webhook_url") or "",
+        "notify_jobs": wa.notify_jobs,
+        "notify_shortlists": wa.notify_shortlists,
+        "notify_offers": wa.notify_offers,
+    }
+
+
+@app.route("/api/whatsapp/config", methods=["GET", "POST"])
+def api_whatsapp_config():
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Authentication required"}), 401
+
+    if request.method == "GET":
+        return jsonify({"success": True, "config": _safe_whatsapp_config_payload(user)})
+
+    data = request.get_json(silent=True) or {}
+    provider = str(data.get("provider") or "callmebot").strip().lower()
+    if provider not in ("callmebot", "meta", "twilio", "webhook"):
+        return jsonify({"success": False, "message": f"Unsupported provider '{provider}'"}), 400
+
+    existing = (user.get("profile") or {}).get("whatsapp_config")
+    existing = existing if isinstance(existing, dict) else {}
+
+    phone_raw = str(data.get("phone") if data.get("phone") is not None else existing.get("phone", "")).strip()
+    phone_norm = normalize_whatsapp_phone(phone_raw) if phone_raw else ""
+
+    def _keep_secret(field_name: str) -> str:
+        val = str(data.get(field_name) or "").strip()
+        return val if val else str(existing.get(field_name) or "").strip()
+
+    new_cfg = {
+        "provider": provider,
+        "phone": phone_norm,
+        "api_key": _keep_secret("api_key"),
+        "meta_phone_number_id": str(data.get("meta_phone_number_id") or "").strip(),
+        "meta_access_token": _keep_secret("meta_access_token"),
+        "twilio_account_sid": str(data.get("twilio_account_sid") or "").strip(),
+        "twilio_auth_token": _keep_secret("twilio_auth_token"),
+        "twilio_from": str(data.get("twilio_from") or "whatsapp:+14155238886").strip(),
+        "webhook_url": str(data.get("webhook_url") or "").strip(),
+        "enabled": bool(data.get("enabled", True)),
+        "notify_jobs": bool(data.get("notify_jobs", True)),
+        "notify_shortlists": bool(data.get("notify_shortlists", True)),
+        "notify_offers": bool(data.get("notify_offers", True)),
+    }
+
+    user_manager.update_user_profile(user["user_id"], {"whatsapp_config": new_cfg})
+    updated_user = user_manager.get_user_by_id(user["user_id"]) or user
+    safe_cfg = _safe_whatsapp_config_payload(updated_user)
+    log_event(f"Updated WhatsApp config for {user['full_name']} (provider={provider}, active={safe_cfg['configured']}).", "SUCCESS")
+    return jsonify({"success": True, "config": safe_cfg})
+
+
+@app.route("/api/whatsapp/test", methods=["POST"])
+def api_whatsapp_test():
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Authentication required"}), 401
+
+    wa = WhatsAppNotifier.from_user_profile(user)
+    if not wa.is_configured():
+        return jsonify({
+            "success": False,
+            "message": "WhatsApp is not configured yet. Enter your phone number and API key, then click Save WhatsApp Config first.",
+        }), 400
+
+    ok, detail = wa.send_test_message(student_name=user["full_name"])
+    if ok:
+        log_event(f"Dispatched verified WhatsApp test alert for {user['full_name']} via {wa.provider}.", "SUCCESS")
+        return jsonify({"success": True, "provider": wa.provider, "message": detail})
+    log_event(f"WhatsApp test failed ({wa.provider}): {detail}", "ERROR")
+    return jsonify({"success": False, "provider": wa.provider, "message": detail}), 502
+
+
+@app.route("/api/whatsapp/send-digest", methods=["POST"])
+def api_whatsapp_send_digest():
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Authentication required"}), 401
+
+    wa = WhatsAppNotifier.from_user_profile(user)
+    if not wa.is_configured():
+        return jsonify({
+            "success": False,
+            "message": "WhatsApp is not configured yet. Save your WhatsApp phone and API key first.",
+        }), 400
+
+    cached_notices, _ = user_manager.get_cached_notices(user["user_id"])
+    cached_jobs, _ = user_manager.get_cached_jobs(user["user_id"])
+    cached_pending, _ = user_manager.get_cached_pending_actions(user["user_id"])
+
+    upcoming_shortlists = [
+        n for n in (cached_notices or [])
+        if n.get("is_shortlisted") and not n.get("is_past_event")
+    ][:3]
+    open_eligible_jobs = [
+        j for j in (cached_jobs or [])
+        if j.get("is_open") and j.get("is_eligible") and not j.get("is_applied")
+    ][:6]
+    pending_offers = (cached_pending or [])[:2]
+
+    messages_to_send = []
+    # 1. Upcoming shortlists with exact role-specific venue, date, reporting time
+    for n in upcoming_shortlists:
+        m = n.get("shortlist_match") or {}
+        messages_to_send.append((
+            "shortlist_digest",
+            wa.format_shortlist_message(
+                n, m, student_name=user["full_name"], roll_number=user["roll_number"]
+            ),
+        ))
+
+    # 2. Pending offers
+    for act in pending_offers:
+        messages_to_send.append((
+            "offer_digest",
+            wa.format_pending_offer_message(act, student_name=user["full_name"]),
+        ))
+
+    # 3. Currently open eligible job openings
+    if len(open_eligible_jobs) == 1:
+        j = open_eligible_jobs[0]
+        messages_to_send.append((
+            "job_opening_digest",
+            wa.format_job_opening_message(j, auto_applied=False),
+        ))
+    elif len(open_eligible_jobs) > 1:
+        lines = [f"📢 *OPEN ELIGIBLE JOB PROFILES ({len(open_eligible_jobs)})*", ""]
+        for idx, j in enumerate(open_eligible_jobs, 1):
+            lines.append(
+                f"{idx}. *{j.get('company_name', 'Company')}* — {j.get('job_role', 'Role')}\n"
+                f"   CTC: {j.get('ctc_display', 'N/A')} | Deadline: {j.get('deadline_display', 'Check Portal')}\n"
+                f"   Apply: {j.get('profile_url', Config.SUPERSET_BASE_URL)}"
+            )
+        messages_to_send.append(("job_opening_digest", "\n".join(lines)))
+
+    if not messages_to_send:
+        total_open = sum(1 for j in (cached_jobs or []) if j.get("is_open"))
+        summary_msg = (
+            f"📋 *Superset Job Pilot — Live Digest*\n"
+            f"Hi {user['full_name']}, you are all caught up!\n"
+            f"• Upcoming Shortlists: 0\n"
+            f"• Unapplied Open Eligible Jobs: 0 (Total open drives: {total_open})\n"
+            f"• Pending Offers: 0\n\n"
+            f"24/7 WhatsApp watchdog is armed for new job openings and shortlist PDFs."
+        )
+        messages_to_send.append(("status_digest", summary_msg))
+
+    sent_count = 0
+    errors = []
+    for idx, (ev_type, txt) in enumerate(messages_to_send):
+        if idx > 0:
+            time.sleep(0.5)
+        ok, detail = wa.send_message(txt, event_type=ev_type)
+        if ok:
+            sent_count += 1
+        else:
+            errors.append(detail)
+
+    if sent_count > 0:
+        msg = (
+            f"Delivered {sent_count} WhatsApp alert(s): "
+            f"{len(upcoming_shortlists)} shortlist(s), {len(open_eligible_jobs)} open eligible job(s), "
+            f"{len(pending_offers)} pending offer(s)."
+        )
+        log_event(f"WhatsApp Live Digest ({user['full_name']}): {msg}", "SUCCESS")
+        return jsonify({
+            "success": True,
+            "sent_count": sent_count,
+            "shortlists_sent": len(upcoming_shortlists),
+            "open_jobs_included": len(open_eligible_jobs),
+            "pending_offers_included": len(pending_offers),
+            "message": msg,
+        })
+
+    err_msg = errors[0] if errors else "Failed to deliver WhatsApp digest."
+    log_event(f"WhatsApp Live Digest failed ({user['full_name']}): {err_msg}", "ERROR")
+    return jsonify({"success": False, "message": err_msg}), 502
 
 
 if __name__ == "__main__":

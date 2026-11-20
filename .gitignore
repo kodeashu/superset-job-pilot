@@ -12,3 +12,5 @@ data/clarifications_memory.json
 netlify_dist/
 netlify_safe/
 .netlify/
+whatsapp_bridge/node_modules/
+data/wa_auth/

@@ -1,0 +1,15 @@
+{
+  "name": "superset-whatsapp-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local loopback-only WhatsApp Linked-Device bridge for Superset Job Pilot",
+  "scripts": {
+    "start": "node bridge.mjs"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.16",
+    "pino": "^9.6.0",
+    "qrcode": "^1.5.4"
+  }
+}

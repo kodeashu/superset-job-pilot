@@ -26,7 +26,8 @@ class Config:
     TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
     # WhatsApp Notifications (Optional env defaults; per-user config stored in encrypted vault)
-    WHATSAPP_PROVIDER = os.getenv("WHATSAPP_PROVIDER", "callmebot")
+    WHATSAPP_PROVIDER = os.getenv("WHATSAPP_PROVIDER", "local_qr")
+    WHATSAPP_BRIDGE_URL = os.getenv("WHATSAPP_BRIDGE_URL", "http://127.0.0.1:8091")
     WHATSAPP_PHONE = os.getenv("WHATSAPP_PHONE", "")
     WHATSAPP_API_KEY = os.getenv("WHATSAPP_API_KEY", "")
     WHATSAPP_META_PHONE_ID = os.getenv("WHATSAPP_META_PHONE_ID", "")

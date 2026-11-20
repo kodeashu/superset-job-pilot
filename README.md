@@ -12,7 +12,7 @@ An automated assistant built specifically for final year college students to **n
    - Immediately triggers a **🔥 YOU ARE SHORTLISTED!** dashboard banner plus deduplicated **WhatsApp & Telegram** alerts.
 
 2. **💬 Instant WhatsApp & Telegram Alerts (Job Profiles + Shortlist Venues + Offers)**:
-   - Per-student WhatsApp delivery supporting **CallMeBot (Free · 30-second setup)**, **Meta WhatsApp Cloud API**, **Twilio WhatsApp**, and **Custom Webhooks** (`n8n` / `Make` / `WAHA`).
+   - Built-in **WhatsApp Linked Devices QR Bridge** (`whatsapp_bridge/bridge.mjs` — 100% free, scan QR once inside the dashboard, zero third-party waitlists or Meta verification), plus optional **Meta WhatsApp Cloud API**, **Twilio WhatsApp**, **Custom Webhooks** (`n8n` / `Make` / `WAHA`), and **CallMeBot**.
    - Sends instant structured WhatsApp notifications for newly opened eligible **Job Profiles** (Company, Role, CTC, Location, Deadline, Apply & Calendar links), upcoming **Shortlist Venue/Date/Time PDF matches**, and urgent **Pending Job Offers**, plus an on-demand **Send Live Digest Now** button.
 
 3. **📢 Smart Notice Feed & 1-Click Inline PDF Viewer**:

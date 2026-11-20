@@ -217,7 +217,7 @@ class AutoApplier:
                 except Exception as te:
                     logger.warning(f"Telegram notification dispatch failed for {company}: {te}")
                 try:
-                    if self.whatsapp.is_configured():
+                    if self.whatsapp.is_configured(check_live_bridge=True):
                         wa_sent = self.whatsapp.send_job_alert(job, cal_url=cal_url, auto_applied=applied)
                         if wa_sent:
                             sent_any = True

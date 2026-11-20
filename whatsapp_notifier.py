@@ -1,11 +1,12 @@
 """
 Multi-Provider WhatsApp Notifier for Superset Job Pilot.
 
-Supports per-student encrypted configuration with 4 sanctioned API providers:
-  1. callmebot  (Free, 30-second personal setup via CallMeBot WhatsApp API)
+Supports per-student encrypted configuration with 5 delivery providers:
+  1. local_qr   (Built-in local WhatsApp Linked Devices QR bridge — Free & instant, no 3rd-party queue)
   2. meta       (Official Meta WhatsApp Business Cloud API)
   3. twilio     (Official Twilio WhatsApp Sandbox / Business API)
   4. webhook    (Custom HTTP JSON webhook bridge e.g. n8n / Make / WAHA)
+  5. callmebot  (Legacy CallMeBot WhatsApp API — if you already have an API key)
 
 Dispatches structured WhatsApp alerts for:
   - New open eligible Job Profiles (Company, Role, CTC, Location, Deadline, Apply & Calendar links)
@@ -37,6 +38,7 @@ class WhatsAppNotifier:
         provider: str = "",
         phone: str = "",
         api_key: str = "",
+        bridge_url: str = "",
         meta_phone_number_id: str = "",
         meta_access_token: str = "",
         twilio_account_sid: str = "",
@@ -48,9 +50,10 @@ class WhatsAppNotifier:
         notify_shortlists: bool = True,
         notify_offers: bool = True,
     ):
-        self.provider = (provider or Config.WHATSAPP_PROVIDER or "callmebot").strip().lower()
+        self.provider = (provider or Config.WHATSAPP_PROVIDER or "local_qr").strip().lower()
         self.phone = normalize_whatsapp_phone(phone or Config.WHATSAPP_PHONE)
         self.api_key = (api_key or Config.WHATSAPP_API_KEY or "").strip()
+        self.bridge_url = (bridge_url or Config.WHATSAPP_BRIDGE_URL or "http://127.0.0.1:8091").strip().rstrip("/")
         self.meta_phone_number_id = (meta_phone_number_id or Config.WHATSAPP_META_PHONE_ID or "").strip()
         self.meta_access_token = (meta_access_token or Config.WHATSAPP_META_TOKEN or "").strip()
         self.twilio_account_sid = (twilio_account_sid or Config.TWILIO_ACCOUNT_SID or "").strip()
@@ -69,9 +72,10 @@ class WhatsAppNotifier:
         cfg = prof.get("whatsapp_config") if isinstance(prof.get("whatsapp_config"), dict) else {}
         if cfg:
             return cls(
-                provider=cfg.get("provider", "callmebot"),
-                phone=cfg.get("phone") or prof.get("phone_number", ""),
+                provider=cfg.get("provider", "local_qr"),
+                phone=cfg.get("phone") or "",
                 api_key=cfg.get("api_key", ""),
+                bridge_url=cfg.get("bridge_url") or Config.WHATSAPP_BRIDGE_URL,
                 meta_phone_number_id=cfg.get("meta_phone_number_id", ""),
                 meta_access_token=cfg.get("meta_access_token", ""),
                 twilio_account_sid=cfg.get("twilio_account_sid", ""),
@@ -83,14 +87,32 @@ class WhatsAppNotifier:
                 notify_shortlists=cfg.get("notify_shortlists", True),
                 notify_offers=cfg.get("notify_offers", True),
             )
-        # Fallback to host .env only for admin user if no per-user config set yet
-        if user and user.get("is_admin"):
+        # Fallback to host .env only for admin user if explicitly configured with external credentials
+        if user and user.get("is_admin") and (Config.WHATSAPP_API_KEY or Config.WHATSAPP_META_TOKEN or Config.TWILIO_AUTH_TOKEN or Config.WHATSAPP_WEBHOOK_URL):
             return cls()
-        return cls(enabled=False, phone="", api_key="")
+        return cls(provider="local_qr", enabled=False, phone="", api_key="")
 
-    def is_configured(self) -> bool:
+    def get_local_bridge_status(self, timeout: float = 1.2) -> Dict[str, Any]:
+        """Queries the loopback WhatsApp Linked-Device bridge status safely."""
+        if not self.bridge_url:
+            return {"running": False, "connected": False, "state": "unconfigured"}
+        try:
+            resp = requests.get(f"{self.bridge_url}/status", timeout=timeout)
+            if resp.status_code == 200:
+                return resp.json()
+        except Exception:
+            pass
+        return {"running": False, "connected": False, "state": "offline"}
+
+    def is_configured(self, check_live_bridge: bool = False) -> bool:
         if not self.enabled:
             return False
+        if self.provider == "local_qr":
+            if not self.bridge_url:
+                return False
+            if check_live_bridge:
+                return bool(self.get_local_bridge_status(timeout=0.9).get("connected"))
+            return True
         if self.provider == "callmebot":
             return bool(self.phone and self.api_key)
         if self.provider == "meta":
@@ -111,6 +133,24 @@ class WhatsAppNotifier:
             return False, "Empty message text."
 
         try:
+            if self.provider == "local_qr":
+                resp = requests.post(
+                    f"{self.bridge_url}/send",
+                    json={"phone": self.phone, "text": msg_text, "event_type": event_type},
+                    timeout=20,
+                )
+                data = {}
+                try:
+                    data = resp.json()
+                except Exception:
+                    pass
+                if resp.status_code == 200 and data.get("success"):
+                    logger.info(f"WhatsApp alert sent via Local QR Bridge ({event_type}).")
+                    return True, data.get("message") or "Sent directly on WhatsApp"
+                err = data.get("message") or f"Local WhatsApp bridge error (HTTP {resp.status_code})"
+                logger.warning(f"Local WhatsApp bridge rejected send: {err}")
+                return False, err
+
             if self.provider == "callmebot":
                 resp = requests.get(
                     "https://api.callmebot.com/whatsapp.php",

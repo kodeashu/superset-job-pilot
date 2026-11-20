@@ -136,6 +136,18 @@ class TestWhatsAppNotifierUnit(unittest.TestCase):
             self.assertTrue(ok)
             self.assertEqual(m_post.call_args[1]["data"]["To"], "whatsapp:+919876543210")
 
+        # Local QR Bridge
+        wa_qr = WhatsAppNotifier(provider="local_qr", bridge_url="http://127.0.0.1:8091", phone="")
+        self.assertTrue(wa_qr.is_configured())
+        ok_qr_resp = MagicMock(status_code=200)
+        ok_qr_resp.json.return_value = {"success": True, "message": "Delivered directly on WhatsApp"}
+        with patch("whatsapp_notifier.requests.post", return_value=ok_qr_resp) as m_post:
+            ok, msg = wa_qr.send_message("QR bridge test", event_type="shortlist")
+            self.assertTrue(ok)
+            self.assertIn("WhatsApp", msg)
+            self.assertEqual(m_post.call_args[0][0], "http://127.0.0.1:8091/send")
+            self.assertEqual(m_post.call_args[1]["json"]["event_type"], "shortlist")
+
         # Webhook
         wa_wh = WhatsAppNotifier(provider="webhook", phone="919876543210", webhook_url="https://hook.example.com/wa")
         self.assertTrue(wa_wh.is_configured())
@@ -388,6 +400,26 @@ class TestFlaskWhatsAppApi(unittest.TestCase):
                     sent_texts = [c[1]["params"]["text"] for c in m_get.call_args_list]
                     self.assertTrue(any("Computer Labs, Campus-6" in t and "Full Stack Developer" in t for t in sent_texts))
                     self.assertTrue(any("AcmeCloud" in t and "14 LPA" in t for t in sent_texts))
+
+                # 6. POST /api/whatsapp/qr/start auto-arms local_qr and returns QR data URL
+                mock_qr_resp = MagicMock(status_code=200, headers={"content-type": "application/json"})
+                mock_qr_resp.json.return_value = {
+                    "running": True,
+                    "connected": False,
+                    "state": "qr_ready",
+                    "qr_data_url": "data:image/png;base64,TESTQR",
+                }
+                with patch.object(web_server, "_ensure_whatsapp_bridge_running", return_value=(True, "Bridge online")), \
+                     patch("web_server.requests.post", return_value=mock_qr_resp):
+                    rqr = client.post("/api/whatsapp/qr/start", json={})
+                    self.assertEqual(rqr.status_code, 200)
+                    dq = rqr.get_json()
+                    self.assertTrue(dq["success"])
+                    self.assertEqual(dq["state"], "qr_ready")
+                    self.assertIn("TESTQR", dq["qr_data_url"])
+                    # Verify local_qr was auto-armed in the user's vault
+                    u_after = um.get_user_by_id(uid)
+                    self.assertEqual(u_after["profile"]["whatsapp_config"]["provider"], "local_qr")
 
 
 if __name__ == "__main__":

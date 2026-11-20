@@ -6,10 +6,13 @@ and multi-channel auto-applier for app.joinsuperset.com.
 import json
 import logging
 import os
+import subprocess
 import threading
 import time
+import requests
 from collections import deque
 from datetime import datetime, timezone
+from typing import Tuple
 import pytz
 from flask import Flask, jsonify, request, render_template_string, Response
 from config import Config, BASE_DIR
@@ -1118,31 +1121,76 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
               <div class="space-y-1.5">
                 <label for="wa-provider" class="block text-[11px] font-medium uppercase tracking-wider text-zinc-400">Delivery Provider</label>
                 <select id="wa-provider" onchange="onWhatsappProviderChange()" class="w-full bg-[#09090b] border border-white/10 focus:border-zinc-500 rounded-lg px-3 py-2.5 text-xs text-zinc-100 focus:outline-none">
-                  <option value="callmebot">CallMeBot (Free · 30s Personal Setup)</option>
+                  <option value="local_qr">Built-in WhatsApp QR Link (Free · Instant · Recommended)</option>
                   <option value="meta">Meta WhatsApp Cloud API (Official)</option>
                   <option value="twilio">Twilio WhatsApp API</option>
                   <option value="webhook">Custom Webhook (n8n / Make / WAHA)</option>
+                  <option value="callmebot">CallMeBot (Legacy — Free Slots Often Full)</option>
                 </select>
               </div>
               <div class="space-y-1.5">
-                <label for="wa-phone" class="block text-[11px] font-medium uppercase tracking-wider text-zinc-400">WhatsApp Number</label>
-                <input id="wa-phone" type="tel" autocomplete="tel" placeholder="919876543210 or 10-digit mobile"
+                <label for="wa-phone" class="block text-[11px] font-medium uppercase tracking-wider text-zinc-400">WhatsApp Number <span id="wa-phone-opt-tag" class="text-zinc-500 font-normal normal-case">(optional for QR Link)</span></label>
+                <input id="wa-phone" type="tel" autocomplete="tel" placeholder="Leave blank for Message Yourself, or 10-digit mobile"
                   class="w-full bg-[#09090b] border border-white/10 focus:border-zinc-500 rounded-lg px-3 py-2.5 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none font-mono">
               </div>
             </div>
 
-            <!-- CallMeBot 30-Second Setup Guide -->
-            <div id="wa-guide-callmebot" class="rounded-xl bg-[#09090b] border border-white/[0.08] p-3.5 space-y-2 text-xs">
-              <div class="text-[11px] font-semibold text-zinc-200 uppercase tracking-wider">30-Second Free Setup (CallMeBot)</div>
-              <ol class="list-decimal list-inside space-y-1 text-zinc-400 leading-relaxed">
-                <li>Add <span class="font-mono text-zinc-200">+34 644 71 98 38</span> to your phone contacts (e.g., <span class="text-zinc-200">CallMeBot</span>).</li>
-                <li>Open WhatsApp and send this exact message to that contact: <code class="px-1.5 py-0.5 rounded bg-white/[0.06] text-zinc-100 select-all">I allow callmebot to send me messages</code></li>
-                <li>Wait ~10 seconds for the reply with your <span class="text-zinc-200">API Key</span>, paste it below, and click <span class="text-zinc-200">Save WhatsApp Config</span>.</li>
-              </ol>
+            <!-- BUILT-IN WHATSAPP QR LINK PANEL (NO 3RD-PARTY BOT QUEUES) -->
+            <div id="wa-fields-local_qr" class="rounded-xl bg-[#09090b] border border-white/[0.08] p-4 space-y-3.5">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div>
+                  <div class="text-[11px] font-semibold text-zinc-200 uppercase tracking-wider">Link Your WhatsApp via QR Code (100% Free · Instant)</div>
+                  <p class="text-[11px] text-zinc-400 mt-0.5">No CallMeBot waitlist or Meta verification. Scan once under WhatsApp <span class="text-zinc-200">Settings → Linked Devices</span> and alerts arrive in your <span class="text-zinc-200">Message Yourself</span> chat.</p>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                  <button onclick="startWhatsappQr(false)" id="btn-wa-qr-start" class="px-3.5 py-2 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold whitespace-nowrap">
+                    Generate QR Code
+                  </button>
+                  <button onclick="logoutWhatsappQr()" id="btn-wa-qr-logout" class="hidden px-3 py-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-zinc-300 text-xs font-medium whitespace-nowrap">
+                    Unlink Device
+                  </button>
+                </div>
+              </div>
+
+              <!-- Live QR / Connected State Container -->
+              <div id="wa-qr-connected-box" class="hidden rounded-xl bg-emerald-500/[0.07] border border-emerald-500/25 p-3.5 flex items-center justify-between gap-3">
+                <div class="space-y-0.5">
+                  <div class="text-xs font-semibold text-emerald-300 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span id="wa-qr-connected-label">Linked to WhatsApp</span>
+                  </div>
+                  <div class="text-[11px] text-zinc-400">24/7 WhatsApp delivery is active. Leave WhatsApp Number blank to message yourself, or enter another number above.</div>
+                </div>
+              </div>
+
+              <div id="wa-qr-canvas-box" class="hidden flex flex-col sm:flex-row items-center gap-4 pt-1">
+                <div class="p-2.5 bg-white rounded-xl flex-shrink-0">
+                  <img id="wa-qr-img" src="" alt="WhatsApp Linked Devices QR Code" class="w-48 h-48 block">
+                </div>
+                <div class="space-y-2 text-xs text-zinc-400 leading-relaxed">
+                  <div class="text-zinc-100 font-semibold">Scan now on your phone:</div>
+                  <ol class="list-decimal list-inside space-y-1">
+                    <li>Open <span class="text-zinc-200">WhatsApp</span> on your iPhone / Android.</li>
+                    <li>Go to <span class="text-zinc-200">Settings → Linked Devices → Link a Device</span>.</li>
+                    <li>Point your camera at this QR code — connection completes automatically in ~3 seconds.</li>
+                  </ol>
+                  <div id="wa-qr-poll-note" class="text-[11px] font-mono text-zinc-500">Waiting for scan...</div>
+                </div>
+              </div>
+
+              <div id="wa-qr-error" class="hidden text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2"></div>
+            </div>
+
+            <!-- CallMeBot Setup Guide (Legacy) -->
+            <div id="wa-guide-callmebot" class="hidden rounded-xl bg-[#09090b] border border-white/[0.08] p-3.5 space-y-2 text-xs">
+              <div class="text-[11px] font-semibold text-amber-300 uppercase tracking-wider">CallMeBot Note (Free Slots Often Full)</div>
+              <p class="text-zinc-400 leading-relaxed">
+                CallMeBot frequently pauses new free WhatsApp activations ("bot is currently full"). Unless you already have an active CallMeBot API Key, switch to <span class="text-zinc-100 font-medium">Built-in WhatsApp QR Link</span> above for instant free alerts.
+              </p>
             </div>
 
             <!-- Provider-Specific Credential Inputs -->
-            <div id="wa-fields-callmebot" class="space-y-1.5">
+            <div id="wa-fields-callmebot" class="hidden space-y-1.5">
               <label for="wa-apikey" class="block text-[11px] font-medium uppercase tracking-wider text-zinc-400">CallMeBot API Key</label>
               <input id="wa-apikey" type="password" autocomplete="off" placeholder="Enter your CallMeBot API key"
                 class="w-full bg-[#09090b] border border-white/10 focus:border-zinc-500 rounded-lg px-3 py-2.5 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none font-mono">
@@ -1951,6 +1999,7 @@ function switchPage(page) {
   document.getElementById('page-title').textContent = titles[page] || page;
 
   // Refresh page data
+  if (page !== 'telegram' && typeof stopWhatsappQrPolling === 'function') stopWhatsappQrPolling();
   if (page === 'drives') renderDrives();
   if (page === 'notices') renderNotices();
   if (page === 'applied') renderApplied();
@@ -2781,16 +2830,152 @@ function renderEngine() {
 // WHATSAPP & TELEGRAM ALERTS PAGE
 // ═══════════════════════════════════════════════════════════════════
 let whatsappConfigCache = null;
+let waQrPollTimer = null;
+
+function stopWhatsappQrPolling() {
+  if (waQrPollTimer) {
+    clearInterval(waQrPollTimer);
+    waQrPollTimer = null;
+  }
+}
+
+function renderWhatsappQrState(st) {
+  const connBox = document.getElementById('wa-qr-connected-box');
+  const connLbl = document.getElementById('wa-qr-connected-label');
+  const qrBox = document.getElementById('wa-qr-canvas-box');
+  const qrImg = document.getElementById('wa-qr-img');
+  const errBox = document.getElementById('wa-qr-error');
+  const startBtn = document.getElementById('btn-wa-qr-start');
+  const logoutBtn = document.getElementById('btn-wa-qr-logout');
+  const pollNote = document.getElementById('wa-qr-poll-note');
+  const pill = document.getElementById('wa-status-pill');
+
+  if (!st) return;
+  if (errBox) {
+    if (st.last_error && !st.connected && st.state !== 'qr_ready') {
+      errBox.textContent = st.last_error;
+      errBox.classList.remove('hidden');
+    } else {
+      errBox.classList.add('hidden');
+    }
+  }
+
+  if (st.connected) {
+    stopWhatsappQrPolling();
+    if (connBox) connBox.classList.remove('hidden');
+    if (qrBox) qrBox.classList.add('hidden');
+    if (logoutBtn) logoutBtn.classList.remove('hidden');
+    if (startBtn) startBtn.classList.add('hidden');
+    const phoneStr = st.me_phone ? `+${st.me_phone}` : 'Your Device';
+    const nameStr = st.me_name ? ` (${st.me_name})` : '';
+    if (connLbl) connLbl.textContent = `Linked to WhatsApp ${phoneStr}${nameStr}`;
+    if (pill && (document.getElementById('wa-provider')?.value === 'local_qr')) {
+      pill.textContent = `● Active · QR LINKED (${phoneStr})`;
+      pill.className = 'text-[11px] font-mono px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-300';
+    }
+    return;
+  }
+
+  if (connBox) connBox.classList.add('hidden');
+  if (logoutBtn) logoutBtn.classList.add('hidden');
+  if (startBtn) startBtn.classList.remove('hidden');
+
+  if (st.state === 'qr_ready' && st.qr_data_url) {
+    if (qrImg) qrImg.src = st.qr_data_url;
+    if (qrBox) qrBox.classList.remove('hidden');
+    if (startBtn) startBtn.textContent = 'Refresh QR Code';
+    if (pollNote) pollNote.textContent = 'Live QR active — scan with WhatsApp Linked Devices...';
+    if (!waQrPollTimer) {
+      waQrPollTimer = setInterval(pollWhatsappQrStatus, 2500);
+    }
+  } else {
+    if (qrBox) qrBox.classList.add('hidden');
+    if (startBtn) startBtn.textContent = st.state === 'connecting' ? 'Connecting...' : 'Generate QR Code';
+  }
+}
+
+async function pollWhatsappQrStatus() {
+  const pageEl = document.getElementById('page-telegram');
+  if (!pageEl || pageEl.classList.contains('hidden')) {
+    stopWhatsappQrPolling();
+    return;
+  }
+  try {
+    const { ok, data } = await apiFetch('/api/whatsapp/qr/status');
+    if (ok && data) {
+      const wasConnected = Boolean(whatsappConfigCache && whatsappConfigCache.configured && whatsappConfigCache.provider === 'local_qr');
+      renderWhatsappQrState(data);
+      if (data.connected && !wasConnected) {
+        toast('WhatsApp Linked Successfully! Try "Send Test WhatsApp" or "Send Live Digest Now".', 'success');
+        loadWhatsappConfig();
+        fetchStatus();
+      }
+    }
+  } catch (e) {
+    console.warn('WA QR poll error:', e);
+  }
+}
+
+async function startWhatsappQr(fresh = false) {
+  const btn = document.getElementById('btn-wa-qr-start');
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating QR...'; }
+  try {
+    const { ok, data } = await apiFetch('/api/whatsapp/qr/start', {
+      method: 'POST',
+      body: JSON.stringify({ fresh: Boolean(fresh) }),
+    });
+    if (ok && data) {
+      renderWhatsappQrState(data);
+      if (data.connected) {
+        toast('WhatsApp is already linked and ready!', 'success');
+        loadWhatsappConfig();
+        fetchStatus();
+      } else if (data.qr_data_url) {
+        toast('QR code ready — scan in WhatsApp → Linked Devices.', 'info');
+      } else {
+        toast(data.message || data.last_error || 'Connecting to WhatsApp...', 'warn');
+      }
+    } else {
+      toast((data && data.message) || 'Could not start WhatsApp QR bridge.', 'error');
+    }
+  } catch (e) {
+    toast('Network error starting WhatsApp QR bridge: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; }
+  }
+}
+
+async function logoutWhatsappQr() {
+  if (!confirm('Unlink this WhatsApp device from Superset Job Pilot?')) return;
+  try {
+    const { ok, data } = await apiFetch('/api/whatsapp/qr/logout', { method: 'POST' });
+    if (ok && data) {
+      renderWhatsappQrState(data);
+      toast('WhatsApp device unlinked.', 'info');
+      loadWhatsappConfig();
+      fetchStatus();
+    }
+  } catch (e) {
+    toast('Failed to unlink device: ' + e.message, 'error');
+  }
+}
 
 function onWhatsappProviderChange() {
-  const prov = (document.getElementById('wa-provider')?.value || 'callmebot').toLowerCase();
-  const blocks = ['callmebot', 'meta', 'twilio', 'webhook'];
+  const prov = (document.getElementById('wa-provider')?.value || 'local_qr').toLowerCase();
+  const blocks = ['local_qr', 'callmebot', 'meta', 'twilio', 'webhook'];
   blocks.forEach(p => {
     const el = document.getElementById(`wa-fields-${p}`);
     if (el) el.classList.toggle('hidden', p !== prov);
   });
   const guide = document.getElementById('wa-guide-callmebot');
   if (guide) guide.classList.toggle('hidden', prov !== 'callmebot');
+  const optTag = document.getElementById('wa-phone-opt-tag');
+  if (optTag) optTag.classList.toggle('hidden', prov !== 'local_qr');
+  if (prov === 'local_qr') {
+    pollWhatsappQrStatus();
+  } else {
+    stopWhatsappQrPolling();
+  }
 }
 
 function applyWhatsappConfigToUi(cfg) {
@@ -2806,7 +2991,7 @@ function applyWhatsappConfigToUi(cfg) {
   const twFromEl = document.getElementById('wa-twilio-from');
   const whEl = document.getElementById('wa-webhook-url');
 
-  if (provEl) provEl.value = cfg.provider || 'callmebot';
+  if (provEl) provEl.value = cfg.provider || 'local_qr';
   if (phoneEl) phoneEl.value = cfg.phone || '';
   if (apiKeyEl) {
     apiKeyEl.value = '';
@@ -2837,13 +3022,15 @@ function applyWhatsappConfigToUi(cfg) {
   const pill = document.getElementById('wa-status-pill');
   if (pill) {
     if (cfg.configured) {
-      pill.textContent = `● Active · ${String(cfg.provider || 'callmebot').toUpperCase()}`;
+      const label = cfg.provider === 'local_qr' ? 'QR LINKED' : String(cfg.provider || 'WA').toUpperCase();
+      pill.textContent = `● Active · ${label}`;
       pill.className = 'text-[11px] font-mono px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-300';
     } else {
-      pill.textContent = '○ Not Configured';
+      pill.textContent = '○ Not Linked Yet';
       pill.className = 'text-[11px] font-mono px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/10 text-zinc-400';
     }
   }
+  if (cfg.local_bridge) renderWhatsappQrState(cfg.local_bridge);
   onWhatsappProviderChange();
 }
 
@@ -2862,7 +3049,7 @@ async function saveWhatsappConfig() {
   const btn = document.getElementById('btn-wa-save');
   const fb = document.getElementById('wa-save-feedback');
   const payload = {
-    provider: document.getElementById('wa-provider')?.value || 'callmebot',
+    provider: document.getElementById('wa-provider')?.value || 'local_qr',
     phone: (document.getElementById('wa-phone')?.value || '').trim(),
     api_key: (document.getElementById('wa-apikey')?.value || '').trim(),
     meta_phone_number_id: (document.getElementById('wa-meta-phone-id')?.value || '').trim(),
@@ -5060,8 +5247,8 @@ def get_status():
         "open_jobs": open_count,
         "shortlisted_count": shortlisted_count,
         "pending_offers_count": len(cached_pending),
-        "whatsapp_paired": wa_notifier.is_configured(),
-        "whatsapp_provider": wa_notifier.provider if wa_notifier.is_configured() else "",
+        "whatsapp_paired": wa_notifier.is_configured(check_live_bridge=True),
+        "whatsapp_provider": wa_notifier.provider if wa_notifier.is_configured(check_live_bridge=True) else "",
         "telegram_paired": bool(user["telegram_chat_id"] or Config.TELEGRAM_CHAT_ID),
         "telegram_chat_id": user["telegram_chat_id"] or ("Configured" if Config.TELEGRAM_CHAT_ID else ""),
         "daemon_active": daemon_active,
@@ -5835,12 +6022,81 @@ def send_telegram_custom():
 
 # ─── WHATSAPP ALERTS API ────────────────────────────────────────────────────
 
+_wa_bridge_lock = threading.Lock()
+
+
+def _ensure_whatsapp_bridge_running(bridge_url: str = "") -> Tuple[bool, str]:
+    """Ensures the loopback-only Node.js WhatsApp Linked-Device bridge is listening."""
+    base = (bridge_url or Config.WHATSAPP_BRIDGE_URL or "http://127.0.0.1:8091").rstrip("/")
+    try:
+        r = requests.get(f"{base}/status", timeout=1.0)
+        if r.status_code == 200:
+            return True, "Bridge online"
+    except Exception:
+        pass
+
+    with _wa_bridge_lock:
+        try:
+            r = requests.get(f"{base}/status", timeout=0.8)
+            if r.status_code == 200:
+                return True, "Bridge online"
+        except Exception:
+            pass
+
+        bridge_dir = BASE_DIR / "whatsapp_bridge"
+        bridge_script = bridge_dir / "bridge.mjs"
+        if not bridge_script.exists() or not (bridge_dir / "node_modules").exists():
+            return False, "Local WhatsApp bridge dependencies not installed. Run: cd whatsapp_bridge && npm install"
+
+        try:
+            subprocess.Popen(
+                ["node", str(bridge_script)],
+                cwd=str(bridge_dir),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+        except Exception as e:
+            return False, f"Failed to launch Node WhatsApp bridge: {e}"
+
+        for _ in range(16):
+            time.sleep(0.25)
+            try:
+                r = requests.get(f"{base}/status", timeout=0.6)
+                if r.status_code == 200:
+                    return True, "Bridge launched"
+            except Exception:
+                continue
+        return False, "WhatsApp bridge started but did not respond on 127.0.0.1:8091 in time."
+
+
+def _auto_arm_local_qr_for_user(user: dict):
+    """Arms local_qr in the user's vault if not configured or switching to local_qr."""
+    existing = (user.get("profile") or {}).get("whatsapp_config")
+    existing = dict(existing) if isinstance(existing, dict) else {}
+    if existing.get("provider") != "local_qr" or not existing.get("enabled", True):
+        existing.setdefault("phone", "")
+        existing.setdefault("notify_jobs", True)
+        existing.setdefault("notify_shortlists", True)
+        existing.setdefault("notify_offers", True)
+        existing["provider"] = "local_qr"
+        existing["enabled"] = True
+        existing["bridge_url"] = existing.get("bridge_url") or Config.WHATSAPP_BRIDGE_URL
+        user_manager.update_user_profile(user["user_id"], {"whatsapp_config": existing})
+
+
 def _safe_whatsapp_config_payload(user: dict) -> dict:
     prof = user.get("profile") or {}
     cfg = prof.get("whatsapp_config") if isinstance(prof.get("whatsapp_config"), dict) else {}
     wa = WhatsAppNotifier.from_user_profile(user)
+    local_bridge = wa.get_local_bridge_status(timeout=0.9) if wa.provider == "local_qr" else None
+    is_live_configured = (
+        bool(wa.enabled and local_bridge and local_bridge.get("connected"))
+        if wa.provider == "local_qr"
+        else wa.is_configured()
+    )
     return {
-        "configured": wa.is_configured(),
+        "configured": is_live_configured,
         "enabled": cfg.get("enabled", True) if cfg else wa.enabled,
         "provider": wa.provider,
         "phone": cfg.get("phone") or wa.phone or "",
@@ -5854,7 +6110,57 @@ def _safe_whatsapp_config_payload(user: dict) -> dict:
         "notify_jobs": wa.notify_jobs,
         "notify_shortlists": wa.notify_shortlists,
         "notify_offers": wa.notify_offers,
+        "local_bridge": local_bridge,
     }
+
+
+@app.route("/api/whatsapp/qr/status", methods=["GET"])
+def api_whatsapp_qr_status():
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Authentication required"}), 401
+    wa = WhatsAppNotifier.from_user_profile(user)
+    st = wa.get_local_bridge_status(timeout=1.5)
+    if st.get("connected"):
+        _auto_arm_local_qr_for_user(user)
+    return jsonify({"success": True, **st})
+
+
+@app.route("/api/whatsapp/qr/start", methods=["POST"])
+def api_whatsapp_qr_start():
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Authentication required"}), 401
+    data = request.get_json(silent=True) or {}
+    fresh = bool(data.get("fresh", False))
+    base = Config.WHATSAPP_BRIDGE_URL.rstrip("/")
+
+    ok_boot, boot_msg = _ensure_whatsapp_bridge_running(base)
+    if not ok_boot:
+        return jsonify({"success": False, "message": boot_msg, "connected": False, "state": "offline"}), 503
+
+    try:
+        resp = requests.post(f"{base}/start", json={"fresh": fresh}, timeout=12)
+        payload = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
+        _auto_arm_local_qr_for_user(user)
+        return jsonify({"success": True, **payload})
+    except Exception as e:
+        return jsonify({"success": False, "message": f"WhatsApp QR bridge error: {e}", "connected": False}), 502
+
+
+@app.route("/api/whatsapp/qr/logout", methods=["POST"])
+def api_whatsapp_qr_logout():
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Authentication required"}), 401
+    base = Config.WHATSAPP_BRIDGE_URL.rstrip("/")
+    try:
+        resp = requests.post(f"{base}/logout", timeout=8)
+        payload = resp.json() if resp.status_code == 200 else {"connected": False, "state": "idle"}
+        log_event(f"Unlinked local WhatsApp Linked Device for {user['full_name']}.", "INFO")
+        return jsonify({"success": True, **payload})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 502
 
 
 @app.route("/api/whatsapp/config", methods=["GET", "POST"])
@@ -5867,8 +6173,8 @@ def api_whatsapp_config():
         return jsonify({"success": True, "config": _safe_whatsapp_config_payload(user)})
 
     data = request.get_json(silent=True) or {}
-    provider = str(data.get("provider") or "callmebot").strip().lower()
-    if provider not in ("callmebot", "meta", "twilio", "webhook"):
+    provider = str(data.get("provider") or "local_qr").strip().lower()
+    if provider not in ("local_qr", "callmebot", "meta", "twilio", "webhook"):
         return jsonify({"success": False, "message": f"Unsupported provider '{provider}'"}), 400
 
     existing = (user.get("profile") or {}).get("whatsapp_config")
@@ -5883,6 +6189,7 @@ def api_whatsapp_config():
 
     new_cfg = {
         "provider": provider,
+        "bridge_url": str(data.get("bridge_url") or existing.get("bridge_url") or Config.WHATSAPP_BRIDGE_URL).strip(),
         "phone": phone_norm,
         "api_key": _keep_secret("api_key"),
         "meta_phone_number_id": str(data.get("meta_phone_number_id") or "").strip(),

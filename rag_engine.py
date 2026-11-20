@@ -9,6 +9,7 @@ import logging
 import math
 import os
 import re
+from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -22,6 +23,9 @@ PLAYBOOKS_PATH = DATA_DIR / "error_playbooks.json"
 CATALOG_PATH = DATA_DIR / "questions_catalog.json"
 MEMORY_PATH = DATA_DIR / "clarifications_memory.json"
 
+# Maximum number of questions catalog entries to index (0 = no limit)
+CATALOG_INDEX_LIMIT = 0
+
 
 class RAGDocument:
     """Represents an atomic knowledge chunk in the RAG store."""
@@ -34,6 +38,9 @@ class RAGDocument:
         self.metadata = metadata or {}
         self.tokens: List[str] = self._tokenize(content + " " + title)
         self.ngrams: List[str] = self._generate_ngrams(self.tokens, n=2)
+        # R1+R2 Fix: Pre-compute token frequency map and token set for O(1) BM25 lookups
+        self.token_freq: Dict[str, int] = Counter(self.tokens)
+        self.token_set: set = set(self.tokens)
 
     @staticmethod
     def _tokenize(text: str) -> List[str]:
@@ -58,24 +65,33 @@ class RAGEngine:
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
+    def __init__(self, user_id: str = None):
         if self._initialized:
+            # R5 Fix: If a different user_id is requested, force a re-index for that user
+            if user_id and user_id != getattr(self, "_current_user_id", None):
+                self._current_user_id = user_id
+                self.load_and_index(user_id=user_id)
             return
+        self._current_user_id = user_id
         self.documents: List[RAGDocument] = []
         self.doc_len_map: Dict[str, int] = {}
         self.avg_doc_len: float = 0.0
         self.doc_freq: Dict[str, int] = {}
         self.idf_map: Dict[str, float] = {}
         self.total_docs: int = 0
-        self.load_and_index()
+        self.load_and_index(user_id=user_id)
         self._initialized = True
 
-    def load_and_index(self):
-        """Loads all knowledge stores and compiles the hybrid index."""
+    def load_and_index(self, user_id: str = None):
+        """Loads all knowledge stores and compiles the hybrid index.
+        
+        R5 Fix: Accepts user_id to scope profile indexing to a specific user,
+        preventing cross-user profile contamination in the shared singleton.
+        """
         self.documents.clear()
         
         # 1. Index Candidate Profile Facts
-        self._index_profile()
+        self._index_profile(user_id=user_id)
         
         # 2. Index Error Playbooks & Resolution Recipes
         self._index_playbooks()
@@ -86,7 +102,12 @@ class RAGEngine:
         # 4. Index Dynamic User Clarifications Memory
         self._index_memory()
 
-        # 5. Compile Index Statistics (BM25 IDF)
+        self._recompute_bm25_stats()
+
+    def _recompute_bm25_stats(self):
+        """Recomputes BM25 IDF statistics over all currently indexed documents."""
+        # R6 Fix: Extracted into own method so incremental add_memory() can call it
+        # without duplicating the stats computation code.
         self.total_docs = len(self.documents)
         if self.total_docs == 0:
             logger.warning("RAG index empty.")
@@ -98,8 +119,7 @@ class RAGEngine:
         # Term Document Frequency
         self.doc_freq.clear()
         for doc in self.documents:
-            unique_terms = set(doc.tokens)
-            for t in unique_terms:
+            for t in doc.token_set:
                 self.doc_freq[t] = self.doc_freq.get(t, 0) + 1
 
         # BM25 IDF: log(1 + (N - n + 0.5) / (n + 0.5))
@@ -110,11 +130,16 @@ class RAGEngine:
 
         logger.info(f"RAG Engine successfully compiled index: {self.total_docs} chunks indexed.")
 
-    def _index_profile(self):
-        """Chunks student profile into categorized semantic documents from the encrypted vault."""
+    def _index_profile(self, user_id: str = None):
+        """Chunks student profile into categorized semantic documents from the encrypted vault.
+        
+        R5 Fix: Accepts user_id so the singleton indexes the CORRECT user's profile,
+        preventing profile cross-contamination in multi-user web server sessions.
+        """
         try:
             from attribute_resolver import AttributeResolver
-            p = AttributeResolver().profile
+            # R5 Fix: Pass user_id explicitly so we always load THIS user's profile
+            p = AttributeResolver(user_id=user_id).profile
             if not p or not p.get("full_name"):
                 return
 
@@ -209,9 +234,14 @@ class RAGEngine:
         try:
             with open(CATALOG_PATH, "r", encoding="utf-8") as f:
                 cat = json.load(f)
-            
-            # Index top common questions
-            for q_name, details in list(cat.items())[:120]:
+
+            # R4 Fix: Index ALL catalog questions (removed arbitrary :120 cap)
+            # R3 Fix: Use full hash string as doc_id to avoid birthday-paradox collisions
+            items = list(cat.items())
+            if CATALOG_INDEX_LIMIT > 0:
+                items = items[:CATALOG_INDEX_LIMIT]
+
+            for q_name, details in items:
                 opts = details.get("options", [])
                 companies = details.get("sample_companies", [])
                 content = (
@@ -220,7 +250,8 @@ class RAGEngine:
                     f"Allowed Options: {', '.join(opts) if opts else 'Free text / boolean'}. "
                     f"Companies Asking: {', '.join(companies[:5])}."
                 )
-                doc_id = f"q_cat_{abs(hash(q_name)) % 100000}"
+                # R3 Fix: Use full stable hash without truncation to prevent doc_id collisions
+                doc_id = f"q_cat_{abs(hash(q_name))}"
                 self.documents.append(RAGDocument(doc_id, f"Question: {q_name[:40]}", content, "questions_catalog.json", ["question", "superset"], {"question_name": q_name}))
         except Exception as e:
             logger.error(f"Error indexing questions catalog: {e}")
@@ -245,16 +276,23 @@ class RAGEngine:
             logger.error(f"Error indexing clarifications memory: {e}")
 
     def add_memory(self, key: str, question: str, resolution: str, context: str = "", tags: List[str] = None):
-        """Dynamically learns from user inputs and recompiles index in-memory."""
+        """Dynamically learns from user inputs and incrementally updates the index.
+
+        R6 Fix: Instead of calling load_and_index() (full rebuild O(D×L) on every write),
+        we incrementally: remove any old doc with the same logical key, append the new
+        RAGDocument, persist to disk, then recompute BM25 stats. This is O(D) not O(D×L).
+        """
+        # R3 Fix: Use full hash without % truncation to prevent doc_id birthday-paradox collisions
+        new_id = f"mem_{abs(hash(key + question))}"
         entry = {
-            "id": f"mem_{abs(hash(key + question)) % 100000}",
+            "id": new_id,
             "key": key,
             "question": question,
             "resolution": resolution,
             "context": context,
             "tags": tags or ["user_verified"]
         }
-        
+
         current = []
         if MEMORY_PATH.exists():
             try:
@@ -262,8 +300,8 @@ class RAGEngine:
                     current = json.load(f)
             except Exception:
                 current = []
-        
-        # Upsert
+
+        # Upsert in the persistent file
         current = [item for item in current if item.get("key") != key or item.get("question") != question]
         current.append(entry)
 
@@ -271,9 +309,25 @@ class RAGEngine:
         with open(MEMORY_PATH, "w", encoding="utf-8") as f:
             json.dump(current, f, indent=2)
 
-        # Re-index
-        self.load_and_index()
-        logger.info(f"Learned new user clarification: '{key}' -> '{resolution}'")
+        # R6 Fix: Incremental in-memory update — remove stale doc, append new doc
+        self.documents = [d for d in self.documents if not (
+            d.source == "clarifications_memory.json"
+            and d.metadata.get("key") == key
+            and d.metadata.get("question") == question
+        )]
+        title = f"User Clarification: {key}"
+        content = (
+            f"Clarification on '{key}': Question was '{question}'. "
+            f"User Answer / Clarification: '{resolution}'. "
+            f"Context: {context}."
+        )
+        new_doc = RAGDocument(new_id, title, content, "clarifications_memory.json",
+                              ["memory", "clarification", "user_verified"], entry)
+        self.documents.append(new_doc)
+
+        # Recompute BM25 stats over updated document list (no full disk reload needed)
+        self._recompute_bm25_stats()
+        logger.info(f"Learned new user clarification (incremental): '{key}' -> '{resolution}'")
 
     def search(self, query: str, top_k: int = 5, filter_tags: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         """
@@ -305,9 +359,11 @@ class RAGEngine:
             matched_terms = 0
 
             for t in q_tokens:
-                if t in doc.tokens:
+                # R1+R2 Fix: Use pre-computed token_set (O(1)) and token_freq (O(1))
+                # instead of `t in doc.tokens` (O(n)) and `doc.tokens.count(t)` (O(n))
+                if t in doc.token_set:
                     matched_terms += 1
-                    tf = doc.tokens.count(t)
+                    tf = doc.token_freq[t]
                     idf = self.idf_map.get(t, 0.5)
                     denom = tf + k1 * (1.0 - b + b * (doc_len / self.avg_doc_len))
                     term_score = idf * ((tf * (k1 + 1.0)) / denom if denom > 0 else 0)

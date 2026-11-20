@@ -21,6 +21,7 @@ from ai_engine import AIEngine
 from rag_engine import RAGEngine
 from error_healer import ErrorHealer
 from ambiguity_manager import AmbiguityManager
+from notice_scanner import scan_notices_for_user, summarize_notices
 
 logger = logging.getLogger("superset_web")
 logging.basicConfig(level=logging.INFO)
@@ -107,6 +108,25 @@ def background_monitor_worker():
             sync_history.appendleft(last_sync_info.copy())
             # Invalidate cache so next /api/jobs fetch is fresh
             _cache_time = 0
+
+            # Also scan homepage notices, shortlist PDFs & pending offers for every vault user
+            um = globals().get("user_manager")
+            if um is not None:
+                for u_obj in um.get_all_users():
+                    try:
+                        sc_u = SupersetClient(email=u_obj["email"], password=u_obj["superset_password"])
+                        if sc_u.login():
+                            n_res = scan_notices_for_user(
+                                sc_u, um, u_obj, max_pages=2, page_size=25, max_pdfs_to_download=12, send_alerts=True
+                            )
+                            nc = n_res.get("counts", {})
+                            log_event(
+                                f"Notice & Offer Watchdog ({u_obj['full_name']}): "
+                                f"{nc.get('shortlisted', 0)} shortlist match(es), {nc.get('pending_offers', 0)} pending offer(s).",
+                                "SUCCESS" if nc.get("shortlisted") or nc.get("pending_offers") else "INFO",
+                            )
+                    except Exception as ne:
+                        log_event(f"Notice watchdog warning for {u_obj['email']}: {ne}", "WARN")
         except Exception as e:
             last_sync_info = {
                 "timestamp": cycle_start,
@@ -307,6 +327,56 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     .badge-open { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.32); box-shadow: 0 0 12px -3px rgba(245, 158, 11, 0.25); }
     .badge-closed { background: rgba(100, 116, 139, 0.14); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.22); }
     .badge-ineligible { background: rgba(239, 68, 68, 0.14); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.25); }
+    .badge-shortlisted { background: linear-gradient(135deg, rgba(249, 115, 22, 0.24), rgba(239, 68, 68, 0.22)); color: #fdba74; border: 1px solid rgba(251, 146, 60, 0.5); box-shadow: 0 0 18px -4px rgba(249, 115, 22, 0.45); }
+
+    /* Native Modal <dialog> PDF Viewer (modern-web-guidance compliant) */
+    dialog:modal {
+      overscroll-behavior: contain;
+    }
+    dialog::backdrop {
+      overflow: hidden;
+      overscroll-behavior: contain;
+      background: rgba(2, 6, 23, 0.84);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    dialog#pdfViewerDialog {
+      margin: auto;
+      padding: 0;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 1.25rem;
+      background: #0b1120;
+      color: #e2e8f0;
+      width: min(96vw, 1080px);
+      height: min(92dvh, 880px);
+      max-width: 1080px;
+      max-height: 92dvh;
+      box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.85);
+    }
+    dialog#pdfViewerDialog[open] {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    @media (max-width: 640px) {
+      dialog#pdfViewerDialog {
+        width: 100vw;
+        height: 94dvh;
+        max-width: 100vw;
+        max-height: 94dvh;
+        margin-bottom: 0;
+        border-radius: 1.25rem 1.25rem 0 0;
+      }
+    }
+
+    /* Sanitized Notice HTML Styling */
+    .notice-html { font-size: 0.8125rem; line-height: 1.65; color: #cbd5e1; word-break: break-word; }
+    .notice-html p { margin-bottom: 0.5rem; }
+    .notice-html a { color: #818cf8; text-decoration: underline; }
+    .notice-html ul, .notice-html ol { padding-left: 1.25rem; margin: 0.4rem 0; list-style: disc; }
+    .notice-html table { width: 100%; border-collapse: collapse; margin: 0.65rem 0; font-size: 0.75rem; display: block; overflow-x: auto; }
+    .notice-html th, .notice-html td { border: 1px solid rgba(148, 163, 184, 0.22); padding: 0.4rem 0.55rem; text-align: left; }
+    .notice-html th { background: rgba(30, 41, 59, 0.85); color: #f8fafc; font-weight: 600; }
 
     /* Horizontal scroll without ugly bars */
     .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -354,6 +424,13 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
           <span class="sidebar-label">Placement Drives</span>
         </div>
         <span class="sidebar-label text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-800 text-slate-400" id="badge-nav-drives">107</span>
+      </button>
+      <button onclick="switchPage('notices')" class="nav-item w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-left" data-page="notices">
+        <div class="flex items-center gap-3 truncate">
+          <span class="text-base w-5 text-center">📢</span>
+          <span class="sidebar-label">Notices & Shortlists</span>
+        </div>
+        <span class="sidebar-label text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-800 text-slate-400" id="badge-nav-notices">—</span>
       </button>
       <button onclick="switchPage('applied')" class="nav-item w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-left" data-page="applied">
         <div class="flex items-center gap-3 truncate">
@@ -429,7 +506,11 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       </button>
       <button onclick="switchPage('drives'); closeMobileDrawer();" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 text-left">
         <div class="flex items-center gap-3"><span class="text-base">💼</span> <span>Placement Drives</span></div>
-        <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-800 text-slate-400">107</span>
+        <span id="drawer-badge-drives" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-800 text-slate-400">107</span>
+      </button>
+      <button onclick="switchPage('notices'); closeMobileDrawer();" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 text-left">
+        <div class="flex items-center gap-3"><span class="text-base">📢</span> <span>Notices & Shortlists</span></div>
+        <span id="drawer-badge-notices" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-800 text-slate-400">—</span>
       </button>
       <button onclick="switchPage('applied'); closeMobileDrawer();" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 text-left">
         <div class="flex items-center gap-3"><span class="text-base">✅</span> <span>My Applications</span></div>
@@ -475,18 +556,19 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       </div>
       <span class="text-[10px] font-semibold tracking-tight mt-1">Drives</span>
     </button>
+    <button onclick="switchPage('notices')" class="mobile-nav-btn flex-1 flex flex-col items-center py-1 rounded-xl text-slate-400 relative" data-page="notices">
+      <div class="mobile-nav-pill px-3.5 py-1 rounded-full border border-transparent flex items-center justify-center transition-all relative">
+        <span class="text-base leading-none">📢</span>
+        <span id="mobile-badge-notices" class="hidden absolute -top-1 -right-1.5 px-1.5 py-0.2 rounded-full bg-orange-600 text-white font-mono text-[8px] font-bold shadow">0</span>
+      </div>
+      <span class="text-[10px] font-semibold tracking-tight mt-1">Notices</span>
+    </button>
     <button onclick="switchPage('applied')" class="mobile-nav-btn flex-1 flex flex-col items-center py-1 rounded-xl text-slate-400 relative" data-page="applied">
       <div class="mobile-nav-pill px-3.5 py-1 rounded-full border border-transparent flex items-center justify-center transition-all relative">
         <span class="text-base leading-none">✅</span>
         <span id="mobile-badge-applied" class="absolute -top-1 -right-1.5 px-1.5 py-0.2 rounded-full bg-emerald-600 text-white font-mono text-[8px] font-bold shadow">36</span>
       </div>
       <span class="text-[10px] font-semibold tracking-tight mt-1">Applied</span>
-    </button>
-    <button onclick="switchPage('ai')" class="mobile-nav-btn flex-1 flex flex-col items-center py-1 rounded-xl text-slate-400" data-page="ai">
-      <div class="mobile-nav-pill px-3.5 py-1 rounded-full border border-transparent flex items-center justify-center transition-all">
-        <span class="text-base leading-none">🤖</span>
-      </div>
-      <span class="text-[10px] font-semibold tracking-tight mt-1">Copilot</span>
     </button>
     <button onclick="openMobileDrawer()" class="mobile-nav-btn flex-1 flex flex-col items-center py-1 rounded-xl text-slate-400">
       <div class="mobile-nav-pill px-3.5 py-1 rounded-full border border-transparent flex items-center justify-center transition-all">
@@ -532,6 +614,9 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     <!-- Page Content -->
     <div class="flex-1 overflow-y-auto sheet-scroll">
 
+      <!-- ═══ GLOBAL PENDING OFFER WATCHDOG BANNER (Visible across all tabs when active) ═══ -->
+      <div id="pending-offer-banner" class="hidden mx-3.5 sm:mx-6 mt-3.5 sm:mt-5"></div>
+
       <!-- ═══ DASHBOARD PAGE ═══ -->
       <div id="page-dashboard" class="page p-3.5 sm:p-6 space-y-4 sm:space-y-6">
 
@@ -560,12 +645,15 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
               <button onclick="switchPage('drives')" class="px-3.5 py-2.5 rounded-xl bg-white text-slate-950 font-bold text-xs shadow-lg flex items-center justify-center gap-1.5">
                 <span>⚡</span> <span>Explore Drives</span>
               </button>
-              <button onclick="switchPage('profile')" class="px-3.5 py-2.5 rounded-xl bg-surface-900/80 border border-white/15 text-slate-200 font-semibold text-xs flex items-center justify-center gap-1.5">
-                <span>👤</span> <span>My Profile</span>
+              <button onclick="switchPage('notices')" class="px-3.5 py-2.5 rounded-xl bg-surface-900/80 border border-orange-500/35 text-orange-200 font-semibold text-xs flex items-center justify-center gap-1.5">
+                <span>📢</span> <span>Notices & PDFs</span>
               </button>
             </div>
           </div>
         </div>
+
+        <!-- 🔥 Auto Shortlist Scanner Dashboard Hero Strip -->
+        <div id="dashboard-shortlist-strip" class="hidden space-y-2.5"></div>
 
         <!-- Metrics Bento Grid -->
         <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
@@ -654,6 +742,10 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
                 <span id="dash-autoapply" class="font-mono font-semibold text-brand-400">ENABLED</span>
               </div>
               <div class="flex justify-between text-xs">
+                <span class="text-slate-400">Pending Offer Watchdog</span>
+                <span id="dash-offer-watchdog" class="font-mono font-semibold text-emerald-400">ACTIVE • 0 Pending</span>
+              </div>
+              <div class="flex justify-between text-xs">
                 <span class="text-slate-400">Last Sync</span>
                 <span id="dash-lastsync" class="font-mono text-slate-300 text-[10px]">—</span>
               </div>
@@ -670,6 +762,77 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
           <div id="dash-logs" class="space-y-1.5 max-h-48 overflow-y-auto font-mono text-[11px]">
             <div class="text-slate-500">Loading...</div>
           </div>
+        </div>
+      </div>
+
+      <!-- ═══ SMART NOTICE FEED & AUTO SHORTLIST SCANNER PAGE ═══ -->
+      <div id="page-notices" class="page hidden p-3.5 sm:p-6 space-y-4">
+        <!-- Scanner & Watchdog Header Card -->
+        <div class="relative overflow-hidden rounded-2xl p-4 sm:p-5 border border-orange-500/25 bg-gradient-to-br from-surface-900/95 via-slate-900/90 to-orange-950/25 shadow-xl">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+            <div class="space-y-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <h2 class="text-sm sm:text-base font-extrabold text-white tracking-tight flex items-center gap-2">
+                  <span>📢</span> <span>Smart Notice Feed & Shortlist Scanner</span>
+                </h2>
+                <span id="notices-roll-pill" class="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">Scanning Roll —</span>
+              </div>
+              <p class="text-xs text-slate-400">
+                Auto-downloads KIIT shortlist PDFs, checks your roll number & name, extracts venue/date/time, hides duplicate spam, and watches <code class="text-slate-300 font-mono">/pending_actions</code> for job offers.
+              </p>
+              <div class="flex items-center gap-3 flex-wrap pt-1 text-[11px] font-mono text-slate-400">
+                <span id="notices-last-scan">Last scan: —</span>
+                <span class="text-slate-600">•</span>
+                <span id="notices-offer-pill" class="text-emerald-400">🏆 Offer Watchdog: 0 Pending</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <button onclick="scanNoticesLive()" id="notices-scan-btn" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-rose-600 text-white font-bold text-xs shadow-lg shadow-orange-600/25 flex items-center justify-center gap-1.5">
+                <span id="notices-scan-icon">🔍</span> <span>Scan Shortlist PDFs</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 🔥 Shortlist Matches Spotlight (Pinned when >= 1 match) -->
+        <div id="notices-shortlist-spotlight" class="hidden space-y-2.5"></div>
+
+        <!-- Search & Smart Filter Ribbon -->
+        <div class="space-y-2.5">
+          <div class="flex items-center gap-2">
+            <div class="relative flex-1">
+              <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none">🔍</span>
+              <input id="notices-search" type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false"
+                placeholder="Search company, venue, test date, PDF name..."
+                class="w-full bg-surface-900/90 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25 transition-all"
+                oninput="renderNotices()">
+            </div>
+            <label class="hidden sm:flex items-center gap-2 px-3 py-2.5 rounded-xl bg-surface-900/90 border border-white/10 text-xs text-slate-300 cursor-pointer select-none whitespace-nowrap">
+              <input id="notices-show-spam" type="checkbox" onchange="renderNotices()" class="rounded border-slate-700 text-brand-600 focus:ring-0">
+              <span>Show spam (<span id="notices-spam-count">0</span>)</span>
+            </label>
+          </div>
+
+          <!-- Swipeable Category Filter Pills -->
+          <div class="pill-carousel flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+            <button onclick="setNoticesFilter('all')" class="notices-filter active px-3.5 py-1.5 rounded-full text-xs font-semibold bg-brand-600 text-white shadow-sm" data-nfilter="all">All Clean <span class="opacity-75 font-mono" id="nf-count-all">0</span></button>
+            <button onclick="setNoticesFilter('shortlisted')" class="notices-filter px-3.5 py-1.5 rounded-full text-xs font-semibold bg-surface-900/90 border border-orange-500/35 text-orange-300" data-nfilter="shortlisted">🔥 Shortlisted <span class="opacity-85 font-mono" id="nf-count-shortlisted">0</span></button>
+            <button onclick="setNoticesFilter('shortlists_tests')" class="notices-filter px-3.5 py-1.5 rounded-full text-xs font-semibold bg-surface-900/90 border border-white/10 text-slate-300" data-nfilter="shortlists_tests">🎯 Shortlists & Tests <span class="opacity-75 font-mono" id="nf-count-tests">0</span></button>
+            <button onclick="setNoticesFilter('deadlines_revisions')" class="notices-filter px-3.5 py-1.5 rounded-full text-xs font-semibold bg-surface-900/90 border border-white/10 text-slate-300" data-nfilter="deadlines_revisions">⏰ Deadlines & Revisions <span class="opacity-75 font-mono" id="nf-count-deadlines">0</span></button>
+            <button onclick="setNoticesFilter('job_openings')" class="notices-filter px-3.5 py-1.5 rounded-full text-xs font-semibold bg-surface-900/90 border border-white/10 text-slate-300" data-nfilter="job_openings">💼 Job Openings <span class="opacity-75 font-mono" id="nf-count-jobs">0</span></button>
+          </div>
+          <div class="flex items-center justify-between text-[11px] font-mono text-slate-400">
+            <span id="notices-result-meta">Loading campus notices...</span>
+            <label class="sm:hidden inline-flex items-center gap-1.5 text-slate-400">
+              <input id="notices-show-spam-mob" type="checkbox" onchange="document.getElementById('notices-show-spam').checked=this.checked; renderNotices();" class="rounded border-slate-700 text-brand-600 focus:ring-0">
+              <span>Show spam</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Notices Feed Container -->
+        <div id="notices-list" class="space-y-3">
+          <div class="metric-card rounded-2xl p-8 text-center text-slate-400 text-xs font-mono">Loading notices from Superset...</div>
         </div>
       </div>
 
@@ -1211,6 +1374,30 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     </div>
   </div>
 
+  <!-- ═══ 1-CLICK NATIVE <dialog> PDF VIEWER (modern-web-guidance compliant) ═══ -->
+  <dialog id="pdfViewerDialog" closedby="any" aria-labelledby="pdfViewerTitle">
+    <div class="flex items-center justify-between gap-3 px-4 py-3 border-b border-white/10 bg-surface-950/95 flex-shrink-0">
+      <div class="min-w-0 flex items-center gap-2.5">
+        <span class="w-8 h-8 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-300 flex items-center justify-center text-sm flex-shrink-0">📄</span>
+        <div class="min-w-0">
+          <h2 id="pdfViewerTitle" class="text-xs sm:text-sm font-bold text-white truncate">Attachment Preview</h2>
+          <div id="pdfViewerSubtitle" class="text-[10px] font-mono text-slate-400 truncate">Loading pre-signed PDF...</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-1.5 flex-shrink-0">
+        <a id="pdfViewerNewTab" href="#" target="_blank" rel="noopener noreferrer" class="hidden px-2.5 py-1.5 rounded-lg bg-surface-800 border border-white/10 text-slate-200 text-xs font-semibold">↗ Open</a>
+        <a id="pdfViewerDownload" href="#" download class="hidden px-2.5 py-1.5 rounded-lg bg-brand-600/90 text-white text-xs font-semibold">⬇ Save</a>
+        <form method="dialog" class="inline">
+          <button type="submit" autofocus aria-label="Close PDF viewer" class="w-8 h-8 rounded-full bg-surface-800/90 border border-white/10 text-slate-300 hover:text-white flex items-center justify-center text-sm">✕</button>
+        </form>
+      </div>
+    </div>
+    <div id="pdfViewerMatchBanner" class="hidden px-4 py-2.5 bg-gradient-to-r from-orange-950/90 via-rose-950/80 to-amber-950/80 border-b border-orange-500/35 text-xs text-orange-100 flex-shrink-0"></div>
+    <div id="pdfViewerBody" class="flex-1 bg-slate-950 relative overflow-hidden flex items-center justify-center">
+      <div class="text-slate-400 font-mono text-xs">Loading document...</div>
+    </div>
+  </dialog>
+
 <script>
 // ═══════════════════════════════════════════════════════════════════
 // STATE & SAFE API CLIENT
@@ -1218,6 +1405,10 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 let allJobs = [];
 let statusData = {};
 let profileData = {};
+let noticesPayload = { notices: [], shortlisted_notices: [], pending_actions: [], counts: {} };
+let noticesFilter = 'all';
+let expandedNoticeIds = new Set();
+let activePdfBlobUrl = null;
 let currentUser = null;
 let authToken = localStorage.getItem('sjp_token') || '';
 let authMode = 'login';
@@ -1334,6 +1525,7 @@ function switchPage(page) {
   const titles = {
     dashboard:'Dashboard',
     drives:'Placement Drives',
+    notices:'Smart Notices & Shortlist Scanner',
     applied:'My Applications Pipeline',
     profile:'Profile & Custom Question Answers',
     engine:'Engine Telemetry & Logs',
@@ -1345,6 +1537,7 @@ function switchPage(page) {
 
   // Refresh page data
   if (page === 'drives') renderDrives();
+  if (page === 'notices') renderNotices();
   if (page === 'applied') renderApplied();
   if (page === 'profile') renderProfile();
   if (page === 'engine') renderEngine();
@@ -1477,7 +1670,7 @@ async function submitAuthForm(e) {
       currentUser = data.user || null;
       hideAuthOverlay();
       toast(data.message || 'Signed in successfully!', 'success');
-      await Promise.all([fetchStatus(), fetchJobs(), fetchProfile()]);
+      await Promise.all([fetchStatus(), fetchJobs(), fetchProfile(), fetchNotices()]);
     } else {
       if (errBox) {
         errBox.textContent = (data && (data.message || data.error)) || 'Authentication failed. Check your Superset credentials.';
@@ -1505,6 +1698,12 @@ async function logoutUser() {
   currentUser = null;
   allJobs = [];
   profileData = {};
+  noticesPayload = { notices: [], shortlisted_notices: [], pending_actions: [], counts: {} };
+  expandedNoticeIds.clear();
+  const offerBanner = document.getElementById('pending-offer-banner');
+  if (offerBanner) { offerBanner.classList.add('hidden'); offerBanner.innerHTML = ''; }
+  const dashStrip = document.getElementById('dashboard-shortlist-strip');
+  if (dashStrip) { dashStrip.classList.add('hidden'); dashStrip.innerHTML = ''; }
   localStorage.removeItem('sjp_token');
   toast('Signed out and locked encrypted vault.', 'info');
   showAuthOverlay();
@@ -2261,7 +2460,7 @@ async function triggerSync() {
     } else {
       toast((data && (data.message || data.error)) || 'Could not reach Superset sync endpoint.', 'warn');
     }
-    await Promise.all([fetchStatus(), fetchJobs()]);
+    await Promise.all([fetchStatus(), fetchJobs(), fetchNotices()]);
   } catch (e) {
     toast('Sync notice: ' + e.message, 'warn');
   } finally {
@@ -2892,6 +3091,616 @@ function closeModal() { document.getElementById('modal-overlay').classList.add('
 document.getElementById('modal-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
 
 // ═══════════════════════════════════════════════════════════════════
+// SMART NOTICE FEED, AUTO SHORTLIST SCANNER, 1-CLICK PDF VIEWER & OFFER WATCHDOG
+// ═══════════════════════════════════════════════════════════════════
+
+function safeSetNoticeHtml(container, rawHtml) {
+  const allowedElements = ['p','br','b','strong','i','em','u','ul','ol','li','table','thead','tbody','tr','th','td','a','span','div','h1','h2','h3','h4','hr','blockquote','code','pre'];
+  const allowedAttributes = ['href','target','rel','colspan','rowspan'];
+
+  if ('setHTML' in Element.prototype) {
+    try {
+      container.setHTML(rawHtml || '', { sanitizer: { elements: allowedElements, attributes: allowedAttributes } });
+      return;
+    } catch (e) {}
+  }
+
+  // Fallback for browsers without native Sanitizer API (e.g. Safari): parse & allowlist DOM nodes
+  const doc = new DOMParser().parseFromString(rawHtml || '', 'text/html');
+  const allowedSet = new Set(allowedElements);
+  const cleanFragment = document.createDocumentFragment();
+
+  function cloneClean(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return document.createTextNode(node.textContent || '');
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return null;
+    const tag = node.tagName.toLowerCase();
+    if (['script','style','iframe','object','embed','svg','form','input'].includes(tag)) return null;
+
+    if (!allowedSet.has(tag)) {
+      const frag = document.createDocumentFragment();
+      for (const ch of node.childNodes) {
+        const cloned = cloneClean(ch);
+        if (cloned) frag.appendChild(cloned);
+      }
+      return frag;
+    }
+
+    const el = document.createElement(tag);
+    if (tag === 'a') {
+      const href = (node.getAttribute('href') || '').trim();
+      if (/^(https?:\/\/|mailto:)/i.test(href)) {
+        el.setAttribute('href', href);
+        el.setAttribute('target', '_blank');
+        el.setAttribute('rel', 'noopener noreferrer');
+      }
+    } else if (tag === 'td' || tag === 'th') {
+      for (const a of ['colspan', 'rowspan']) {
+        const v = node.getAttribute(a);
+        if (v && /^\d+$/.test(v)) el.setAttribute(a, v);
+      }
+    }
+    for (const ch of node.childNodes) {
+      const cloned = cloneClean(ch);
+      if (cloned) el.appendChild(cloned);
+    }
+    return el;
+  }
+
+  for (const child of doc.body.childNodes) {
+    const cloned = cloneClean(child);
+    if (cloned) cleanFragment.appendChild(cloned);
+  }
+  container.replaceChildren(cleanFragment);
+}
+
+async function fetchNotices(refresh = false) {
+  try {
+    const url = refresh ? '/api/notices?refresh=1' : '/api/notices';
+    const { ok, status, data } = await apiFetch(url);
+    if (status === 401) return;
+    if (ok && data && data.success) {
+      noticesPayload = data;
+      updateNoticeBadgesAndBanners();
+      if (currentPage === 'notices') renderNotices();
+    }
+  } catch (e) {
+    console.warn('Notices fetch warning:', e);
+  }
+}
+
+async function scanNoticesLive() {
+  const btn = document.getElementById('notices-scan-btn');
+  const icon = document.getElementById('notices-scan-icon');
+  if (btn) btn.disabled = true;
+  if (icon) icon.textContent = '⏳';
+  toast('Scanning Superset homepage notices, shortlist PDFs & pending offers...', 'info');
+
+  try {
+    const { ok, data } = await apiFetch('/api/notices/scan', { method: 'POST' });
+    if (ok && data && data.success) {
+      noticesPayload = data;
+      updateNoticeBadgesAndBanners();
+      renderNotices();
+      const c = data.counts || {};
+      const s = data.scan_stats || {};
+      if ((c.shortlisted || 0) > 0) {
+        toast(`🔥 ${c.shortlisted} SHORTLIST MATCH(ES) FOUND! Scanned ${s.pdfs_scanned_total || 0} PDFs (${s.pdfs_downloaded_now || 0} fresh).`, 'success');
+      } else {
+        toast(`Scanned ${s.pdfs_scanned_total || 0} PDFs across ${c.clean || 0} notices. Offer Watchdog: ${c.pending_offers || 0} pending.`, 'success');
+      }
+    } else {
+      toast((data && (data.message || data.error)) || 'Notice scan could not complete.', 'warn');
+    }
+  } catch (e) {
+    toast('Notice scan error: ' + e.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+    if (icon) icon.textContent = '🔍';
+  }
+}
+
+function updateNoticeBadgesAndBanners() {
+  const c = noticesPayload.counts || {};
+  const shortlistedCount = c.shortlisted || 0;
+  const cleanCount = c.clean || 0;
+  const pendingCount = c.pending_offers || 0;
+
+  // Sidebar, Drawer, and Mobile Dock badges
+  const navBadge = document.getElementById('badge-nav-notices');
+  const drawerBadge = document.getElementById('drawer-badge-notices');
+  const mobBadge = document.getElementById('mobile-badge-notices');
+
+  if (navBadge) {
+    if (shortlistedCount > 0) {
+      navBadge.textContent = `🔥 ${shortlistedCount}`;
+      navBadge.className = 'sidebar-label text-[10px] font-mono px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-300 border border-orange-500/40 font-bold';
+    } else {
+      navBadge.textContent = cleanCount || '0';
+      navBadge.className = 'sidebar-label text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-800 text-slate-400';
+    }
+  }
+  if (drawerBadge) {
+    drawerBadge.textContent = shortlistedCount > 0 ? `🔥 ${shortlistedCount}` : String(cleanCount || 0);
+  }
+  if (mobBadge) {
+    if (shortlistedCount > 0) {
+      mobBadge.textContent = `🔥${shortlistedCount}`;
+      mobBadge.classList.remove('hidden');
+      mobBadge.className = 'absolute -top-1 -right-2 px-1.5 py-0.2 rounded-full bg-orange-600 text-white font-mono text-[8px] font-bold shadow';
+    } else if (c.shortlists_tests > 0) {
+      mobBadge.textContent = String(c.shortlists_tests);
+      mobBadge.classList.remove('hidden');
+      mobBadge.className = 'absolute -top-1 -right-1.5 px-1.5 py-0.2 rounded-full bg-brand-600 text-white font-mono text-[8px] font-bold shadow';
+    } else {
+      mobBadge.classList.add('hidden');
+    }
+  }
+
+  // Dashboard Autonomous Engine Offer Watchdog row
+  const dashOffer = document.getElementById('dash-offer-watchdog');
+  if (dashOffer) {
+    if (pendingCount > 0) {
+      dashOffer.textContent = `🏆 ${pendingCount} PENDING OFFER!`;
+      dashOffer.className = 'font-mono font-bold text-amber-300 animate-pulse';
+    } else {
+      dashOffer.textContent = 'ACTIVE • 0 Pending';
+      dashOffer.className = 'font-mono font-semibold text-emerald-400';
+    }
+  }
+
+  // Notices Header info
+  const rollPill = document.getElementById('notices-roll-pill');
+  const lastScanEl = document.getElementById('notices-last-scan');
+  const offerPill = document.getElementById('notices-offer-pill');
+  if (rollPill) {
+    const r = noticesPayload.student_roll || statusData.student_id || 'Profile';
+    rollPill.textContent = `Auto-Scan Roll: ${r}`;
+  }
+  if (lastScanEl) lastScanEl.textContent = `Last scan: ${noticesPayload.last_scanned_display || '—'}`;
+  if (offerPill) {
+    if (pendingCount > 0) {
+      offerPill.textContent = `🏆 Offer Watchdog: ${pendingCount} ACTION REQUIRED!`;
+      offerPill.className = 'text-amber-300 font-bold';
+    } else {
+      offerPill.textContent = `🏆 Offer Watchdog: 0 Pending (${noticesPayload.pending_checked_display || 'Active'})`;
+      offerPill.className = 'text-emerald-400';
+    }
+  }
+
+  // Filter pill counts
+  const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = String(v ?? 0); };
+  setTxt('nf-count-all', c.clean || 0);
+  setTxt('nf-count-shortlisted', shortlistedCount);
+  setTxt('nf-count-tests', c.shortlists_tests || 0);
+  setTxt('nf-count-deadlines', c.deadlines_revisions || 0);
+  setTxt('nf-count-jobs', c.job_openings || 0);
+  setTxt('notices-spam-count', c.spam_hidden || 0);
+
+  renderPendingOfferBanner();
+  renderDashboardShortlistStrip();
+}
+
+function renderPendingOfferBanner() {
+  const container = document.getElementById('pending-offer-banner');
+  if (!container) return;
+  const actions = noticesPayload.pending_actions || [];
+  if (!actions.length) {
+    container.classList.add('hidden');
+    container.innerHTML = '';
+    return;
+  }
+
+  container.classList.remove('hidden');
+  container.innerHTML = actions.map(a => `
+    <div class="rounded-2xl p-4 sm:p-5 border border-amber-400/50 bg-gradient-to-r from-amber-950/90 via-yellow-950/75 to-emerald-950/80 shadow-2xl shadow-amber-900/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div class="flex items-start gap-3 min-w-0">
+        <div class="w-11 h-11 rounded-xl bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-2xl flex-shrink-0">🏆</div>
+        <div class="min-w-0">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-[10px] font-mono font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-400/25 text-amber-200 border border-amber-300/40">PENDING JOB OFFER • ACTION REQUIRED</span>
+            ${a.hours_left !== null && a.hours_left !== undefined ? `<span class="text-[10px] font-mono font-bold text-rose-300">⏳ ${esc(String(a.hours_left))}h remaining</span>` : ''}
+          </div>
+          <div class="text-sm sm:text-base font-extrabold text-white mt-1 truncate">${esc(a.company_name)} — ${esc(a.title)}</div>
+          <div class="text-xs font-mono text-amber-200/90 mt-0.5">⏰ Acceptance Deadline: ${esc(a.deadline_display || 'Check Superset immediately')}</div>
+        </div>
+      </div>
+      <a href="${esc(a.portal_url || 'https://app.joinsuperset.com/students/')}" target="_blank" rel="noopener noreferrer"
+        class="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-xs shadow-lg flex items-center justify-center gap-1.5 flex-shrink-0">
+        <span>🚀</span> <span>Respond on Superset</span>
+      </a>
+    </div>
+  `).join('');
+}
+
+function renderShortlistCardHtml(n, compact = false) {
+  const m = n.shortlist_match || {};
+  const ev = n.event_details || {};
+  const matchPdf = m.attachment_id ? (n.attachments || []).find(a => a.id === m.attachment_id) : null;
+  const pageNum = m.page_number || 1;
+  return `
+    <div class="rounded-2xl p-4 border border-orange-500/45 bg-gradient-to-br from-orange-950/60 via-rose-950/35 to-surface-900/95 shadow-xl shadow-orange-950/30">
+      <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+        <div class="space-y-1.5 min-w-0 flex-1">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="badge-shortlisted text-[10px] font-mono px-2.5 py-0.5 rounded-full font-extrabold uppercase tracking-wider">🔥 YOU ARE SHORTLISTED!</span>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-surface-950/80 border border-white/10 text-orange-200">${esc(m.match_type || 'MATCH')} • ${esc(m.attachment_name || 'Notice')}${m.page_number ? ' (p.' + m.page_number + ')' : ''}</span>
+          </div>
+          <div class="text-sm font-extrabold text-white leading-snug">${esc(n.title)}</div>
+          <div class="flex items-center gap-2 flex-wrap pt-0.5 text-[11px] font-mono">
+            ${ev.event_type ? `<span class="px-2 py-0.5 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-200">🎯 ${esc(ev.event_type)}</span>` : ''}
+            ${ev.date ? `<span class="px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-200">📅 ${esc(ev.date)}</span>` : ''}
+            ${ev.time ? `<span class="px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-200">🕒 ${esc(ev.time)}</span>` : ''}
+            ${ev.venue ? `<span class="px-2 py-0.5 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-200">📍 ${esc(ev.venue)}</span>` : ''}
+          </div>
+          ${m.matched_line ? `<div class="mt-1.5 p-2 rounded-xl bg-surface-950/80 border border-orange-500/25 text-[11px] font-mono text-orange-100/90 break-all">Matched row: ${esc(m.matched_line)}</div>` : ''}
+        </div>
+        <div class="flex sm:flex-col gap-2 flex-shrink-0">
+          ${matchPdf ? `<button onclick="openPdfByAttachment('${encodeURIComponent(n.id)}','${encodeURIComponent(matchPdf.id)}',${pageNum})" class="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-rose-600 text-white font-bold text-xs shadow-lg flex items-center justify-center gap-1.5 whitespace-nowrap"><span>📄</span> <span>View PDF (p.${pageNum})</span></button>` : ''}
+          ${ev.meeting_link ? `<a href="${esc(ev.meeting_link)}" target="_blank" rel="noopener noreferrer" class="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-emerald-600/90 text-white font-bold text-xs flex items-center justify-center gap-1.5 whitespace-nowrap"><span>🎥</span> <span>Join Meet</span></a>` : ''}
+          ${compact ? `<button onclick="switchPage('notices'); setNoticesFilter('shortlisted');" class="px-3 py-2 rounded-xl bg-surface-900/90 border border-white/15 text-slate-200 text-xs font-semibold whitespace-nowrap">All Notices →</button>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderDashboardShortlistStrip() {
+  const strip = document.getElementById('dashboard-shortlist-strip');
+  if (!strip) return;
+  const hits = noticesPayload.shortlisted_notices || [];
+  if (!hits.length) {
+    strip.classList.add('hidden');
+    strip.innerHTML = '';
+    return;
+  }
+  strip.classList.remove('hidden');
+  strip.innerHTML = hits.slice(0, 3).map(n => renderShortlistCardHtml(n, true)).join('');
+}
+
+function setNoticesFilter(f) {
+  noticesFilter = f;
+  document.querySelectorAll('.notices-filter').forEach(btn => {
+    const active = btn.dataset.nfilter === f;
+    if (active) {
+      btn.className = f === 'shortlisted'
+        ? 'notices-filter active px-3.5 py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-orange-500 to-rose-600 text-white shadow'
+        : 'notices-filter active px-3.5 py-1.5 rounded-full text-xs font-semibold bg-brand-600 text-white shadow-sm';
+    } else {
+      btn.className = btn.dataset.nfilter === 'shortlisted'
+        ? 'notices-filter px-3.5 py-1.5 rounded-full text-xs font-semibold bg-surface-900/90 border border-orange-500/35 text-orange-300'
+        : 'notices-filter px-3.5 py-1.5 rounded-full text-xs font-semibold bg-surface-900/90 border border-white/10 text-slate-300';
+    }
+  });
+  renderNotices();
+}
+
+function toggleNoticeBody(noticeId) {
+  if (expandedNoticeIds.has(noticeId)) expandedNoticeIds.delete(noticeId);
+  else expandedNoticeIds.add(noticeId);
+  renderNotices();
+}
+
+function renderNotices() {
+  const listEl = document.getElementById('notices-list');
+  const spotEl = document.getElementById('notices-shortlist-spotlight');
+  const metaEl = document.getElementById('notices-result-meta');
+  if (!listEl) return;
+
+  const allNotices = noticesPayload.notices || [];
+  const hits = noticesPayload.shortlisted_notices || [];
+
+  // Pinned spotlight when not already viewing the Shortlisted-only tab
+  if (spotEl) {
+    if (hits.length > 0 && noticesFilter !== 'shortlisted') {
+      spotEl.classList.remove('hidden');
+      spotEl.innerHTML = `
+        <div class="flex items-center justify-between px-1">
+          <span class="text-xs font-extrabold uppercase tracking-wider text-orange-300 flex items-center gap-1.5">🔥 Shortlist Matches Detected (${hits.length})</span>
+          <button onclick="setNoticesFilter('shortlisted')" class="text-[11px] font-mono text-orange-300 hover:underline">View only shortlisted →</button>
+        </div>
+        ${hits.slice(0, 2).map(n => renderShortlistCardHtml(n, false)).join('')}
+      `;
+    } else {
+      spotEl.classList.add('hidden');
+      spotEl.innerHTML = '';
+    }
+  }
+
+  const query = (document.getElementById('notices-search')?.value || '').trim().toLowerCase();
+  const showSpam = Boolean(document.getElementById('notices-show-spam')?.checked);
+
+  let filtered = allNotices.filter(n => {
+    if (!showSpam && (n.is_spam || n.is_duplicate)) return false;
+    if (noticesFilter === 'shortlisted' && !n.is_shortlisted) return false;
+    if (noticesFilter === 'shortlists_tests' && n.category !== 'shortlists_tests') return false;
+    if (noticesFilter === 'deadlines_revisions' && n.category !== 'deadlines_revisions') return false;
+    if (noticesFilter === 'job_openings' && n.category !== 'job_openings') return false;
+    if (query) {
+      const hay = [
+        n.title, n.author, n.plain_text,
+        n.event_details?.venue, n.event_details?.date, n.event_details?.time,
+        ...(n.attachments || []).map(a => a.name)
+      ].filter(Boolean).join(' ').toLowerCase();
+      if (!hay.includes(query)) return false;
+    }
+    return true;
+  });
+
+  if (metaEl) {
+    const hiddenSpam = (noticesPayload.counts || {}).spam_hidden || 0;
+    metaEl.textContent = `Showing ${filtered.length} notice${filtered.length === 1 ? '' : 's'}${!showSpam && hiddenSpam ? ` • ${hiddenSpam} promo/duplicate hidden` : ''}`;
+  }
+
+  if (!filtered.length) {
+    listEl.innerHTML = `
+      <div class="metric-card rounded-2xl p-8 text-center space-y-2">
+        <div class="text-2xl">📭</div>
+        <div class="text-sm font-bold text-slate-200">No notices match this filter</div>
+        <div class="text-xs text-slate-400">Try switching filters or clicking <strong>Scan Shortlist PDFs</strong> to pull fresh notices from Superset.</div>
+      </div>
+    `;
+    return;
+  }
+
+  const catBadge = n => {
+    if (n.is_shortlisted) return '<span class="badge-shortlisted text-[10px] font-mono px-2.5 py-0.5 rounded-full font-bold">🔥 SHORTLISTED</span>';
+    if (n.category === 'shortlists_tests') return '<span class="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-semibold">🎯 Shortlist / Test</span>';
+    if (n.category === 'deadlines_revisions') return '<span class="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold">⏰ Deadline / Revision</span>';
+    if (n.category === 'job_openings') return '<span class="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-semibold">💼 Job Opening</span>';
+    return '<span class="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">System / Promo</span>';
+  };
+
+  listEl.innerHTML = '';
+  for (const n of filtered) {
+    const ev = n.event_details || {};
+    const m = n.shortlist_match || null;
+    const isExpanded = expandedNoticeIds.has(n.id);
+    const card = document.createElement('article');
+    card.className = `job-card rounded-2xl p-4 sm:p-5 space-y-3 ${n.is_shortlisted ? 'border-orange-500/45 ring-1 ring-orange-500/25' : ''}`;
+
+    const attHtml = (n.attachments || []).length ? `
+      <div class="flex flex-wrap gap-2 pt-1">
+        ${(n.attachments || []).map(a => {
+          const isMatchedAtt = a.matched || (m && m.attachment_id === a.id);
+          const jumpPage = isMatchedAtt && m && m.page_number ? m.page_number : 1;
+          return `
+            <div class="inline-flex items-center rounded-xl overflow-hidden border ${isMatchedAtt ? 'border-orange-400/60 bg-orange-950/50' : 'border-white/10 bg-surface-950/80'} max-w-full">
+              <button type="button" onclick="openPdfByAttachment('${encodeURIComponent(n.id)}','${encodeURIComponent(a.id)}',${jumpPage})"
+                class="px-3 py-2 text-xs font-semibold ${isMatchedAtt ? 'text-orange-200' : 'text-slate-200'} flex items-center gap-1.5 min-w-0">
+                <span>${a.is_pdf ? '📄' : '🖼️'}</span>
+                <span class="truncate max-w-[210px] sm:max-w-[320px]">${esc(a.name)}</span>
+                ${a.page_count ? `<span class="text-[10px] font-mono text-slate-400">(${a.page_count}p)</span>` : ''}
+                ${isMatchedAtt ? `<span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-orange-500/30 text-orange-100 font-bold">🔥 p.${jumpPage}</span>` : ''}
+              </button>
+              <button type="button" onclick="downloadPdfByAttachment('${encodeURIComponent(n.id)}','${encodeURIComponent(a.id)}')" title="Download file"
+                class="px-2.5 py-2 border-l border-white/10 text-slate-400 hover:text-white text-xs">⬇</button>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    ` : '';
+
+    const logisticsHtml = (ev.date || ev.time || ev.venue || ev.meeting_link) ? `
+      <div class="flex items-center gap-1.5 flex-wrap text-[11px] font-mono">
+        ${ev.date ? `<span class="px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-200">📅 ${esc(ev.date)}</span>` : ''}
+        ${ev.time ? `<span class="px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-200">🕒 ${esc(ev.time)}</span>` : ''}
+        ${ev.venue ? `<span class="px-2 py-0.5 rounded-lg bg-sky-500/10 border border-sky-500/25 text-sky-200">📍 ${esc(ev.venue)}</span>` : ''}
+        ${ev.meeting_link ? `<a href="${esc(ev.meeting_link)}" target="_blank" rel="noopener noreferrer" class="px-2 py-0.5 rounded-lg bg-purple-500/15 border border-purple-500/35 text-purple-200 underline">🎥 Join Link</a>` : ''}
+      </div>
+    ` : '';
+
+    const matchBoxHtml = n.is_shortlisted && m ? `
+      <div class="p-2.5 rounded-xl bg-orange-950/45 border border-orange-500/35 text-xs text-orange-100 space-y-1">
+        <div class="font-bold text-orange-200">🔥 Roll / Name Verified in ${esc(m.attachment_name || 'Notice')}${m.page_number ? ` — Page ${m.page_number}` : ''}</div>
+        ${m.matched_line ? `<div class="font-mono text-[11px] text-orange-100/90 break-all">${esc(m.matched_line)}</div>` : ''}
+      </div>
+    ` : '';
+
+    card.innerHTML = `
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0 space-y-1">
+          <div class="flex items-center gap-2 flex-wrap">
+            ${catBadge(n)}
+            <span class="text-[11px] font-mono text-slate-400">${esc(n.published_display || '')}</span>
+            <span class="text-[11px] text-slate-500">• ${esc(n.author || 'T&P Cell')}</span>
+          </div>
+          <h3 class="text-sm font-bold text-white leading-snug">${esc(n.title)}</h3>
+        </div>
+      </div>
+      ${matchBoxHtml}
+      ${logisticsHtml}
+      <div class="notice-body-slot"></div>
+      ${attHtml}
+      <div class="flex items-center justify-between pt-1 border-t border-white/5">
+        <button type="button" onclick="toggleNoticeBody('${esc(n.id)}')" class="text-xs font-semibold text-indigo-300 hover:text-indigo-200">
+          ${isExpanded ? '▲ Hide full notice' : '▼ Read full notice'}
+        </button>
+        <span class="text-[10px] font-mono text-slate-500">${(n.attachments || []).length} attachment${(n.attachments || []).length === 1 ? '' : 's'}</span>
+      </div>
+    `;
+
+    const bodySlot = card.querySelector('.notice-body-slot');
+    if (isExpanded) {
+      const richDiv = document.createElement('div');
+      richDiv.className = 'notice-html p-3 rounded-xl bg-surface-950/75 border border-white/10 max-h-96 overflow-y-auto sheet-scroll';
+      safeSetNoticeHtml(richDiv, n.safe_html || esc(n.plain_text || ''));
+      bodySlot.appendChild(richDiv);
+    } else if (n.snippet) {
+      const p = document.createElement('p');
+      p.className = 'text-xs text-slate-400 leading-relaxed line-clamp-2';
+      p.textContent = n.snippet;
+      bodySlot.appendChild(p);
+    }
+
+    listEl.appendChild(card);
+  }
+}
+
+function _findNoticeAttachment(noticeIdEnc, attachmentIdEnc) {
+  const nid = decodeURIComponent(noticeIdEnc || '');
+  const aid = decodeURIComponent(attachmentIdEnc || '');
+  const notice = (noticesPayload.notices || []).find(n => n.id === nid);
+  const att = notice ? (notice.attachments || []).find(a => a.id === aid) : null;
+  return { nid, aid, notice, att };
+}
+
+function openPdfByAttachment(noticeIdEnc, attachmentIdEnc, pageNum = 1) {
+  const { nid, aid, att } = _findNoticeAttachment(noticeIdEnc, attachmentIdEnc);
+  openPdfViewer(nid, aid, (att && att.name) || 'superset_notice.pdf', pageNum, Boolean(att && att.is_image));
+}
+
+function downloadPdfByAttachment(noticeIdEnc, attachmentIdEnc) {
+  const { nid, aid, att } = _findNoticeAttachment(noticeIdEnc, attachmentIdEnc);
+  downloadNoticeAttachment(nid, aid, (att && att.name) || 'attachment.pdf');
+}
+
+async function openPdfViewer(noticeId, attachmentId, filename, pageNum = 1, isImage = false) {
+  const dialog = document.getElementById('pdfViewerDialog');
+  const titleEl = document.getElementById('pdfViewerTitle');
+  const subEl = document.getElementById('pdfViewerSubtitle');
+  const bodyEl = document.getElementById('pdfViewerBody');
+  const newTabLink = document.getElementById('pdfViewerNewTab');
+  const dlLink = document.getElementById('pdfViewerDownload');
+  const matchBanner = document.getElementById('pdfViewerMatchBanner');
+
+  if (!dialog) return;
+
+  // Revoke any previous Blob URL
+  if (activePdfBlobUrl) {
+    URL.revokeObjectURL(activePdfBlobUrl);
+    activePdfBlobUrl = null;
+  }
+
+  titleEl.textContent = filename || 'Document Preview';
+  subEl.textContent = 'Fetching authenticated PDF stream from Superset...';
+  newTabLink.classList.add('hidden');
+  dlLink.classList.add('hidden');
+
+  // Show shortlist match highlight if this PDF matched the student
+  const notice = (noticesPayload.notices || []).find(n => n.id === noticeId);
+  if (notice && notice.is_shortlisted && notice.shortlist_match && notice.shortlist_match.attachment_id === attachmentId) {
+    const m = notice.shortlist_match;
+    const ev = notice.event_details || {};
+    matchBanner.classList.remove('hidden');
+    matchBanner.innerHTML = `
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div><strong>🔥 SHORTLISTED ON PAGE ${m.page_number || pageNum}:</strong> <span class="font-mono">${esc(m.matched_line || m.matched_value || '')}</span></div>
+        <div class="font-mono text-[11px] text-amber-200">${[ev.date, ev.time, ev.venue].filter(Boolean).map(esc).join(' • ')}</div>
+      </div>
+    `;
+  } else {
+    matchBanner.classList.add('hidden');
+    matchBanner.innerHTML = '';
+  }
+
+  bodyEl.innerHTML = `
+    <div class="text-center space-y-2.5 p-6">
+      <div class="inline-block animate-spin text-2xl text-brand-400">🔄</div>
+      <div class="text-xs font-mono text-slate-300">Streaming pre-signed document securely...</div>
+    </div>
+  `;
+
+  if (!dialog.open) dialog.showModal();
+
+  try {
+    const headers = {};
+    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+    const res = await fetch(`/api/notices/${encodeURIComponent(noticeId)}/attachments/${encodeURIComponent(attachmentId)}/pdf`, {
+      headers,
+      credentials: 'same-origin'
+    });
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status} — Could not load attachment`);
+    }
+    const blob = await res.blob();
+    activePdfBlobUrl = URL.createObjectURL(blob);
+    const viewerUrl = isImage ? activePdfBlobUrl : `${activePdfBlobUrl}#page=${pageNum || 1}`;
+
+    subEl.textContent = `${(blob.size / 1024).toFixed(0)} KB • ${isImage ? 'Image' : `PDF (Page ${pageNum || 1})`}`;
+    newTabLink.href = viewerUrl;
+    newTabLink.classList.remove('hidden');
+    dlLink.href = activePdfBlobUrl;
+    dlLink.download = filename || 'superset_notice.pdf';
+    dlLink.classList.remove('hidden');
+
+    if (isImage) {
+      bodyEl.innerHTML = `<img src="${activePdfBlobUrl}" alt="${esc(filename)}" class="max-w-full max-h-full object-contain p-3">`;
+    } else {
+      bodyEl.innerHTML = `
+        <div class="w-full h-full flex flex-col">
+          <div class="sm:hidden px-3 py-2 bg-surface-900 border-b border-white/10 flex items-center justify-between gap-2 text-[11px] text-slate-300">
+            <span>Mobile tip: tap Open for full pinch-zoom</span>
+            <a href="${viewerUrl}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-lg bg-brand-600 text-white font-bold">Open Full PDF ↗</a>
+          </div>
+          <iframe src="${viewerUrl}" title="${esc(filename)}" class="w-full flex-1 border-0 bg-white"></iframe>
+        </div>
+      `;
+    }
+  } catch (e) {
+    subEl.textContent = 'Preview unavailable';
+    bodyEl.innerHTML = `
+      <div class="p-6 text-center space-y-2 max-w-md">
+        <div class="text-2xl">⚠️</div>
+        <div class="text-sm font-bold text-rose-300">Failed to load PDF preview</div>
+        <div class="text-xs font-mono text-slate-400">${esc(e.message)}</div>
+      </div>
+    `;
+  }
+}
+
+async function downloadNoticeAttachment(noticeId, attachmentId, filename) {
+  toast(`Downloading ${filename}...`, 'info');
+  try {
+    const headers = {};
+    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+    const res = await fetch(`/api/notices/${encodeURIComponent(noticeId)}/attachments/${encodeURIComponent(attachmentId)}/pdf?download=1`, {
+      headers,
+      credentials: 'same-origin'
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || 'attachment.pdf';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  } catch (e) {
+    toast('Download failed: ' + e.message, 'error');
+  }
+}
+
+// Setup native <dialog> close cleanup + Safari light-dismiss fallback (per modern-web-guidance)
+(function setupPdfDialog() {
+  const dialog = document.getElementById('pdfViewerDialog');
+  if (!dialog) return;
+
+  dialog.addEventListener('close', () => {
+    dialog.returnValue = '';
+    const bodyEl = document.getElementById('pdfViewerBody');
+    if (bodyEl) bodyEl.innerHTML = '';
+    if (activePdfBlobUrl) {
+      URL.revokeObjectURL(activePdfBlobUrl);
+      activePdfBlobUrl = null;
+    }
+  });
+
+  if (!('closedBy' in HTMLDialogElement.prototype)) {
+    const outside = (e) => {
+      const r = dialog.getBoundingClientRect();
+      return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+    };
+    let pressedOutside = false;
+    dialog.addEventListener('pointerdown', (e) => { pressedOutside = outside(e); });
+    dialog.addEventListener('pointerup', (e) => { if (pressedOutside && outside(e)) dialog.close(); });
+  }
+})();
+
+// ═══════════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════════
 (async function init() {
@@ -2908,7 +3717,7 @@ document.getElementById('modal-overlay').addEventListener('click', e => { if (e.
       localStorage.setItem('sjp_token', authToken);
     }
     hideAuthOverlay();
-    await Promise.all([fetchStatus(), fetchJobs(), fetchProfile()]);
+    await Promise.all([fetchStatus(), fetchJobs(), fetchProfile(), fetchNotices()]);
   } else {
     showAuthOverlay();
   }
@@ -2916,6 +3725,7 @@ document.getElementById('modal-overlay').addEventListener('click', e => { if (e.
   // Auto-refresh cadence when authenticated
   setInterval(() => { if (authToken || currentUser) fetchStatus(); }, 20000);
   setInterval(() => { if (authToken || currentUser) fetchJobs(); }, 60000);
+  setInterval(() => { if (authToken || currentUser) fetchNotices(); }, 90000);
 })();
 </script>
 </body>
@@ -3096,10 +3906,13 @@ def get_status():
         return jsonify({"error": "Authentication required"}), 401
 
     cached_jobs, _ = user_manager.get_cached_jobs(user["user_id"])
+    cached_notices, _ = user_manager.get_cached_notices(user["user_id"])
+    cached_pending, _ = user_manager.get_cached_pending_actions(user["user_id"])
     jobs_list = cached_jobs or _cached_jobs
     applied_count = sum(1 for j in jobs_list if j.get("is_applied") or j.get("app_status") == "APPLIED")
     open_count = sum(1 for j in jobs_list if j.get("is_open"))
     total_jobs = len(jobs_list)
+    shortlisted_count = sum(1 for n in cached_notices if n.get("is_shortlisted"))
     prof = user["profile"]
 
     return jsonify({
@@ -3114,6 +3927,8 @@ def get_status():
         "total_jobs": total_jobs,
         "applied_jobs": applied_count,
         "open_jobs": open_count,
+        "shortlisted_count": shortlisted_count,
+        "pending_offers_count": len(cached_pending),
         "telegram_paired": bool(user["telegram_chat_id"] or Config.TELEGRAM_CHAT_ID),
         "telegram_chat_id": user["telegram_chat_id"] or ("Configured" if Config.TELEGRAM_CHAT_ID else ""),
         "daemon_active": daemon_active,
@@ -3187,6 +4002,17 @@ def trigger_sync():
         timestamp = datetime.now(IST).strftime("%d %b %Y, %I:%M:%S %p IST")
         user_manager.set_user_last_sync(user["user_id"], timestamp)
 
+        # Also refresh homepage notices, shortlist PDFs & pending offers in background (non-blocking)
+        def _bg_notice_scan(u_obj):
+            try:
+                sc_n = _get_superset_for_user(u_obj)
+                if sc_n.login():
+                    scan_notices_for_user(sc_n, user_manager, u_obj, max_pages=2, page_size=25, max_pdfs_to_download=12, send_alerts=True)
+            except Exception as bg_err:
+                logger.debug(f"Background notice scan warning: {bg_err}")
+
+        threading.Thread(target=_bg_notice_scan, args=(user,), daemon=True).start()
+
         global last_sync_info
         last_sync_info = {
             "timestamp": timestamp,
@@ -3236,6 +4062,171 @@ def get_jobs():
     except Exception as e:
         logger.error(f"Error fetching jobs for {user['email']}: {e}")
         return jsonify(cached_jobs or [])
+
+
+@app.route("/api/notices", methods=["GET"])
+def get_notices():
+    """Returns Smart Notice Feed, Shortlist PDF matches, and Pending Offer Watchdog state."""
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Authentication required"}), 401
+
+    force_refresh = request.args.get("refresh") in ("1", "true", "yes")
+    cached_notices, notices_ts = user_manager.get_cached_notices(user["user_id"])
+    cached_pending, pending_ts = user_manager.get_cached_pending_actions(user["user_id"])
+    now = int(time.time())
+
+    # Serve warm cache immediately unless empty, stale (> 15m), or explicitly refreshed
+    if cached_notices and not force_refresh and (now - notices_ts) < 900:
+        return jsonify(summarize_notices(
+            notices=cached_notices,
+            pending_actions=cached_pending,
+            notices_updated_at=notices_ts,
+            pending_updated_at=pending_ts,
+            student_roll=user["roll_number"],
+            student_name=user["full_name"],
+        ))
+
+    try:
+        superset = _get_superset_for_user(user)
+        if not superset.login():
+            return jsonify(summarize_notices(
+                notices=cached_notices,
+                pending_actions=cached_pending,
+                notices_updated_at=notices_ts,
+                pending_updated_at=pending_ts,
+                student_roll=user["roll_number"],
+                student_name=user["full_name"],
+            ))
+        result = scan_notices_for_user(
+            superset, user_manager, user, max_pages=2, page_size=25, max_pdfs_to_download=14, send_alerts=True
+        )
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error loading notices for {user['email']}: {e}")
+        return jsonify(summarize_notices(
+            notices=cached_notices,
+            pending_actions=cached_pending,
+            notices_updated_at=notices_ts,
+            pending_updated_at=pending_ts,
+            student_roll=user["roll_number"],
+            student_name=user["full_name"],
+        ))
+
+
+@app.route("/api/notices/scan", methods=["POST"])
+def scan_notices_endpoint():
+    """Forces a fresh live scan of Superset homepage notices, shortlist PDFs & /pending_actions."""
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Authentication required"}), 401
+
+    try:
+        superset = _get_superset_for_user(user)
+        if not superset.login():
+            return jsonify({"success": False, "message": "Superset authentication failed."}), 401
+
+        result = scan_notices_for_user(
+            superset, user_manager, user, max_pages=2, page_size=25, max_pdfs_to_download=20, send_alerts=True
+        )
+        c = result.get("counts", {})
+        log_event(
+            f"Shortlist PDF scan for {user['full_name']}: {c.get('shortlisted', 0)} shortlisted, "
+            f"{c.get('clean', 0)} clean notices, {c.get('pending_offers', 0)} pending offer(s).",
+            "SUCCESS" if c.get("shortlisted") else "INFO",
+        )
+        return jsonify(result)
+    except Exception as e:
+        log_event(f"Notice PDF scan failed for {user['email']}: {e}", "ERROR")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route("/api/notices/<notice_id>/attachments/<attachment_id>/pdf", methods=["GET"])
+def proxy_notice_attachment_pdf(notice_id, attachment_id):
+    """
+    Authenticated 1-click PDF / image proxy.
+    Fetches a fresh S3 pre-signed URL via the student's Superset session and streams
+    the file inline (so browsers preview it cleanly instead of forcing download).
+    """
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Authentication required"}), 401
+
+    try:
+        superset = _get_superset_for_user(user)
+        if not superset.login():
+            return jsonify({"error": "Superset authentication failed"}), 401
+
+        content_bytes, content_type, _ = superset.download_notice_attachment(notice_id, attachment_id)
+        if not content_bytes:
+            return jsonify({"error": "Attachment not available or expired on Superset"}), 404
+
+        # Look up clean filename from cached notices if available
+        filename = "superset_notice.pdf"
+        cached_notices, _ = user_manager.get_cached_notices(user["user_id"])
+        for n in cached_notices:
+            if n.get("id") == notice_id:
+                for a in n.get("attachments") or []:
+                    if a.get("id") == attachment_id and a.get("name"):
+                        filename = a["name"]
+                        break
+                break
+
+        safe_filename = "".join(ch for ch in filename if ch not in ('"', "\r", "\n", "\\", "/"))[:140] or "superset_notice.pdf"
+        if safe_filename.lower().endswith(".pdf"):
+            mime = "application/pdf"
+        elif safe_filename.lower().endswith((".jpg", ".jpeg")):
+            mime = "image/jpeg"
+        elif safe_filename.lower().endswith(".png"):
+            mime = "image/png"
+        else:
+            mime = content_type or "application/octet-stream"
+
+        disposition = "attachment" if request.args.get("download") in ("1", "true") else "inline"
+        resp = Response(content_bytes, mimetype=mime)
+        resp.headers["Content-Disposition"] = f'{disposition}; filename="{safe_filename}"'
+        resp.headers["Cache-Control"] = "private, max-age=300"
+        resp.headers["X-Content-Type-Options"] = "nosniff"
+        return resp
+    except Exception as e:
+        logger.error(f"PDF proxy error ({notice_id}/{attachment_id}): {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/pending-actions", methods=["GET"])
+def get_pending_actions():
+    """Pending Offer Watchdog endpoint polling Superset /pending_actions."""
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Authentication required"}), 401
+
+    force_refresh = request.args.get("refresh") in ("1", "true", "yes")
+    cached_pending, updated_at = user_manager.get_cached_pending_actions(user["user_id"])
+    now = int(time.time())
+
+    if not force_refresh and updated_at and (now - updated_at) < 300:
+        return jsonify({
+            "success": True,
+            "count": len(cached_pending),
+            "pending_actions": cached_pending,
+            "checked_at": updated_at,
+        })
+
+    try:
+        superset = _get_superset_for_user(user)
+        if not superset.login():
+            return jsonify({"success": False, "count": len(cached_pending), "pending_actions": cached_pending}), 200
+        actions = superset.fetch_pending_actions()
+        user_manager.set_cached_pending_actions(user["user_id"], actions)
+        return jsonify({
+            "success": True,
+            "count": len(actions),
+            "pending_actions": actions,
+            "checked_at": int(time.time()),
+        })
+    except Exception as e:
+        logger.error(f"Pending actions watchdog error: {e}")
+        return jsonify({"success": False, "count": len(cached_pending), "pending_actions": cached_pending, "error": str(e)}), 200
 
 
 @app.route("/api/profile", methods=["GET", "POST"])

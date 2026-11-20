@@ -258,6 +258,33 @@ class UserManager:
                     jobs_json TEXT NOT NULL,
                     updated_at INTEGER NOT NULL
                 );
+
+                CREATE TABLE IF NOT EXISTS user_notices_cache (
+                    user_id TEXT PRIMARY KEY,
+                    notices_json TEXT NOT NULL,
+                    updated_at INTEGER NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS user_pending_actions_cache (
+                    user_id TEXT PRIMARY KEY,
+                    actions_json TEXT NOT NULL,
+                    updated_at INTEGER NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS notice_pdf_cache (
+                    attachment_id TEXT PRIMARY KEY,
+                    filename TEXT DEFAULT '',
+                    page_count INTEGER DEFAULT 0,
+                    extracted_text TEXT NOT NULL,
+                    scanned_at INTEGER NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS user_sent_alerts (
+                    user_id TEXT NOT NULL,
+                    alert_key TEXT NOT NULL,
+                    sent_at INTEGER NOT NULL,
+                    PRIMARY KEY (user_id, alert_key)
+                );
                 """
             )
             # Ensure default invite code KIIT2027 exists
@@ -664,6 +691,106 @@ class UserManager:
                 ON CONFLICT(user_id) DO UPDATE SET jobs_json = excluded.jobs_json, updated_at = excluded.updated_at
                 """,
                 (user_id, json.dumps(jobs, default=str), now),
+            )
+            conn.commit()
+
+    # ─── NOTICES, SHORTLIST PDF CACHE & PENDING OFFERS WATCHDOG ───
+
+    def get_cached_notices(self, user_id: str) -> Tuple[List[Dict[str, Any]], int]:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT notices_json, updated_at FROM user_notices_cache WHERE user_id = ?",
+                (user_id,),
+            ).fetchone()
+            if not row:
+                return [], 0
+            try:
+                return json.loads(row["notices_json"]), int(row["updated_at"])
+            except Exception:
+                return [], 0
+
+    def set_cached_notices(self, user_id: str, notices: List[Dict[str, Any]]):
+        now = int(time.time())
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO user_notices_cache (user_id, notices_json, updated_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET notices_json = excluded.notices_json, updated_at = excluded.updated_at
+                """,
+                (user_id, json.dumps(notices, default=str), now),
+            )
+            conn.commit()
+
+    def get_cached_pending_actions(self, user_id: str) -> Tuple[List[Dict[str, Any]], int]:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT actions_json, updated_at FROM user_pending_actions_cache WHERE user_id = ?",
+                (user_id,),
+            ).fetchone()
+            if not row:
+                return [], 0
+            try:
+                return json.loads(row["actions_json"]), int(row["updated_at"])
+            except Exception:
+                return [], 0
+
+    def set_cached_pending_actions(self, user_id: str, actions: List[Dict[str, Any]]):
+        now = int(time.time())
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO user_pending_actions_cache (user_id, actions_json, updated_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET actions_json = excluded.actions_json, updated_at = excluded.updated_at
+                """,
+                (user_id, json.dumps(actions, default=str), now),
+            )
+            conn.commit()
+
+    def get_cached_pdf_text(self, attachment_id: str) -> Optional[Dict[str, Any]]:
+        if not attachment_id:
+            return None
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT filename, page_count, extracted_text, scanned_at FROM notice_pdf_cache WHERE attachment_id = ?",
+                (attachment_id,),
+            ).fetchone()
+            return dict(row) if row else None
+
+    def set_cached_pdf_text(self, attachment_id: str, filename: str, page_count: int, extracted_text: str):
+        if not attachment_id:
+            return
+        now = int(time.time())
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO notice_pdf_cache (attachment_id, filename, page_count, extracted_text, scanned_at)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(attachment_id) DO UPDATE SET
+                    filename = excluded.filename,
+                    page_count = excluded.page_count,
+                    extracted_text = excluded.extracted_text,
+                    scanned_at = excluded.scanned_at
+                """,
+                (attachment_id, filename or "", int(page_count or 0), extracted_text or "", now),
+            )
+            conn.commit()
+
+    def has_sent_alert(self, user_id: str, alert_key: str) -> bool:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT 1 FROM user_sent_alerts WHERE user_id = ? AND alert_key = ?",
+                (user_id, alert_key),
+            ).fetchone()
+            return bool(row)
+
+    def mark_alert_sent(self, user_id: str, alert_key: str):
+        now = int(time.time())
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO user_sent_alerts (user_id, alert_key, sent_at) VALUES (?, ?, ?)",
+                (user_id, alert_key, now),
             )
             conn.commit()
 

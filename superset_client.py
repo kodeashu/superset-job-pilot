@@ -336,3 +336,185 @@ class SupersetClient:
             "profile_url": profile_url,
             "raw": raw,
         }
+
+    # ═══════════════════════════════════════════════════════════════════
+    # HOMEPAGE NOTICES, SHORTLIST PDF ATTACHMENTS & PENDING OFFERS
+    # ═══════════════════════════════════════════════════════════════════
+
+    def fetch_notices(self, page: int = 0, size: int = 25, max_pages: int = 2) -> list:
+        """
+        Fetches paginated campus placement notices from Superset student homepage.
+        GET /tnpsuite-core/students/{uuid}/notices?page=0&size=25
+        """
+        if not self.session_key or not self.user_uuid:
+            if not self.login():
+                logger.error("Cannot fetch notices without active Superset session.")
+                return []
+
+        all_items = []
+        seen_ids = set()
+        for p in range(page, page + max_pages):
+            url = f"{self.base_url}/tnpsuite-core/students/{self.user_uuid}/notices"
+            try:
+                resp = self.session.get(url, params={"page": p, "size": size}, timeout=15)
+                if resp.status_code != 200:
+                    logger.warning(f"Notice fetch page {p} returned HTTP {resp.status_code}")
+                    break
+                batch = resp.json()
+                if isinstance(batch, dict):
+                    batch = batch.get("content", [])
+                if not isinstance(batch, list) or not batch:
+                    break
+
+                added = 0
+                for item in batch:
+                    if not isinstance(item, dict):
+                        continue
+                    nid = str(item.get("identifier") or item.get("id") or "")
+                    if not nid or nid in seen_ids:
+                        continue
+                    seen_ids.add(nid)
+                    all_items.append(item)
+                    added += 1
+
+                if len(batch) < size or added == 0:
+                    break
+            except Exception as e:
+                logger.error(f"Error fetching Superset notices page {p}: {e}")
+                break
+
+        logger.info(f"Retrieved {len(all_items)} homepage notices from Superset.")
+        return all_items
+
+    def get_notice_attachment_url(self, notice_id: str, attachment_id: str) -> str:
+        """
+        Requests a fresh AWS S3 pre-signed download URL for a notice attachment.
+        GET /tnpsuite-core/students/{uuid}/notices/{noticeId}/attachments/{attId}/url
+        """
+        if not self.session_key or not self.user_uuid:
+            if not self.login():
+                return ""
+        url = (
+            f"{self.base_url}/tnpsuite-core/students/{self.user_uuid}"
+            f"/notices/{notice_id}/attachments/{attachment_id}/url"
+        )
+        try:
+            resp = self.session.get(url, timeout=12)
+            if resp.status_code == 200:
+                data = resp.json()
+                return data.get("url") or ""
+            logger.warning(f"Attachment URL lookup failed: HTTP {resp.status_code}")
+        except Exception as e:
+            logger.warning(f"Error fetching attachment URL for {attachment_id}: {e}")
+        return ""
+
+    def download_notice_attachment(self, notice_id: str, attachment_id: str, max_bytes: int = 15 * 1024 * 1024):
+        """
+        Downloads a notice attachment via its pre-signed S3 URL.
+        IMPORTANT: Uses a clean requests.get() WITHOUT Superset's Authorization header
+        so AWS S3 does not reject the dual-auth request with HTTP 400.
+        Returns (content_bytes | None, content_type, presigned_url).
+        """
+        presigned_url = self.get_notice_attachment_url(notice_id, attachment_id)
+        if not presigned_url:
+            return None, "", ""
+        try:
+            resp = requests.get(presigned_url, timeout=25, stream=True)
+            if resp.status_code != 200:
+                logger.warning(f"S3 attachment download returned HTTP {resp.status_code}")
+                return None, "", presigned_url
+            content_type = resp.headers.get("Content-Type", "application/pdf")
+            chunks = []
+            total = 0
+            for chunk in resp.iter_content(chunk_size=65536):
+                if not chunk:
+                    continue
+                total += len(chunk)
+                if total > max_bytes:
+                    logger.warning(f"Attachment {attachment_id} exceeded {max_bytes}B safety cap.")
+                    return None, content_type, presigned_url
+                chunks.append(chunk)
+            return b"".join(chunks), content_type, presigned_url
+        except Exception as e:
+            logger.warning(f"Error downloading attachment {attachment_id}: {e}")
+            return None, "", presigned_url
+
+    def fetch_pending_actions(self) -> list:
+        """
+        Polls Superset's Pending Actions / Job Offer acceptance endpoint.
+        GET /tnpsuite-core/students/{uuid}/pending_actions
+        """
+        if not self.session_key or not self.user_uuid:
+            if not self.login():
+                logger.error("Cannot fetch pending actions without active Superset session.")
+                return []
+
+        url = f"{self.base_url}/tnpsuite-core/students/{self.user_uuid}/pending_actions"
+        try:
+            resp = self.session.get(url, timeout=15)
+            if resp.status_code == 200:
+                raw_actions = resp.json()
+                if isinstance(raw_actions, list):
+                    return [self._normalize_pending_action(a) for a in raw_actions if isinstance(a, dict)]
+            else:
+                logger.warning(f"Pending actions returned HTTP {resp.status_code}")
+        except Exception as e:
+            logger.error(f"Error fetching pending actions: {e}")
+        return []
+
+    def _normalize_pending_action(self, raw: dict) -> dict:
+        """Normalizes a Superset pending_actions offer/action record."""
+        action_id = str(
+            raw.get("identifier")
+            or raw.get("uuid")
+            or raw.get("jobProfileIdentifier")
+            or raw.get("id")
+            or f"action-{abs(hash(json.dumps(raw, sort_keys=True, default=str)))}"
+        )
+        company = raw.get("ownerName") or raw.get("companyName") or "Campus Recruiter"
+        title = raw.get("title") or raw.get("jobProfileTitle") or "Pending Placement Action"
+        action_type = raw.get("type") or raw.get("actionType") or "JOB_OFFER"
+        jp_id = raw.get("jobProfileIdentifier") or raw.get("entityIdentifier") or raw.get("identifier") or ""
+
+        deadline_raw = raw.get("actionDeadline") or raw.get("deadline")
+        deadline_display = "Check Superset Immediately"
+        hours_left = None
+        deadline_ts = None
+
+        if deadline_raw:
+            try:
+                if isinstance(deadline_raw, (int, float)) or (isinstance(deadline_raw, str) and deadline_raw.isdigit()):
+                    epoch_sec = float(deadline_raw) / 1000.0 if float(deadline_raw) > 1e11 else float(deadline_raw)
+                    deadline_dt = datetime.fromtimestamp(epoch_sec, tz=IST)
+                    deadline_ts = int(epoch_sec * 1000)
+                else:
+                    clean_time = str(deadline_raw).replace("Z", "+00:00")
+                    dt = datetime.fromisoformat(clean_time)
+                    deadline_dt = dt.astimezone(IST) if dt.tzinfo else IST.localize(dt)
+                    deadline_ts = int(deadline_dt.timestamp() * 1000)
+
+                diff = (deadline_dt - datetime.now(IST)).total_seconds() / 3600.0
+                hours_left = round(max(0.0, diff), 1)
+                deadline_display = deadline_dt.strftime("%d %b %Y, %I:%M %p IST")
+            except Exception:
+                deadline_display = str(deadline_raw)
+
+        portal_url = (
+            f"{self.base_url}/students/jobprofiles/{jp_id}"
+            if jp_id
+            else f"{self.base_url}/students/"
+        )
+
+        return {
+            "id": action_id,
+            "company_name": company,
+            "title": title,
+            "action_type": action_type,
+            "job_profile_id": jp_id,
+            "deadline_ts": deadline_ts,
+            "deadline_display": deadline_display,
+            "hours_left": hours_left,
+            "is_urgent": (hours_left is None) or (hours_left <= 48),
+            "portal_url": portal_url,
+            "raw": raw,
+        }

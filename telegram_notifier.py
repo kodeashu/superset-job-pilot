@@ -1,4 +1,5 @@
 """Telegram Notifier with inline buttons and rich job cards."""
+import html
 import logging
 import requests
 from config import Config
@@ -85,6 +86,69 @@ class TelegramNotifier:
         buttons.append(row1)
 
         reply_markup = {"inline_keyboard": buttons}
+        return self.send_message(message.strip(), reply_markup)
+
+    def send_shortlist_alert(self, notice: dict, match: dict, student_name: str = "", roll_number: str = "") -> bool:
+        """Sends an urgent 🔥 YOU ARE SHORTLISTED! alert with extracted venue, date & time."""
+        title = html.escape(str(notice.get("title") or "Campus Placement Shortlist"))
+        ev = notice.get("event_details") or {}
+        event_type = html.escape(str(ev.get("event_type") or "Recruitment Round"))
+        ev_date = html.escape(str(ev.get("date") or "Check Notice"))
+        ev_time = html.escape(str(ev.get("time") or "Check Notice"))
+        ev_venue = html.escape(str(ev.get("venue") or "Check Notice / Virtual"))
+        meet_link = ev.get("meeting_link") or ""
+
+        matched_by = html.escape(str(match.get("match_type") or "ROLL"))
+        att_name = html.escape(str(match.get("attachment_name") or "Notice Body"))
+        page_num = match.get("page_number")
+        page_str = f" (Page {page_num})" if page_num else ""
+        matched_line = html.escape(str(match.get("matched_line") or "")[:220])
+        who = html.escape(f"{student_name} ({roll_number})".strip(" ()") or "Candidate")
+
+        link_line = f"\n🔗 <b>Meeting / Test Link:</b> {html.escape(meet_link)}" if meet_link else ""
+        row_line = f"\n📄 <b>Matched Entry:</b> <code>{matched_line}</code>" if matched_line else ""
+
+        message = f"""
+🔥 <b>YOU ARE SHORTLISTED!</b> 🔥
+━━━━━━━━━━━━━━━━━━━
+🎓 <b>Student:</b> {who}
+📢 <b>Notice:</b> {title}
+🎯 <b>Stage:</b> {event_type}
+📅 <b>Date:</b> {ev_date}
+🕒 <b>Time / Slot:</b> {ev_time}
+📍 <b>Venue / Mode:</b> {ev_venue}{link_line}
+
+🔎 <b>Verified In:</b> {att_name}{page_str} [{matched_by}]{row_line}
+━━━━━━━━━━━━━━━━━━━
+<i>Open Superset Job Pilot → Notices to view the full PDF in 1 click.</i>
+"""
+        buttons = [[{"text": "🚀 Open Superset Portal", "url": Config.SUPERSET_BASE_URL + "/students/"}]]
+        if meet_link and meet_link.startswith(("http://", "https://")):
+            buttons[0].append({"text": "🎥 Join Meeting", "url": meet_link})
+        return self.send_message(message.strip(), {"inline_keyboard": buttons})
+
+    def send_pending_offer_alert(self, action: dict, student_name: str = "") -> bool:
+        """Sends an urgent 🏆 PENDING JOB OFFER alert so an acceptance deadline is never missed."""
+        company = html.escape(str(action.get("company_name") or "Campus Recruiter"))
+        title = html.escape(str(action.get("title") or "Job Offer"))
+        deadline = html.escape(str(action.get("deadline_display") or "Check Superset Immediately"))
+        hours_left = action.get("hours_left")
+        countdown = f"\n⏳ <b>Time Remaining:</b> {hours_left:.1f} hours!" if hours_left is not None else ""
+        portal_url = action.get("portal_url") or (Config.SUPERSET_BASE_URL + "/students/")
+        who = html.escape(student_name or "Candidate")
+
+        message = f"""
+🏆 <b>URGENT: PENDING JOB OFFER!</b> 🏆
+━━━━━━━━━━━━━━━━━━━
+🎉 <b>Congratulations, {who}!</b>
+🏢 <b>Company:</b> {company}
+💼 <b>Offer / Role:</b> {title}
+⏰ <b>Acceptance Deadline:</b> {deadline}{countdown}
+
+⚠️ <b>Action Required:</b> Log into Superset and respond before the deadline expires!
+━━━━━━━━━━━━━━━━━━━
+"""
+        reply_markup = {"inline_keyboard": [[{"text": "🏆 View & Respond on Superset", "url": portal_url}]]}
         return self.send_message(message.strip(), reply_markup)
 
     def test_connection(self) -> dict:

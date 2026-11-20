@@ -9,6 +9,9 @@ from config import Config
 from auto_applier import AutoApplier
 from calendar_sync import CalendarSync
 from telegram_notifier import TelegramNotifier
+from superset_client import SupersetClient
+from user_manager import UserManager
+from notice_scanner import scan_notices_for_user
 
 logging.basicConfig(
     level=logging.INFO,
@@ -79,6 +82,30 @@ def run_test():
     print("\nTest completed successfully!")
 
 
+def run_notices_scan(send_alerts: bool = True):
+    """Scans Superset homepage notices, shortlist PDFs, and pending offers for all vault users."""
+    um = UserManager()
+    users = um.get_all_users()
+    if not users:
+        logger.warning("No users in encrypted vault to scan notices for.")
+        return
+
+    for u in users:
+        sc = SupersetClient(email=u["email"], password=u["superset_password"])
+        if not sc.login():
+            logger.warning(f"Superset login skipped/failed for {u['email']}.")
+            continue
+        res = scan_notices_for_user(sc, um, u, max_pages=2, page_size=25, send_alerts=send_alerts)
+        counts = res.get("counts", {})
+        stats = res.get("scan_stats", {})
+        logger.info(
+            f"Notices scan for {u['full_name']}: {counts.get('clean', 0)} clean notices, "
+            f"{counts.get('shortlisted', 0)} shortlisted hits, "
+            f"{counts.get('pending_offers', 0)} pending offers "
+            f"(PDFs: {stats.get('pdfs_downloaded_now', 0)} new / {stats.get('pdfs_from_cache', 0)} cached)."
+        )
+
+
 def run_daemon():
     """Runs the monitor continuously on a schedule."""
     logger.info(f"Starting Superset Job Pilot daemon (poll every {Config.POLL_INTERVAL_MINUTES} min)...")
@@ -89,6 +116,7 @@ def run_daemon():
             logger.info("Executing scheduled sync cycle...")
             res = applier.run_sync_cycle()
             logger.info(f"Cycle completed: {res['new_jobs']} new, {res['auto_applied']} auto-applied.")
+            run_notices_scan(send_alerts=True)
         except Exception as e:
             logger.error(f"Error during daemon execution: {e}")
         
@@ -171,8 +199,8 @@ def setup_telegram():
 
 def main():
     parser = argparse.ArgumentParser(description="Superset Campus Placement Job Pilot")
-    parser.add_argument("command", choices=["run", "test", "daemon", "status", "setup-telegram"], default="run", nargs="?",
-                        help="Command to run: 'run', 'test', 'daemon', 'status', 'setup-telegram'")
+    parser.add_argument("command", choices=["run", "test", "daemon", "status", "setup-telegram", "scan-notices"], default="run", nargs="?",
+                        help="Command to run: 'run', 'test', 'daemon', 'status', 'setup-telegram', 'scan-notices'")
     args = parser.parse_args()
 
     if args.command == "test":
@@ -183,10 +211,13 @@ def main():
         show_status()
     elif args.command == "setup-telegram":
         setup_telegram()
+    elif args.command == "scan-notices":
+        run_notices_scan(send_alerts=True)
     else:
         applier = AutoApplier()
         res = applier.run_sync_cycle()
         print(f"Sync complete. New: {res['new_jobs']}, Auto-Applied: {res['auto_applied']}")
+        run_notices_scan(send_alerts=True)
 
 
 if __name__ == "__main__":

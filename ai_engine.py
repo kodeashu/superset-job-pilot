@@ -129,7 +129,7 @@ class GeminiProvider(BaseAIProvider):
     """Google Gemini API provider (100% Free Tier on AI Studio - 0 MB RAM)."""
     def __init__(self, api_key: str = None, model: str = None):
         self.api_key = api_key or os.getenv("GEMINI_API_KEY", "")
-        self.model = model or os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+        self.model = model or os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 
     def is_available(self) -> bool:
         return bool(self.api_key and len(self.api_key) > 10)

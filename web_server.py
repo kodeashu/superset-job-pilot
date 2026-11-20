@@ -5897,8 +5897,8 @@ def get_clarifications():
     try:
         am = AmbiguityManager()
         return jsonify({
-            "pending": am.get_pending_tickets(),
-            "all": am.get_all_tickets(),
+            "pending": am.get_pending_tickets(user_id=user["user_id"]),
+            "all": am.get_all_tickets(user_id=user["user_id"]),
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -5916,7 +5916,7 @@ def resolve_clarification():
         return jsonify({"success": False, "message": "ticket_id and answer are required"}), 400
     try:
         am = AmbiguityManager()
-        ticket = am.resolve_ticket(ticket_id, str(answer))
+        ticket = am.resolve_ticket(ticket_id, str(answer), user_id=user["user_id"])
         log_event(f"User resolved clarification: '{ticket['question_text'][:30]}...' -> '{answer}'", "SUCCESS")
         return jsonify({"success": True, "ticket": ticket})
     except Exception as e:

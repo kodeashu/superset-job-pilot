@@ -313,7 +313,7 @@ class SupersetClient:
             is_expired = True
 
         raw_status = raw.get("jobProfileStatus", "")
-        is_closed_for_apply = (raw_status in ("CLOSED_FOR_APPLICATIONS", "COMPLETED", "IN_PROCESS", "ARCHIVED")) or is_expired
+        is_closed_for_apply = (raw_status in ("CLOSED_FOR_APPLICATIONS", "COMPLETED", "ARCHIVED")) or is_expired
         is_open = (not is_applied) and is_eligible and (not is_closed_for_apply)
 
         profile_url = f"{self.base_url}/join/#/signup/student/jobprofiles/{job_id}" if job_id else self.base_url

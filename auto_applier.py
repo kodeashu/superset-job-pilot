@@ -13,22 +13,24 @@ logger = logging.getLogger(__name__)
 
 
 class AutoApplier:
-    def __init__(self):
+    def __init__(self, user_id: str = "default", superset_client: SupersetClient = None, telegram_notifier: TelegramNotifier = None):
+        self.user_id = user_id or "default"
         self.db_path = Config.DB_PATH
-        self.superset = SupersetClient()
-        self.telegram = TelegramNotifier()
+        self.superset = superset_client or SupersetClient()
+        self.telegram = telegram_notifier or TelegramNotifier()
         self.whatsapp = WhatsAppNotifier()
         self.gmail = GmailMonitor()
         self._init_db()
 
     def _init_db(self):
-        """Initializes SQLite tables for tracking seen and applied jobs."""
+        """Initializes SQLite tables for tracking seen and applied jobs, partitioned per user."""
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS tracked_jobs (
-                id TEXT PRIMARY KEY,
+                id TEXT,
+                user_id TEXT DEFAULT 'default',
                 company_name TEXT,
                 job_role TEXT,
                 ctc TEXT,
@@ -36,23 +38,34 @@ class AutoApplier:
                 is_eligible INTEGER,
                 applied_status TEXT,
                 notified_at TEXT,
-                applied_at TEXT
+                applied_at TEXT,
+                PRIMARY KEY (id, user_id)
             )
         """)
+        # Backward-compatibility migration: check if user_id column exists
+        cursor.execute("PRAGMA table_info(tracked_jobs)")
+        columns = [col[1] for col in cursor.fetchall()]
+        if "user_id" not in columns:
+            try:
+                cursor.execute("ALTER TABLE tracked_jobs ADD COLUMN user_id TEXT DEFAULT 'default'")
+            except Exception as e:
+                logger.warning(f"Could not add user_id column to tracked_jobs: {e}")
         conn.commit()
         conn.close()
 
-    def is_job_recorded(self, job_id: str) -> bool:
-        """Checks if a job has already been notified/processed."""
+    def is_job_recorded(self, job_id: str, user_id: str = None) -> bool:
+        """Checks if a job has already been notified/processed for a specific user."""
+        target_uid = user_id or self.user_id
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute("SELECT id FROM tracked_jobs WHERE id = ?", (job_id,))
+        cursor.execute("SELECT id FROM tracked_jobs WHERE id = ? AND user_id = ?", (job_id, target_uid))
         row = cursor.fetchone()
         conn.close()
         return row is not None
 
-    def record_job(self, job: dict, status: str, applied: bool = False):
-        """Saves a job record into SQLite."""
+    def record_job(self, job: dict, status: str, applied: bool = False, user_id: str = None):
+        """Saves a job record into SQLite partitioned by user_id."""
+        target_uid = user_id or self.user_id
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         now_iso = datetime.now(timezone.utc).isoformat()
@@ -60,10 +73,11 @@ class AutoApplier:
 
         cursor.execute("""
             INSERT OR REPLACE INTO tracked_jobs 
-            (id, company_name, job_role, ctc, deadline, is_eligible, applied_status, notified_at, applied_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (id, user_id, company_name, job_role, ctc, deadline, is_eligible, applied_status, notified_at, applied_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             job["id"],
+            target_uid,
             job["company_name"],
             job["job_role"],
             job["ctc_display"],
@@ -76,16 +90,17 @@ class AutoApplier:
         conn.commit()
         conn.close()
 
-    def get_tracked_count(self) -> int:
-        """Returns the total number of tracked jobs in the SQLite database."""
+    def get_tracked_count(self, user_id: str = None) -> int:
+        """Returns the total number of tracked jobs for a specific user in SQLite."""
+        target_uid = user_id or self.user_id
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM tracked_jobs")
+        cursor.execute("SELECT COUNT(*) FROM tracked_jobs WHERE user_id = ?", (target_uid,))
         count = cursor.fetchone()[0]
         conn.close()
         return count
 
-    def run_sync_cycle(self, mock_jobs: list = None) -> dict:
+    def run_sync_cycle(self, mock_jobs: list = None, profile_data: dict = None) -> dict:
         """
         Executes one full detection, auto-apply, and alert cycle:
         1. Fetches active profiles from Superset (or uses mock_jobs for testing)
@@ -158,7 +173,7 @@ class AutoApplier:
                         from ambiguity_manager import AmbiguityManager
                         from attribute_resolver import AttributeResolver
                         am = AmbiguityManager()
-                        resolver = AttributeResolver()
+                        resolver = AttributeResolver(profile_data=profile_data, user_id=self.user_id)
                         
                         detail_url = f"{self.superset.base_url}/tnpsuite-core/students/{self.superset.user_uuid}/job_profiles/{job_id}"
                         detail_resp = self.superset.session.get(detail_url, timeout=8)
@@ -167,7 +182,7 @@ class AutoApplier:
                             for attr in attrs:
                                 if attr.get("mandatory", False):
                                     resolved_v = resolver.resolve_attribute(attr)
-                                    ticket = am.evaluate_and_flag(company, job_id, attr, resolved_v)
+                                    ticket = am.evaluate_and_flag(company, job_id, attr, resolved_v, user_id=self.user_id)
                                     if ticket and ticket.get("status") == "PENDING":
                                         unclear_detected = True
                                         logger.warning(f"⚠️ Pausing auto-apply for {company}: Mandatory attribute '{attr.get('name')}' requires candidate clarification.")
@@ -179,7 +194,7 @@ class AutoApplier:
 
                     if not unclear_detected:
                         logger.info(f"⚡ Auto-applying to eligible open job: {company} - {role}")
-                        res = self.superset.apply_to_job(job_id, resume_id=Config.DEFAULT_RESUME_NAME)
+                        res = self.superset.apply_to_job(job_id, resume_id=Config.DEFAULT_RESUME_NAME, profile_data=profile_data)
                         if res.get("success"):
                             applied = True
                             status = "AUTO_APPLIED"
@@ -234,12 +249,13 @@ class AutoApplier:
 
         return results
 
-    def get_tracked_summary(self) -> list:
-        """Returns all tracked jobs from SQLite."""
+    def get_tracked_summary(self, user_id: str = None) -> list:
+        """Returns all tracked jobs for a user from SQLite."""
+        target_uid = user_id or self.user_id
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM tracked_jobs ORDER BY notified_at DESC")
+        cursor.execute("SELECT * FROM tracked_jobs WHERE user_id = ? ORDER BY notified_at DESC", (target_uid,))
         rows = [dict(r) for r in cursor.fetchall()]
         conn.close()
         return rows

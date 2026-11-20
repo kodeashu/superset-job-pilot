@@ -492,28 +492,14 @@ class UserManager:
             existing = conn.execute("SELECT * FROM users WHERE email = ?", (email_clean,)).fetchone()
 
         if existing:
-            import difflib
             user_deserialized = self._deserialize_user_row(existing)
-            stored_pw = user_deserialized.get("superset_password") or ""
-            pw_norm = pw_clean.lower()
-            stored_norm = stored_pw.lower()
-            sim_ratio = difflib.SequenceMatcher(None, pw_norm, stored_norm).ratio() if stored_norm else 0.0
 
-            if (
-                verify_password(pw_clean, existing["password_hash"])
-                or (stored_norm and (pw_norm == stored_norm or stored_norm in pw_norm or sim_ratio >= 0.78))
-            ):
-                # Also save this password hash so future logins with this exact input succeed immediately
-                with self._connect() as conn:
-                    conn.execute(
-                        "UPDATE users SET password_hash = ? WHERE user_id = ?",
-                        (hash_password(pw_clean), user_deserialized["user_id"]),
-                    )
-                    conn.commit()
+            # Strict cryptographic verification of user's password against stored PBKDF2 hash
+            if verify_password(pw_clean, existing["password_hash"]):
                 token = self.create_session(user_deserialized["user_id"])
                 return True, f"Welcome back, {user_deserialized['full_name']}!", user_deserialized, token
 
-            # Try live Superset login in case user updated their Superset password
+            # Try live Superset login in case user updated their Superset password on the official portal
             from superset_client import SupersetClient
             sc = SupersetClient(email=email_clean, password=pw_clean)
             if sc.login():

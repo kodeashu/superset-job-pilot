@@ -66,7 +66,8 @@ class AmbiguityManager:
                            company_name: str, 
                            job_id: str, 
                            question: Dict[str, Any], 
-                           resolved_value: Any) -> Optional[Dict[str, Any]]:
+                           resolved_value: Any,
+                           user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Evaluates question clarity. If ambiguous or low-confidence, creates a ticket
         and dispatches a Telegram notification.
@@ -77,7 +78,8 @@ class AmbiguityManager:
 
         q_text = question.get("name") or question.get("question") or ""
         options = question.get("options") or []
-        ticket_key = f"{company_name}_{q_text}"
+        target_uid = user_id or "default"
+        ticket_key = f"{target_uid}_{company_name}_{q_text}"
 
         # Deduplication check: Do not re-notify if pending ticket already exists
         existing = next((t for t in self.tickets if t.get("ticket_key") == ticket_key), None)
@@ -93,6 +95,7 @@ class AmbiguityManager:
         ticket = {
             "ticket_id": ticket_id,
             "ticket_key": ticket_key,
+            "user_id": target_uid,
             "created_at": now_str,
             "company_name": company_name,
             "job_id": job_id,
@@ -131,9 +134,9 @@ class AmbiguityManager:
         except Exception as e:
             logger.error(f"Failed to send clarification alert: {e}")
 
-    def resolve_ticket(self, ticket_id: str, answer: str) -> Dict[str, Any]:
+    def resolve_ticket(self, ticket_id: str, answer: str, user_id: Optional[str] = None) -> Dict[str, Any]:
         """
-        Records the user's clarification, updates profile facts,
+        Records the user's clarification, updates profile facts in the encrypted vault,
         and adds it to the RAG dynamic memory so it is remembered forever.
         """
         ticket = next((t for t in self.tickets if t.get("ticket_id") == ticket_id), None)
@@ -154,7 +157,27 @@ class AmbiguityManager:
             tags=["user_clarified", "profile_extension"]
         )
 
-        # 2. Persist into student_profile.json under custom_clarifications
+        # 2. Persist into encrypted profile in UserManager vault
+        try:
+            from user_manager import UserManager
+            um = UserManager()
+            target_uid = user_id or ticket.get("user_id")
+            if not target_uid or target_uid == "default":
+                users = um.get_all_users()
+                if users:
+                    target_uid = users[0]["user_id"]
+            if target_uid:
+                user_obj = um.get_user_by_id(target_uid)
+                if user_obj:
+                    prof = user_obj.get("profile", {})
+                    clarifs = prof.get("custom_clarifications", {})
+                    clarifs[ticket["question_text"]] = answer
+                    um.update_user_profile(target_uid, {"custom_clarifications": clarifs})
+                    logger.info(f"Persisted clarification to encrypted vault for user {target_uid}")
+        except Exception as e:
+            logger.error(f"Error persisting clarification to encrypted vault: {e}")
+
+        # 3. Also persist into student_profile.json if legacy file exists
         try:
             if PROFILE_PATH.exists():
                 with open(PROFILE_PATH, "r", encoding="utf-8") as f:
@@ -167,7 +190,7 @@ class AmbiguityManager:
         except Exception as e:
             logger.error(f"Error persisting clarification to student_profile: {e}")
 
-        # 3. Send confirmation Telegram message
+        # 4. Send confirmation Telegram message
         try:
             self.notifier.send_message(
                 f"✅ <b>Clarification Saved: {ticket['company_name']}</b>\n"
@@ -180,10 +203,15 @@ class AmbiguityManager:
 
         return ticket
 
-    def get_pending_tickets(self) -> List[Dict[str, Any]]:
+    def get_pending_tickets(self, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
         self._load_tickets()
+        if user_id:
+            return [t for t in self.tickets if t.get("status") == "PENDING" and (t.get("user_id") in (user_id, "default"))]
         return [t for t in self.tickets if t.get("status") == "PENDING"]
 
-    def get_all_tickets(self, limit: int = 50) -> List[Dict[str, Any]]:
+    def get_all_tickets(self, limit: int = 50, user_id: Optional[str] = None) -> List[Dict[str, Any]]:
         self._load_tickets()
-        return list(reversed(self.tickets[-limit:]))
+        filtered = self.tickets
+        if user_id:
+            filtered = [t for t in self.tickets if t.get("user_id") in (user_id, "default")]
+        return list(reversed(filtered[-limit:]))

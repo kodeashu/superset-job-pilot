@@ -161,7 +161,7 @@ class AttributeResolver:
         if "father" in nl:
             return p.get("fathers_name", "")
         if "mother" in nl:
-            return p.get("mothers_name", p.get("emergency_contact_name", ""))
+            return p.get("mothers_name") or p.get("emergency_contact_name") or ""
         if "marital" in nl or "marriage" in nl:
             for opt in options:
                 if str(opt).lower() in ("single", "unmarried"):
@@ -169,23 +169,29 @@ class AttributeResolver:
             return "Single"
         if "alt" in nl or "alternate" in nl or "alternative" in nl or "emergency" in nl or "contact person" in nl:
             if "number" in nl or "phone" in nl or "mobile" in nl or "contact no" in nl or "no." in nl or "no" in nl:
-                return p.get("emergency_contact_number", p.get("phone_number", ""))
+                return p.get("emergency_contact_number") or p.get("phone_number") or ""
             if "address" in nl:
-                return p.get("emergency_contact_address", p.get("permanent_address", ""))
+                return p.get("emergency_contact_address") or p.get("permanent_address") or ""
             if "name" in nl or "person" in nl:
-                return p.get("emergency_contact_name", p.get("fathers_name", ""))
-            return p.get("emergency_contact_number", p.get("phone_number", ""))
+                return p.get("emergency_contact_name") or p.get("fathers_name") or ""
+            return p.get("emergency_contact_number") or p.get("phone_number") or ""
         if "mobile" in nl or "phone" in nl or "contact number" in nl:
             return p.get("phone_number", "")
         if "disability" in nl or "physically challenged" in nl:
             if "percent" in nl:
-                return p.get("disability_percent", "0")
+                return p.get("disability_percent") or "0"
+            has_disability = str(p.get("disability", "None")).strip().lower() not in ("none", "no", "0", "", "na", "false")
             if attr_type == "boolean":
-                return False
+                return has_disability
+            if has_disability:
+                for opt in options:
+                    if str(opt).lower() in ("yes", str(p.get("disability")).lower()):
+                        return opt
+                return p.get("disability") or "Yes"
             for opt in options:
                 if str(opt).lower() in ("no", "none", "na", "not applicable"):
                     return opt
-            return p.get("disability", "None")
+            return p.get("disability") or "None"
 
         # 5b. Employment Status / Sabbatical / Prior Association
         if any(k in nl for k in ["employee id", "employee code", "empid"]):
@@ -216,7 +222,7 @@ class AttributeResolver:
 
         # 7. Resume, Video & Social/Code Links
         if "video" in nl:
-            return p.get("intro_video_link", p.get("resume_link", ""))
+            return p.get("intro_video_link") or p.get("resume_link") or ""
         if "resume" in nl and ("link" in nl or "share" in nl or "url" in nl):
             return p.get("resume_link", "")
         if "github" in nl:
@@ -234,7 +240,7 @@ class AttributeResolver:
 
         # 8b. Technical Skills & Certifications
         if "skill" in nl or "certification" in nl or "tech skill" in nl:
-            return p.get("technical_skills", "Python, FastAPI, React, SQL, Cloud & Agentic AI Systems")
+            return p.get("technical_skills") or "Python, FastAPI, React, SQL, Cloud & Agentic AI Systems"
 
         # 9. Gaps (10th to 12th, 12th to Graduation, Total) - MUST CHECK BEFORE 10th/12th
         if "gap" in nl:
@@ -257,9 +263,9 @@ class AttributeResolver:
                         return opt
                 return "Regular"
             if "gpa" in nl:
-                return p.get("tenth_gpa", p.get("tenth_percentage", ""))
+                return p.get("tenth_gpa") or p.get("tenth_percentage") or ""
             if "percent" in nl or "score" in nl:
-                return p.get("tenth_percentage", p.get("tenth_gpa", ""))
+                return p.get("tenth_percentage") or p.get("tenth_gpa") or ""
 
         # 11. Academics: 12th / Intermediate / Diploma
         if "12th" in nl or "class 12" in nl or "diploma" in nl or "intermediate" in nl:
@@ -275,9 +281,9 @@ class AttributeResolver:
                         return opt
                 return "Regular"
             if "gpa" in nl:
-                return p.get("twelfth_gpa", p.get("twelfth_percentage", ""))
+                return p.get("twelfth_gpa") or p.get("twelfth_percentage") or ""
             if "percent" in nl or "score" in nl:
-                return p.get("twelfth_percentage", p.get("twelfth_gpa", ""))
+                return p.get("twelfth_percentage") or p.get("twelfth_gpa") or ""
 
         # 12. Marksheets (e.g. 8th semester expected date)
         if "marksheet" in nl:
@@ -290,7 +296,29 @@ class AttributeResolver:
                         return opt
                 return options[0] if options else p.get("marksheet_8th_sem", "July'27")
 
-        # 13. Graduation / Backlogs / CGPA
+        # 13. Graduation pass-in mode (for MCA/M.Tech. students — B.Tech students answer NA)
+        # Question example: "Graduation Pass in (for MCA/M.Tech.) student - B.Tech Students can put NA"
+        if ("graduation" in nl or "pg" in nl or "post.grad" in nl) and (
+            "pass" in nl or "mode" in nl or "course type" in nl
+        ) and any(k in nl for k in ["mca", "m.tech", "mtech", "post", "b.tech can", "btech can", "b.tech student", "na"]):
+            # Determine degree from profile
+            degree = str(p.get("graduation_degree", "B.Tech")).strip().lower()
+            is_btech = any(d in degree for d in ["b.tech", "btech", "be ", "b.e", "bachelor"])
+            is_mca_mtech = any(d in degree for d in ["mca", "m.tech", "mtech", "m.e", "me ", "mba", "msc", "m.sc"])
+            if is_btech and not is_mca_mtech:
+                # B.Tech students should answer NA for this question
+                for opt in options:
+                    if str(opt).upper() == "NA" or str(opt).lower() in ("na", "n/a", "not applicable"):
+                        return opt
+                return "NA"
+            else:
+                # MCA/MTech students answer their pass mode
+                for opt in options:
+                    if opt in ("Regular", "Fulltime"):
+                        return opt
+                return p.get("graduation_pass_mode", "Regular")
+
+        # 13b. Graduation / Backlogs / CGPA
         if "backlog" in nl:
             if "active" in nl:
                 return p.get("active_backlogs", "0")

@@ -17,7 +17,10 @@ An automated assistant built specifically for final year college students to **n
 3. **🏆 Pending Offer Watchdog**:
    - Continuously polls Superset's `/pending_actions` endpoint and raises a persistent top-of-app banner + urgent Telegram alert whenever a job offer with an acceptance deadline arrives.
 
-4. **Multi-User Encrypted Vault & Pre-Submission Review**:
+4. **📄 Company Resume Tailor & 1-Page A4 PDF Studio**:
+   - Click **Tailor CV** on any Superset campus drive or upcoming shortlist card to fetch the live Superset JD (+ attached JD PDF), rank your strongest projects from your encrypted portfolio, compute ATS keyword alignment, preview live in classic A4 Arial, and download a print-ready 1-page PDF (with optional formal passport photo toggle & existing-PDF CV importer).
+
+5. **Multi-User Encrypted Vault & Pre-Submission Review**:
    - Per-student isolated accounts (`PBKDF2-HMAC-SHA256` encrypted SQLite vault), friend invite codes, pre-submission review modal, and optional per-user Auto-Apply toggle.
 
 5. **Instant Telegram Alerts & Google Calendar Sync**:

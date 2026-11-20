@@ -518,3 +518,85 @@ class SupersetClient:
             "portal_url": portal_url,
             "raw": raw,
         }
+
+    def fetch_job_description_bundle(self, job_identifier: str) -> dict:
+        """
+        Fetches full Superset job profile details including HTML jobDescription
+        and extracts text from any attached JD PDF documents so the Resume Tailor
+        can analyze exact company requirements.
+        """
+        if not self.session_key or not self.user_uuid:
+            if not self.login():
+                return {}
+
+        url = f"{self.base_url}/tnpsuite-core/students/{self.user_uuid}/job_profiles/{job_identifier}"
+        try:
+            resp = self.session.get(url, timeout=15)
+            if resp.status_code != 200:
+                logger.warning(f"JD bundle fetch for {job_identifier} returned HTTP {resp.status_code}")
+                return {}
+            data = resp.json()
+            jp = data.get("jobProfile") if isinstance(data.get("jobProfile"), dict) else {}
+
+            company = data.get("companyName") or jp.get("companyName") or ""
+            role = data.get("jobProfileTitle") or jp.get("title") or ""
+            location = data.get("jobProfileLocation") or jp.get("location") or ""
+            ctc = data.get("placementCategoryName") or ""
+
+            # If student already applied with a preferred profile attribute (e.g. Full Stack Developer), capture it
+            chosen_profile = ""
+            attrs = data.get("attributes") or {}
+            if isinstance(attrs, dict):
+                for v in attrs.values():
+                    vs = str(v or "").strip()
+                    if vs and any(k in vs.lower() for k in ("developer", "engineer", "analyst", "scientist", "designer", "tester", "qa", "consultant", "trainee", "intern")):
+                        if len(vs) < 80 and not vs.startswith("http"):
+                            chosen_profile = vs
+                            break
+
+            import re as _re
+            raw_html = jp.get("jobDescription") or data.get("jobDescription") or jp.get("description") or ""
+            desc_plain = _re.sub(r"<[^>]+>", " ", str(raw_html))
+            desc_plain = _re.sub(r"\s+", " ", desc_plain).strip()
+
+            # Also parse attached JD PDFs (up to 2) for rich skills & responsibilities
+            pdf_texts = []
+            docs = jp.get("documents") or data.get("documents") or []
+            for doc in docs[:2]:
+                if not isinstance(doc, dict):
+                    continue
+                did = doc.get("identifier") or doc.get("uuid")
+                dname = str(doc.get("name") or "")
+                if not did or not dname.lower().endswith(".pdf"):
+                    continue
+                try:
+                    u_resp = self.session.get(
+                        f"{self.base_url}/tnpsuite-core/students/{self.user_uuid}/job_profiles/{job_identifier}/documents/{did}/url",
+                        timeout=10,
+                    )
+                    if u_resp.status_code == 200 and u_resp.json().get("url"):
+                        pdf_r = requests.get(u_resp.json()["url"], timeout=20)
+                        if pdf_r.status_code == 200 and pdf_r.content[:5] == b"%PDF-":
+                            import io as _io
+                            from pypdf import PdfReader
+                            reader = PdfReader(_io.BytesIO(pdf_r.content))
+                            txt = "\n".join((p.extract_text() or "") for p in reader.pages[:6]).strip()
+                            if txt:
+                                pdf_texts.append(txt[:8000])
+                except Exception as pe:
+                    logger.debug(f"JD PDF extract warning ({did}): {pe}")
+
+            combined_jd = "\n\n".join(x for x in [desc_plain] + pdf_texts if x).strip()
+            return {
+                "job_id": job_identifier,
+                "company_name": company,
+                "role": chosen_profile or role,
+                "full_role_title": role,
+                "location": location,
+                "ctc": ctc,
+                "jd_text": combined_jd,
+                "jd_docs_parsed": len(pdf_texts),
+            }
+        except Exception as e:
+            logger.warning(f"Error fetching JD bundle for {job_identifier}: {e}")
+            return {}

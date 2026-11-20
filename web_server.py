@@ -22,6 +22,13 @@ from rag_engine import RAGEngine
 from error_healer import ErrorHealer
 from ambiguity_manager import AmbiguityManager
 from notice_scanner import scan_notices_for_user, summarize_notices
+from resume_tailor import (
+    get_resume_master,
+    import_resume_from_pdf,
+    render_html_to_pdf_bytes,
+    render_tailored_resume_html,
+    tailor_resume_for_job,
+)
 
 logger = logging.getLogger("superset_web")
 logging.basicConfig(level=logging.INFO)
@@ -453,6 +460,13 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         </div>
         <span class="sidebar-label text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400" id="badge-nav-applied">29</span>
       </button>
+      <button onclick="switchPage('resume')" class="nav-item w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-left" data-page="resume">
+        <div class="flex items-center gap-3 truncate">
+          <span class="text-base w-5 text-center">📄</span>
+          <span class="sidebar-label">Resume Tailor</span>
+        </div>
+        <span class="sidebar-label text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-zinc-400" id="badge-nav-resume">A4</span>
+      </button>
       <button onclick="switchPage('profile')" class="nav-item w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-left" data-page="profile">
         <div class="flex items-center gap-3 truncate">
           <span class="text-base w-5 text-center">👤</span>
@@ -529,6 +543,10 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       <button onclick="switchPage('applied'); closeMobileDrawer();" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 text-left">
         <div class="flex items-center gap-3"><span class="text-base">✅</span> <span>My Applications</span></div>
         <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400">29</span>
+      </button>
+      <button onclick="switchPage('resume'); closeMobileDrawer();" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 text-left">
+        <div class="flex items-center gap-3"><span class="text-base">📄</span> <span>Resume Tailor</span></div>
+        <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-zinc-400">PDF</span>
       </button>
       <button onclick="switchPage('ai'); closeMobileDrawer();" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 text-left">
         <div class="flex items-center gap-3"><span class="text-base">🤖</span> <span>AI Copilot & Healer</span></div>
@@ -1308,6 +1326,227 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         </div>
       </div>
 
+      <!-- ═══ COMPANY RESUME TAILOR & 1-PAGE A4 PDF STUDIO ═══ -->
+      <div id="page-resume" class="page hidden p-3.5 sm:p-6 max-w-6xl mx-auto space-y-5">
+        <!-- Studio Header & Target Company Controls -->
+        <div class="metric-card rounded-2xl p-4 sm:p-5 space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 class="text-sm sm:text-base font-semibold text-zinc-100 tracking-tight">Company Resume Tailor &amp; 1-Page PDF Studio</h2>
+              <p class="text-xs text-zinc-400 mt-0.5">Reads the live Superset JD (+ attached JD PDF), picks your highest-matching projects, and exports a clean 1-page A4 Arial CV.</p>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <button type="button" onclick="toggleResumeMasterEditor()" id="resume-editor-toggle-btn" class="px-3 py-2 rounded-lg bg-white/[0.05] hover:bg-white/[0.09] border border-white/10 text-zinc-200 text-xs font-medium">
+                Edit My Projects &amp; Photo
+              </button>
+            </div>
+          </div>
+
+          <!-- Target Company Picker -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 items-end">
+            <div class="lg:col-span-6">
+              <label for="resume-job-select" class="block text-[10px] font-mono uppercase tracking-wider text-zinc-500 mb-1.5">Target Campus Drive / Company</label>
+              <select id="resume-job-select" onchange="onResumeJobSelectChange()" class="w-full bg-surface-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-zinc-100 focus:border-zinc-500 focus:outline-none">
+                <option value="">— Custom / Off-Campus Role —</option>
+              </select>
+            </div>
+            <div class="lg:col-span-3">
+              <label for="resume-max-projects" class="block text-[10px] font-mono uppercase tracking-wider text-zinc-500 mb-1.5">Projects to Feature</label>
+              <select id="resume-max-projects" class="w-full bg-surface-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-zinc-100 focus:border-zinc-500 focus:outline-none">
+                <option value="2">Top 2 Projects</option>
+                <option value="3" selected>Top 3 Projects (Recommended)</option>
+                <option value="4">Top 4 Projects (Compact)</option>
+              </select>
+            </div>
+            <div class="lg:col-span-3 flex items-center gap-2">
+              <button type="button" onclick="generateTailoredResume()" id="resume-tailor-btn" class="flex-1 py-2 px-3.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs flex items-center justify-center gap-1.5">
+                <span id="resume-tailor-icon">⚡</span> <span>Tailor Resume</span>
+              </button>
+              <button type="button" onclick="exportTailoredPdf()" id="resume-export-btn" class="py-2 px-3 rounded-lg bg-white/[0.06] hover:bg-white/[0.11] border border-white/10 text-zinc-100 font-medium text-xs whitespace-nowrap" title="Download 1-Page A4 PDF">
+                ⬇ PDF
+              </button>
+            </div>
+          </div>
+
+          <!-- Options Row -->
+          <div class="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-xs text-zinc-400">
+            <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+              <input id="resume-include-photo" type="checkbox" checked onchange="if(lastTailoredResume) generateTailoredResume(true);" class="rounded border-zinc-700 bg-zinc-900 text-zinc-100 focus:ring-0">
+              <span>Include Formal Photo <span id="resume-photo-hint" class="text-[10px] font-mono text-zinc-500"></span></span>
+            </label>
+            <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+              <input id="resume-use-ai" type="checkbox" checked class="rounded border-zinc-700 bg-zinc-900 text-zinc-100 focus:ring-0">
+              <span>AI Summary Polish (auto-fallback)</span>
+            </label>
+            <button type="button" onclick="document.getElementById('resume-custom-jd-box').classList.toggle('hidden')" class="text-[11px] font-mono text-zinc-400 hover:text-zinc-200 underline underline-offset-2">
+              + Custom Role / Paste JD
+            </button>
+          </div>
+
+          <!-- Optional Custom Company / JD Input -->
+          <div id="resume-custom-jd-box" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-white/[0.06]">
+            <div>
+              <label class="block text-[10px] font-mono uppercase text-zinc-500 mb-1">Company Name</label>
+              <input id="resume-custom-company" type="text" placeholder="e.g. Empulz, Swiggy, DeltaX" class="w-full bg-surface-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-zinc-100 focus:border-zinc-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-[10px] font-mono uppercase text-zinc-500 mb-1">Target Role</label>
+              <input id="resume-custom-role" type="text" placeholder="e.g. Full Stack Developer, Backend Engineer" class="w-full bg-surface-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-zinc-100 focus:border-zinc-500 focus:outline-none">
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-[10px] font-mono uppercase text-zinc-500 mb-1">Extra JD / Tech Stack Notes (Optional — Superset JD is fetched automatically when a drive is selected)</label>
+              <textarea id="resume-custom-jd" rows="3" placeholder="Paste job description or skills required..." class="w-full bg-surface-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-zinc-100 focus:border-zinc-500 focus:outline-none"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Collapsible Master Portfolio & Photo Editor (Per-User Encrypted Vault) -->
+        <div id="resume-master-editor" class="hidden metric-card rounded-2xl p-4 sm:p-5 space-y-5">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/[0.07] pb-3.5">
+            <div>
+              <h3 class="text-sm font-semibold text-zinc-100">My Master Portfolio &amp; Formal Photo</h3>
+              <p class="text-xs text-zinc-500">Stored strictly inside your private encrypted vault. Add all your real projects here — the tailor picks the best ones per company.</p>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <label class="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.09] border border-white/10 text-zinc-200 text-xs font-medium cursor-pointer">
+                <span>⬆ Import from PDF CV</span>
+                <input id="resume-import-pdf-input" type="file" accept="application/pdf" class="hidden" onchange="importExistingResumePdf(this)">
+              </label>
+              <button type="button" onclick="saveResumeMaster()" id="resume-save-master-btn" class="px-3.5 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold">
+                Save Portfolio
+              </button>
+            </div>
+          </div>
+
+          <!-- Formal Photo + Contact Links -->
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+            <div class="md:col-span-4 p-3.5 rounded-xl bg-surface-950 border border-white/[0.07] flex items-center gap-3.5">
+              <div id="rm-photo-preview" class="w-16 h-20 rounded-md bg-zinc-900 border border-white/10 overflow-hidden flex items-center justify-center text-zinc-600 text-xs font-mono flex-shrink-0">No Photo</div>
+              <div class="space-y-2 min-w-0">
+                <div class="text-xs font-medium text-zinc-200">Formal Passport Photo</div>
+                <div class="text-[10px] text-zinc-500">Used when a drive asks for photo on resume.</div>
+                <div class="flex items-center gap-1.5">
+                  <label class="px-2.5 py-1 rounded bg-white/[0.07] hover:bg-white/[0.12] border border-white/10 text-zinc-200 text-[11px] font-medium cursor-pointer">
+                    Upload
+                    <input id="rm-photo-input" type="file" accept="image/*" class="hidden" onchange="handleResumePhotoUpload(this)">
+                  </label>
+                  <button type="button" onclick="clearResumePhoto()" class="px-2 py-1 rounded bg-white/[0.04] text-zinc-400 hover:text-zinc-200 text-[11px]">Remove</button>
+                </div>
+              </div>
+            </div>
+            <div class="md:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <div>
+                <label class="block text-[10px] font-mono text-zinc-500 mb-1">Full Name</label>
+                <input id="rm-full-name" type="text" class="w-full bg-surface-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-zinc-100">
+              </div>
+              <div>
+                <label class="block text-[10px] font-mono text-zinc-500 mb-1">Phone</label>
+                <input id="rm-phone" type="text" class="w-full bg-surface-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-zinc-100">
+              </div>
+              <div>
+                <label class="block text-[10px] font-mono text-zinc-500 mb-1">Location</label>
+                <input id="rm-location" type="text" class="w-full bg-surface-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-zinc-100">
+              </div>
+              <div>
+                <label class="block text-[10px] font-mono text-zinc-500 mb-1">GitHub URL</label>
+                <input id="rm-github" type="text" placeholder="github.com/username" class="w-full bg-surface-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-zinc-100">
+              </div>
+              <div>
+                <label class="block text-[10px] font-mono text-zinc-500 mb-1">LinkedIn URL</label>
+                <input id="rm-linkedin" type="text" placeholder="linkedin.com/in/username" class="w-full bg-surface-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-zinc-100">
+              </div>
+              <div>
+                <label class="block text-[10px] font-mono text-zinc-500 mb-1">Portfolio / Live Site</label>
+                <input id="rm-portfolio" type="text" placeholder="yoursite.com" class="w-full bg-surface-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-zinc-100">
+              </div>
+            </div>
+          </div>
+
+          <!-- Skills Editor -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-zinc-200">Skill Categories</span>
+              <button type="button" onclick="addMasterSkillRow()" class="text-[11px] font-mono text-zinc-400 hover:text-zinc-100">+ Add Skill Row</button>
+            </div>
+            <div id="rm-skills-list" class="space-y-2"></div>
+          </div>
+
+          <!-- Projects Editor -->
+          <div class="space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-zinc-200">All Projects (Tailor Ranks &amp; Picks Best Fit Per Company)</span>
+              <button type="button" onclick="addMasterProjectCard()" class="px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/10 text-[11px] font-medium text-zinc-200 hover:bg-white/[0.1]">+ Add Project</button>
+            </div>
+            <div id="rm-projects-list" class="space-y-3"></div>
+          </div>
+
+          <!-- Certifications Editor -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-zinc-200">Training &amp; Certifications</span>
+              <button type="button" onclick="addMasterCertRow()" class="text-[11px] font-mono text-zinc-400 hover:text-zinc-100">+ Add Certification</button>
+            </div>
+            <div id="rm-certs-list" class="space-y-2"></div>
+          </div>
+        </div>
+
+        <!-- Tailored Output Workspace: Insights/Controls + Live 1-Page A4 Arial Preview -->
+        <div id="resume-workspace" class="hidden grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+          <!-- Left Column: ATS Report, Ranked Project Checkboxes & Quick Text Tweaks -->
+          <div class="xl:col-span-5 space-y-4">
+            <div class="metric-card rounded-xl p-4 space-y-3">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="text-[10px] font-mono uppercase tracking-wider text-zinc-500">ATS Alignment</div>
+                  <div id="rt-target-label" class="text-sm font-semibold text-zinc-100 mt-0.5">—</div>
+                </div>
+                <div class="text-right">
+                  <div id="rt-ats-score" class="text-2xl font-bold font-mono text-zinc-100">—%</div>
+                  <div id="rt-track-badge" class="text-[10px] font-mono text-zinc-400">—</div>
+                </div>
+              </div>
+              <div class="space-y-1.5 text-[11px]">
+                <div class="text-zinc-400"><span class="text-zinc-500 font-mono">Matched:</span> <span id="rt-matched-kws" class="text-zinc-200">—</span></div>
+                <div class="text-zinc-400"><span class="text-zinc-500 font-mono">Prep Gaps:</span> <span id="rt-missing-kws" class="text-zinc-400">—</span></div>
+              </div>
+            </div>
+
+            <!-- Ranked Projects Selector -->
+            <div class="metric-card rounded-xl p-4 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-zinc-100">Ranked Projects for This Company</span>
+                <span class="text-[10px] font-mono text-zinc-500">Toggle to customize</span>
+              </div>
+              <div id="rt-projects-rank" class="space-y-2"></div>
+            </div>
+
+            <!-- Quick Headline & Summary Override -->
+            <div class="metric-card rounded-xl p-4 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-zinc-100">Customize Headline &amp; Summary</span>
+                <button type="button" onclick="applyResumeTextOverride()" class="text-[11px] font-mono text-zinc-200 underline underline-offset-2">Update Preview</button>
+              </div>
+              <input id="rt-edit-headline" type="text" class="w-full bg-surface-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-zinc-100 focus:border-zinc-500 focus:outline-none">
+              <textarea id="rt-edit-summary" rows="4" class="w-full bg-surface-950 border border-white/10 rounded-lg px-2.5 py-2 text-xs text-zinc-100 leading-relaxed focus:border-zinc-500 focus:outline-none"></textarea>
+            </div>
+          </div>
+
+          <!-- Right Column: Live 1-Page A4 Arial Paper Preview -->
+          <div class="xl:col-span-7 space-y-2.5">
+            <div class="flex items-center justify-between px-0.5">
+              <span class="text-xs font-mono text-zinc-400">Live 1-Page A4 Preview (Arial)</span>
+              <div class="flex items-center gap-2">
+                <button type="button" onclick="printTailoredIframe()" class="px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.09] border border-white/10 text-[11px] text-zinc-300 font-medium">🖨 Print</button>
+                <button type="button" onclick="exportTailoredPdf()" class="px-3 py-1 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-[11px] font-semibold">⬇ Download PDF</button>
+              </div>
+            </div>
+            <div class="rounded-xl bg-zinc-900 border border-white/10 p-2 sm:p-3 overflow-x-auto">
+              <iframe id="resume-preview-frame" title="Tailored Resume Preview" sandbox="allow-same-origin allow-modals" class="w-full min-h-[760px] sm:min-h-[960px] bg-white rounded-md border-0"></iframe>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </main>
 
@@ -1421,6 +1660,8 @@ let noticesPayload = { notices: [], shortlisted_notices: [], pending_actions: []
 let noticesFilter = 'all';
 let expandedNoticeIds = new Set();
 let activePdfBlobUrl = null;
+let resumeMaster = null;
+let lastTailoredResume = null;
 let currentUser = null;
 let authToken = localStorage.getItem('sjp_token') || '';
 let authMode = 'login';
@@ -1499,6 +1740,7 @@ function getJobActions(j) {
   } else {
     html += `<button disabled class="flex-1 min-h-[40px] py-2 px-3.5 rounded-lg bg-white/[0.03] text-zinc-500 text-xs font-medium cursor-not-allowed border border-white/[0.05]">${isClosed ? 'Deadline Passed' : 'Not Eligible'}</button>`;
   }
+  html += `<button onclick="openResumeTailorForJob('${j.id}')" class="min-w-[40px] min-h-[40px] p-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.08] text-xs flex items-center justify-center" title="Tailor 1-Page Resume for ${esc(j.company_name)}">📄</button>`;
   html += `<button onclick="showJobQuestions('${j.id}', '${esc(j.company_name)}')" class="min-w-[40px] min-h-[40px] p-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.08] text-xs flex items-center justify-center" title="Inspect Custom Questions & Answers">📝</button>`;
   html += `<a href="${j.profile_url || '#'}" target="_blank" class="min-w-[40px] min-h-[40px] p-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.08] text-xs flex items-center justify-center" title="Open on Superset Portal">↗</a>`;
   return html;
@@ -1535,6 +1777,7 @@ function switchPage(page) {
     drives:'Placement Drives',
     notices:'Smart Notices & Shortlist Scanner',
     applied:'My Applications Pipeline',
+    resume:'Company Resume Tailor Studio',
     profile:'Profile & Custom Question Answers',
     engine:'Engine Telemetry & Logs',
     telegram:'Telegram Notifications',
@@ -1547,6 +1790,7 @@ function switchPage(page) {
   if (page === 'drives') renderDrives();
   if (page === 'notices') renderNotices();
   if (page === 'applied') renderApplied();
+  if (page === 'resume') openResumeStudio();
   if (page === 'profile') renderProfile();
   if (page === 'engine') renderEngine();
   if (page === 'telegram') renderTelegram();
@@ -1708,6 +1952,10 @@ async function logoutUser() {
   profileData = {};
   noticesPayload = { notices: [], shortlisted_notices: [], pending_actions: [], counts: {} };
   expandedNoticeIds.clear();
+  resumeMaster = null;
+  lastTailoredResume = null;
+  const rWs = document.getElementById('resume-workspace');
+  if (rWs) rWs.classList.add('hidden');
   const offerBanner = document.getElementById('pending-offer-banner');
   if (offerBanner) { offerBanner.classList.add('hidden'); offerBanner.innerHTML = ''; }
   const dashStrip = document.getElementById('dashboard-shortlist-strip');
@@ -3344,6 +3592,7 @@ function renderShortlistCardHtml(n, compact = false) {
         </div>
         <div class="flex sm:flex-col gap-2 flex-shrink-0">
           ${matchPdf ? `<button onclick="openPdfByAttachment('${encodeURIComponent(n.id)}','${encodeURIComponent(matchPdf.id)}',${pageNum})" class="flex-1 sm:flex-none px-3.5 py-2 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs flex items-center justify-center gap-1.5 whitespace-nowrap"><span>View PDF (p.${pageNum})</span></button>` : ''}
+          <button onclick="openResumeTailorForNotice('${encodeURIComponent(n.id)}')" class="flex-1 sm:flex-none px-3 py-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-zinc-100 font-medium text-xs whitespace-nowrap">Tailor CV</button>
           ${ev.meeting_link ? `<a href="${esc(ev.meeting_link)}" target="_blank" rel="noopener noreferrer" class="flex-1 sm:flex-none px-3.5 py-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-zinc-100 font-medium text-xs flex items-center justify-center gap-1.5 whitespace-nowrap"><span>Join Meet ↗</span></a>` : ''}
           ${compact ? `<button onclick="switchPage('notices'); setNoticesFilter('shortlisted');" class="px-3 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-zinc-300 text-xs font-medium whitespace-nowrap">Notices →</button>` : ''}
         </div>
@@ -3729,6 +3978,521 @@ async function downloadNoticeAttachment(noticeId, attachmentId, filename) {
     dialog.addEventListener('pointerup', (e) => { if (pressedOutside && outside(e)) dialog.close(); });
   }
 })();
+
+// ═══════════════════════════════════════════════════════════════════
+// COMPANY RESUME TAILOR & 1-PAGE A4 PDF STUDIO
+// ═══════════════════════════════════════════════════════════════════
+
+async function openResumeStudio() {
+  populateResumeJobDropdown();
+  if (!resumeMaster) await loadResumeMaster();
+  if (resumeMaster && (!resumeMaster.projects || resumeMaster.projects.length === 0)) {
+    const ed = document.getElementById('resume-master-editor');
+    if (ed) ed.classList.remove('hidden');
+  }
+}
+
+async function loadResumeMaster() {
+  try {
+    const { ok, status, data } = await apiFetch('/api/resume/master');
+    if (status === 401) return;
+    if (ok && data && data.success) {
+      resumeMaster = data.master;
+      renderMasterEditor();
+      const hint = document.getElementById('resume-photo-hint');
+      if (hint) hint.textContent = resumeMaster.photo_b64 ? '(photo saved)' : '(no photo uploaded yet)';
+    }
+  } catch (e) {
+    console.warn('Resume master load warning:', e);
+  }
+}
+
+function populateResumeJobDropdown(preselectId = '') {
+  const sel = document.getElementById('resume-job-select');
+  if (!sel) return;
+  const currentVal = preselectId || sel.value;
+
+  const sorted = [...allJobs].sort((a, b) => {
+    const score = j => ((j.is_applied ? 2 : 0) + (j.is_open ? 3 : 0));
+    return score(b) - score(a);
+  });
+
+  sel.innerHTML = '<option value="">— Custom / Off-Campus Role —</option>' + sorted.map(j => {
+    const tag = j.is_applied ? '[Applied] ' : (j.is_open ? '[Open] ' : '');
+    const label = `${tag}${j.company_name} — ${(j.job_role || '').slice(0, 55)}`;
+    return `<option value="${esc(j.id)}">${esc(label)}</option>`;
+  }).join('');
+
+  if (currentVal && [...sel.options].some(o => o.value === currentVal)) {
+    sel.value = currentVal;
+  }
+}
+
+function onResumeJobSelectChange() {
+  const sel = document.getElementById('resume-job-select');
+  const customBox = document.getElementById('resume-custom-jd-box');
+  if (sel && customBox && !sel.value) {
+    customBox.classList.remove('hidden');
+  }
+}
+
+async function openResumeTailorForJob(jobId) {
+  switchPage('resume');
+  if (!resumeMaster) await loadResumeMaster();
+  populateResumeJobDropdown(jobId);
+  const sel = document.getElementById('resume-job-select');
+  if (sel) sel.value = jobId;
+  await generateTailoredResume();
+}
+
+async function openResumeTailorForNotice(noticeIdEnc) {
+  const nid = decodeURIComponent(noticeIdEnc || '');
+  const notice = (noticesPayload.notices || []).find(n => n.id === nid);
+  switchPage('resume');
+  if (!resumeMaster) await loadResumeMaster();
+  populateResumeJobDropdown();
+
+  if (notice) {
+    // Try matching a Superset job profile by company name prefix in notice title
+    const titleLow = (notice.title || '').toLowerCase();
+    const matchedJob = allJobs.find(j => {
+      const cname = (j.company_name || '').trim().toLowerCase();
+      return cname.length >= 3 && titleLow.includes(cname);
+    });
+    const sel = document.getElementById('resume-job-select');
+    if (matchedJob && sel) {
+      sel.value = matchedJob.id;
+    } else {
+      if (sel) sel.value = '';
+      document.getElementById('resume-custom-jd-box')?.classList.remove('hidden');
+      const cc = document.getElementById('resume-custom-company');
+      const cr = document.getElementById('resume-custom-role');
+      const cj = document.getElementById('resume-custom-jd');
+      if (cc) cc.value = (notice.title || '').split(/\s+/)[0] || '';
+      if (cr) cr.value = notice.event_details?.event_type || 'Software Engineer';
+      if (cj) cj.value = (notice.plain_text || '').slice(0, 1500);
+    }
+    await generateTailoredResume();
+  }
+}
+
+async function generateTailoredResume(useCurrentCheckboxes = false) {
+  const btn = document.getElementById('resume-tailor-btn');
+  const icon = document.getElementById('resume-tailor-icon');
+  if (!resumeMaster) await loadResumeMaster();
+
+  const jobId = document.getElementById('resume-job-select')?.value || '';
+  const company = (document.getElementById('resume-custom-company')?.value || '').trim();
+  const role = (document.getElementById('resume-custom-role')?.value || '').trim();
+  const customJd = (document.getElementById('resume-custom-jd')?.value || '').trim();
+  const maxProjects = parseInt(document.getElementById('resume-max-projects')?.value || '3', 10);
+  const includePhoto = Boolean(document.getElementById('resume-include-photo')?.checked);
+  const useAi = Boolean(document.getElementById('resume-use-ai')?.checked);
+
+  if (!jobId && !company && !role && !customJd) {
+    toast('Select a campus drive or enter a target company/role first.', 'warn');
+    return;
+  }
+
+  let selectedProjectIds = null;
+  if (useCurrentCheckboxes) {
+    const boxes = [...document.querySelectorAll('.rt-proj-checkbox:checked')];
+    if (boxes.length) selectedProjectIds = boxes.map(b => b.value);
+  }
+
+  if (btn) btn.disabled = true;
+  if (icon) icon.textContent = '⏳';
+
+  try {
+    const { ok, data } = await apiFetch('/api/resume/tailor', {
+      method: 'POST',
+      body: JSON.stringify({
+        job_id: jobId,
+        company_name: company,
+        role: role,
+        custom_jd: customJd,
+        max_projects: maxProjects,
+        include_photo: includePhoto,
+        selected_project_ids: selectedProjectIds,
+        use_ai: useAi && !useCurrentCheckboxes
+      })
+    });
+
+    if (ok && data && data.success) {
+      lastTailoredResume = data.tailored;
+      renderTailoredWorkspace(data.tailored);
+      toast(`Tailored 1-page resume for ${data.tailored.company_name || data.tailored.role} (${data.tailored.ats_report?.score || 0}% ATS match)`, 'success');
+    } else {
+      toast((data && (data.message || data.error)) || 'Could not tailor resume.', 'error');
+    }
+  } catch (e) {
+    toast('Resume tailor error: ' + e.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+    if (icon) icon.textContent = '⚡';
+  }
+}
+
+async function applyResumeTextOverride() {
+  if (!lastTailoredResume) return;
+  const customHeadline = (document.getElementById('rt-edit-headline')?.value || '').trim();
+  const customSummary = (document.getElementById('rt-edit-summary')?.value || '').trim();
+  const includePhoto = Boolean(document.getElementById('resume-include-photo')?.checked);
+  const boxes = [...document.querySelectorAll('.rt-proj-checkbox:checked')];
+  const selectedProjectIds = boxes.length ? boxes.map(b => b.value) : null;
+
+  try {
+    const { ok, data } = await apiFetch('/api/resume/tailor', {
+      method: 'POST',
+      body: JSON.stringify({
+        job_id: document.getElementById('resume-job-select')?.value || '',
+        company_name: lastTailoredResume.company_name || '',
+        role: lastTailoredResume.role || '',
+        custom_jd: (document.getElementById('resume-custom-jd')?.value || '').trim(),
+        include_photo: includePhoto,
+        selected_project_ids: selectedProjectIds,
+        custom_headline: customHeadline,
+        custom_summary: customSummary,
+        use_ai: false
+      })
+    });
+    if (ok && data && data.success) {
+      lastTailoredResume = data.tailored;
+      renderTailoredWorkspace(data.tailored);
+      toast('Preview updated!', 'success');
+    }
+  } catch (e) {
+    toast('Update error: ' + e.message, 'error');
+  }
+}
+
+function renderTailoredWorkspace(t) {
+  const ws = document.getElementById('resume-workspace');
+  if (ws) ws.classList.remove('hidden');
+
+  const lbl = document.getElementById('rt-target-label');
+  const ats = document.getElementById('rt-ats-score');
+  const trk = document.getElementById('rt-track-badge');
+  const mk = document.getElementById('rt-matched-kws');
+  const miss = document.getElementById('rt-missing-kws');
+  const hl = document.getElementById('rt-edit-headline');
+  const sm = document.getElementById('rt-edit-summary');
+
+  if (lbl) lbl.textContent = `${t.company_name || 'Target Company'} · ${t.role || t.track}`;
+  if (ats) ats.textContent = `${t.ats_report?.score ?? 0}%`;
+  if (trk) trk.textContent = `${t.track}${t.tailor_engine ? ' · ' + t.tailor_engine : ''}`;
+  if (mk) mk.textContent = (t.ats_report?.matched_keywords || []).join(', ') || 'None detected yet';
+  if (miss) miss.textContent = (t.ats_report?.missing_keywords || []).join(', ') || 'Strong coverage';
+  if (hl) hl.value = t.headline || '';
+  if (sm) sm.value = t.summary || '';
+
+  const rankEl = document.getElementById('rt-projects-rank');
+  if (rankEl) {
+    const projs = t.all_projects_ranked || [];
+    if (!projs.length) {
+      rankEl.innerHTML = `<div class="text-xs text-zinc-500 py-2">No projects in your portfolio yet. Click <strong>Edit My Projects &amp; Photo</strong> above to add or import your resume.</div>`;
+    } else {
+      rankEl.innerHTML = projs.map(p => `
+        <label class="flex items-start gap-2.5 p-2.5 rounded-lg bg-surface-950 border ${p.selected ? 'border-white/20' : 'border-white/[0.06] opacity-70'} cursor-pointer">
+          <input type="checkbox" class="rt-proj-checkbox mt-0.5 rounded border-zinc-700 bg-zinc-900 text-zinc-100 focus:ring-0" value="${esc(p.id)}" ${p.selected ? 'checked' : ''} onchange="generateTailoredResume(true)">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-xs font-medium text-zinc-100 truncate">${esc(p.title)}</span>
+              <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-zinc-300 flex-shrink-0">${p.match_score}% fit</span>
+            </div>
+            <div class="text-[11px] text-zinc-500 truncate mt-0.5">${esc(p.why_selected || p.tech || '')}</div>
+          </div>
+        </label>
+      `).join('');
+    }
+  }
+
+  const frame = document.getElementById('resume-preview-frame');
+  if (frame) {
+    frame.srcdoc = t.preview_html || '';
+  }
+}
+
+async function exportTailoredPdf() {
+  if (!lastTailoredResume || !lastTailoredResume.preview_html) {
+    toast('Click Tailor Resume first to generate your preview.', 'warn');
+    return;
+  }
+  const btn = document.getElementById('resume-export-btn');
+  if (btn) btn.disabled = true;
+  toast('Generating crisp 1-page A4 PDF...', 'info');
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+    const res = await fetch('/api/resume/export-pdf', {
+      method: 'POST',
+      headers,
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        html: lastTailoredResume.preview_html,
+        company_name: lastTailoredResume.company_name || 'Tailored',
+        role: lastTailoredResume.role || 'Resume'
+      })
+    });
+    const ct = res.headers.get('Content-Type') || '';
+    if (res.ok && ct.includes('application/pdf')) {
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const safeCo = (lastTailoredResume.company_name || 'Tailored').replace(/[^a-zA-Z0-9_-]+/g, '_');
+      const safeName = (lastTailoredResume.full_name || 'Resume').replace(/[^a-zA-Z0-9_-]+/g, '_');
+      a.href = url;
+      a.download = `${safeName}_${safeCo}_Resume.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      toast('1-Page A4 PDF downloaded!', 'success');
+    } else {
+      // Graceful fallback: trigger browser native A4 Print-to-PDF on the iframe
+      toast('Opening browser Print-to-PDF dialog...', 'info');
+      printTailoredIframe();
+    }
+  } catch (e) {
+    toast('PDF export warning: ' + e.message, 'warn');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function printTailoredIframe() {
+  const frame = document.getElementById('resume-preview-frame');
+  if (frame && frame.contentWindow) {
+    frame.contentWindow.focus();
+    frame.contentWindow.print();
+  }
+}
+
+// ─── Master Portfolio Editor ───
+
+function toggleResumeMasterEditor() {
+  const ed = document.getElementById('resume-master-editor');
+  if (!ed) return;
+  ed.classList.toggle('hidden');
+  if (!ed.classList.contains('hidden')) {
+    if (!resumeMaster) loadResumeMaster();
+    else renderMasterEditor();
+  }
+}
+
+function renderMasterEditor() {
+  if (!resumeMaster) return;
+  const setV = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+  setV('rm-full-name', resumeMaster.full_name);
+  setV('rm-phone', resumeMaster.phone);
+  setV('rm-location', resumeMaster.location);
+  setV('rm-github', resumeMaster.github);
+  setV('rm-linkedin', resumeMaster.linkedin);
+  setV('rm-portfolio', resumeMaster.portfolio);
+
+  // Photo thumbnail
+  const pBox = document.getElementById('rm-photo-preview');
+  if (pBox) {
+    if (resumeMaster.photo_b64) {
+      const src = resumeMaster.photo_b64.startsWith('data:image/') ? resumeMaster.photo_b64 : `data:image/jpeg;base64,${resumeMaster.photo_b64}`;
+      pBox.innerHTML = `<img src="${src}" alt="Formal Photo" class="w-full h-full object-cover object-top">`;
+    } else {
+      pBox.textContent = 'No Photo';
+    }
+  }
+
+  // Skills rows
+  const sList = document.getElementById('rm-skills-list');
+  if (sList) {
+    sList.innerHTML = (resumeMaster.skills || []).map((s, idx) => `
+      <div class="rm-skill-row grid grid-cols-12 gap-2 items-center">
+        <input type="text" value="${esc(s.category)}" placeholder="Category" class="rm-skill-cat col-span-4 sm:col-span-3 bg-surface-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-zinc-100">
+        <input type="text" value="${esc(s.items)}" placeholder="React, TypeScript, Node.js..." class="rm-skill-items col-span-7 sm:col-span-8 bg-surface-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-zinc-100">
+        <button type="button" onclick="this.parentElement.remove()" class="col-span-1 text-zinc-500 hover:text-zinc-200 text-xs text-center">✕</button>
+      </div>
+    `).join('');
+  }
+
+  // Projects cards
+  const pList = document.getElementById('rm-projects-list');
+  if (pList) {
+    pList.innerHTML = (resumeMaster.projects || []).map(p => _masterProjectRowHtml(p)).join('');
+  }
+
+  // Certifications rows
+  const cList = document.getElementById('rm-certs-list');
+  if (cList) {
+    cList.innerHTML = (resumeMaster.certifications || []).map(c => _masterCertRowHtml(c)).join('');
+  }
+}
+
+function _masterProjectRowHtml(p) {
+  return `
+    <div class="rm-proj-card p-3 rounded-xl bg-surface-950 border border-white/[0.08] space-y-2" data-pid="${esc(p.id || '')}">
+      <div class="flex items-center gap-2">
+        <input type="text" value="${esc(p.title || '')}" placeholder="Project Title — Short Description" class="rm-proj-title flex-1 bg-surface-900 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-medium text-zinc-100">
+        <button type="button" onclick="this.closest('.rm-proj-card').remove()" class="px-2 py-1 rounded bg-white/[0.04] text-zinc-500 hover:text-rose-300 text-xs">Delete</button>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <input type="text" value="${esc(p.tech || '')}" placeholder="Tech Stack (e.g. React, TypeScript, PostgreSQL)" class="rm-proj-tech bg-surface-900 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200">
+        <input type="text" value="${esc(p.link || '')}" placeholder="GitHub or Live URL (optional)" class="rm-proj-link bg-surface-900 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200">
+      </div>
+      <textarea rows="3" placeholder="Impact bullets (one bullet per line, up to 3)" class="rm-proj-bullets w-full bg-surface-900 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 leading-relaxed">${esc((p.bullets || []).join('\n'))}</textarea>
+    </div>
+  `;
+}
+
+function _masterCertRowHtml(c) {
+  return `
+    <div class="rm-cert-row grid grid-cols-12 gap-2 items-center">
+      <input type="text" value="${esc(c.title || '')}" placeholder="Certification Title" class="rm-cert-title col-span-6 bg-surface-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-zinc-100">
+      <input type="text" value="${esc(c.issuer || '')}" placeholder="Issuer" class="rm-cert-issuer col-span-3 bg-surface-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-zinc-100">
+      <input type="text" value="${esc(c.year || '')}" placeholder="Year" class="rm-cert-year col-span-2 bg-surface-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-zinc-100">
+      <button type="button" onclick="this.parentElement.remove()" class="col-span-1 text-zinc-500 hover:text-zinc-200 text-xs text-center">✕</button>
+    </div>
+  `;
+}
+
+function addMasterSkillRow() {
+  const sList = document.getElementById('rm-skills-list');
+  if (!sList) return;
+  const d = document.createElement('div');
+  d.className = 'rm-skill-row grid grid-cols-12 gap-2 items-center';
+  d.innerHTML = `
+    <input type="text" placeholder="Category" class="rm-skill-cat col-span-4 sm:col-span-3 bg-surface-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-zinc-100">
+    <input type="text" placeholder="Comma-separated skills..." class="rm-skill-items col-span-7 sm:col-span-8 bg-surface-950 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-zinc-100">
+    <button type="button" onclick="this.parentElement.remove()" class="col-span-1 text-zinc-500 hover:text-zinc-200 text-xs text-center">✕</button>
+  `;
+  sList.appendChild(d);
+}
+
+function addMasterProjectCard() {
+  const pList = document.getElementById('rm-projects-list');
+  if (!pList) return;
+  pList.insertAdjacentHTML('beforeend', _masterProjectRowHtml({ id: 'p_' + Date.now().toString(36), title: '', tech: '', link: '', bullets: [] }));
+}
+
+function addMasterCertRow() {
+  const cList = document.getElementById('rm-certs-list');
+  if (!cList) return;
+  cList.insertAdjacentHTML('beforeend', _masterCertRowHtml({ title: '', issuer: '', year: '' }));
+}
+
+function handleResumePhotoUpload(inputEl) {
+  const file = inputEl?.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      // Resize neatly to crisp passport dimensions (max 360x440 JPEG) to keep vault lightweight
+      const canvas = document.createElement('canvas');
+      const maxW = 360, maxH = 440;
+      const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.86);
+      if (!resumeMaster) resumeMaster = {};
+      resumeMaster.photo_b64 = dataUrl.split(',')[1] || '';
+      renderMasterEditor();
+      toast('Photo ready — click Save Portfolio to store in your encrypted vault.', 'success');
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearResumePhoto() {
+  if (!resumeMaster) resumeMaster = {};
+  resumeMaster.photo_b64 = '';
+  renderMasterEditor();
+}
+
+async function importExistingResumePdf(inputEl) {
+  const file = inputEl?.files?.[0];
+  if (!file) return;
+  toast('Extracting projects & skills from your PDF resume...', 'info');
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const headers = {};
+    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+    const res = await fetch('/api/resume/import-pdf', { method: 'POST', headers, credentials: 'same-origin', body: fd });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      if (!resumeMaster) resumeMaster = {};
+      if (data.github && !resumeMaster.github) resumeMaster.github = data.github;
+      if (data.linkedin && !resumeMaster.linkedin) resumeMaster.linkedin = data.linkedin;
+      if (data.skills && data.skills.length) resumeMaster.skills = data.skills;
+      if (data.projects && data.projects.length) resumeMaster.projects = data.projects;
+      if (data.certifications && data.certifications.length) resumeMaster.certifications = data.certifications;
+      renderMasterEditor();
+      toast(`Imported ${(data.projects || []).length} project(s) & ${(data.skills || []).length} skill groups! Review & click Save Portfolio.`, 'success');
+    } else {
+      toast(data.message || 'Could not parse PDF resume.', 'warn');
+    }
+  } catch (e) {
+    toast('PDF import error: ' + e.message, 'error');
+  } finally {
+    inputEl.value = '';
+  }
+}
+
+async function saveResumeMaster() {
+  const skills = [...document.querySelectorAll('.rm-skill-row')].map(r => ({
+    category: r.querySelector('.rm-skill-cat')?.value.trim() || '',
+    items: r.querySelector('.rm-skill-items')?.value.trim() || ''
+  })).filter(s => s.category && s.items);
+
+  const projects = [...document.querySelectorAll('.rm-proj-card')].map((c, idx) => ({
+    id: c.dataset.pid || `proj_${idx}_${Date.now().toString(36)}`,
+    title: c.querySelector('.rm-proj-title')?.value.trim() || '',
+    tech: c.querySelector('.rm-proj-tech')?.value.trim() || '',
+    link: c.querySelector('.rm-proj-link')?.value.trim() || '',
+    bullets: (c.querySelector('.rm-proj-bullets')?.value || '').split('\n').map(b => b.trim()).filter(Boolean).slice(0, 3)
+  })).filter(p => p.title);
+
+  const certifications = [...document.querySelectorAll('.rm-cert-row')].map(r => ({
+    title: r.querySelector('.rm-cert-title')?.value.trim() || '',
+    issuer: r.querySelector('.rm-cert-issuer')?.value.trim() || '',
+    year: r.querySelector('.rm-cert-year')?.value.trim() || ''
+  })).filter(c => c.title);
+
+  const payload = {
+    full_name: document.getElementById('rm-full-name')?.value.trim() || '',
+    phone: document.getElementById('rm-phone')?.value.trim() || '',
+    location: document.getElementById('rm-location')?.value.trim() || '',
+    github: document.getElementById('rm-github')?.value.trim() || '',
+    linkedin: document.getElementById('rm-linkedin')?.value.trim() || '',
+    portfolio: document.getElementById('rm-portfolio')?.value.trim() || '',
+    photo_b64: (resumeMaster && resumeMaster.photo_b64) || '',
+    skills,
+    projects,
+    certifications
+  };
+
+  try {
+    const { ok, data } = await apiFetch('/api/resume/master', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    if (ok && data && data.success) {
+      resumeMaster = data.master;
+      const hint = document.getElementById('resume-photo-hint');
+      if (hint) hint.textContent = resumeMaster.photo_b64 ? '(photo saved)' : '(no photo uploaded yet)';
+      document.getElementById('resume-master-editor')?.classList.add('hidden');
+      toast(`Saved ${projects.length} project(s) securely to your encrypted vault!`, 'success');
+      if (lastTailoredResume) await generateTailoredResume();
+    } else {
+      toast((data && (data.message || data.error)) || 'Failed to save portfolio.', 'error');
+    }
+  } catch (e) {
+    toast('Save error: ' + e.message, 'error');
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // INIT
@@ -4257,6 +5021,147 @@ def get_pending_actions():
     except Exception as e:
         logger.error(f"Pending actions watchdog error: {e}")
         return jsonify({"success": False, "count": len(cached_pending), "pending_actions": cached_pending, "error": str(e)}), 200
+
+
+@app.route("/api/resume/master", methods=["GET", "POST"])
+def handle_resume_master():
+    """Reads or updates the logged-in student's private master resume portfolio & photo."""
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Authentication required"}), 401
+
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        # Cap uploaded photo payload at ~700KB base64 for vault health
+        photo_b64 = str(data.get("photo_b64") or "").strip()
+        if len(photo_b64) > 700_000:
+            return jsonify({"success": False, "message": "Photo too large. Please upload a smaller image."}), 400
+
+        cleaned_master = {
+            "full_name": str(data.get("full_name") or user["full_name"]).strip(),
+            "email": str(data.get("email") or user["email"]).strip(),
+            "phone": str(data.get("phone") or "").strip(),
+            "location": str(data.get("location") or "").strip(),
+            "github": str(data.get("github") or "").strip(),
+            "linkedin": str(data.get("linkedin") or "").strip(),
+            "portfolio": str(data.get("portfolio") or "").strip(),
+            "photo_b64": photo_b64,
+            "skills": data.get("skills") if isinstance(data.get("skills"), list) else [],
+            "projects": data.get("projects") if isinstance(data.get("projects"), list) else [],
+            "certifications": data.get("certifications") if isinstance(data.get("certifications"), list) else [],
+        }
+        updated_profile = user_manager.update_user_profile(user["user_id"], {"resume_master": cleaned_master})
+        log_event(f"Updated master resume portfolio ({len(cleaned_master['projects'])} projects) for {user['full_name']}.", "SUCCESS")
+        return jsonify({"success": True, "master": get_resume_master(updated_profile)})
+
+    return jsonify({"success": True, "master": get_resume_master(user["profile"])})
+
+
+@app.route("/api/resume/import-pdf", methods=["POST"])
+def import_resume_pdf_endpoint():
+    """Parses a student's uploaded existing resume PDF into editable portfolio items."""
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Authentication required"}), 401
+
+    f = request.files.get("file")
+    if not f:
+        return jsonify({"success": False, "message": "Please upload a PDF file."}), 400
+    pdf_bytes = f.read(10 * 1024 * 1024)
+    result = import_resume_from_pdf(pdf_bytes)
+    status = 200 if result.get("success") else 400
+    return jsonify(result), status
+
+
+@app.route("/api/resume/tailor", methods=["POST"])
+def tailor_resume_endpoint():
+    """
+    Tailors the logged-in student's master portfolio for a specific Superset drive
+    (automatically fetching live JD + attached JD PDF) or custom company/role.
+    """
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Authentication required"}), 401
+
+    data = request.get_json(silent=True) or {}
+    job_id = str(data.get("job_id") or "").strip()
+    company_name = str(data.get("company_name") or "").strip()
+    role = str(data.get("role") or "").strip()
+    custom_jd = str(data.get("custom_jd") or "").strip()
+    max_projects = int(data.get("max_projects") or 3)
+    include_photo = bool(data.get("include_photo", True))
+    selected_project_ids = data.get("selected_project_ids")
+    custom_headline = str(data.get("custom_headline") or "").strip()
+    custom_summary = str(data.get("custom_summary") or "").strip()
+    use_ai = bool(data.get("use_ai", True))
+
+    jd_text = custom_jd
+    if job_id:
+        # Look up cached job metadata first for fast fallback
+        cached_jobs, _ = user_manager.get_cached_jobs(user["user_id"])
+        for cj in cached_jobs:
+            if str(cj.get("id")) == job_id:
+                company_name = company_name or str(cj.get("company_name") or "")
+                role = role or str(cj.get("job_role") or "")
+                break
+        try:
+            sc = _get_superset_for_user(user)
+            if sc.login():
+                bundle = sc.fetch_job_description_bundle(job_id)
+                if bundle:
+                    company_name = company_name or bundle.get("company_name") or ""
+                    role = role or bundle.get("role") or ""
+                    if bundle.get("jd_text"):
+                        jd_text = "\n\n".join(x for x in [bundle["jd_text"], custom_jd] if x)
+        except Exception as e:
+            logger.debug(f"Live JD bundle fetch warning for {job_id}: {e}")
+
+    tailored = tailor_resume_for_job(
+        profile=user["profile"],
+        company_name=company_name,
+        role=role,
+        jd_text=jd_text,
+        max_projects=max_projects,
+        include_photo=include_photo,
+        selected_project_ids=selected_project_ids,
+        custom_headline=custom_headline,
+        custom_summary=custom_summary,
+        use_ai=use_ai,
+        ai_engine=ai_engine,
+    )
+    log_event(
+        f"Tailored 1-page resume for {tailored['company_name'] or tailored['role']} "
+        f"({tailored['ats_report']['score']}% ATS match) for {user['full_name']}.",
+        "SUCCESS",
+    )
+    return jsonify({"success": True, "tailored": tailored})
+
+
+@app.route("/api/resume/export-pdf", methods=["POST"])
+def export_resume_pdf_endpoint():
+    """Exports the tailored 1-page A4 Arial HTML resume directly to a downloadable PDF."""
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Authentication required"}), 401
+
+    data = request.get_json(silent=True) or {}
+    html_str = str(data.get("html") or "").strip()
+    if not html_str or "<html" not in html_str.lower():
+        return jsonify({"success": False, "message": "Invalid resume HTML payload."}), 400
+
+    pdf_bytes, status_msg = render_html_to_pdf_bytes(html_str)
+    if not pdf_bytes:
+        return jsonify({"success": False, "fallback": "browser_print", "message": status_msg}), 503
+
+    safe_name = "".join(c if c.isalnum() or c in ("_", "-") else "_" for c in (user["full_name"] or "Resume")).strip("_")
+    safe_co = "".join(c if c.isalnum() or c in ("_", "-") else "_" for c in str(data.get("company_name") or "Tailored")).strip("_")
+    filename = f"{safe_name}_{safe_co}_Resume.pdf"
+
+    resp = Response(pdf_bytes, mimetype="application/pdf")
+    resp.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    resp.headers["Cache-Control"] = "no-store"
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    return resp
 
 
 @app.route("/api/profile", methods=["GET", "POST"])

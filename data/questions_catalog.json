@@ -1,0 +1,7759 @@
+{
+  "Nationality": {
+    "count": 8,
+    "types": [
+      "select:single",
+      "string"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Indian\",\"Others\"]"
+    ],
+    "sample_companies": [
+      "BCT Ventures",
+      "Accenture",
+      "IBM Consulting",
+      "LTM",
+      "Rockwell Automation"
+    ]
+  },
+  "Father's Name": {
+    "count": 5,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Brakes India (P) Ltd.",
+      "PwC India",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Profile Interested in": {
+    "count": 5,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Solutions Consultant\",\"Business Development Executive\"]",
+      "[\"Graduate Engineer Trainee - CSIT\",\"Graduate Engineer Trainee - AIML\"]",
+      "[\"Associate Engineer infosec\",\"DataOps\"]"
+    ],
+    "sample_companies": [
+      "Zycus",
+      "Protiviti",
+      "Consilio",
+      "Evernorth Health Services",
+      "Tata Power.."
+    ]
+  },
+  "Share the updated Resume Link with public access": {
+    "count": 4,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Viasat India",
+      "Chubb",
+      "EXL Services",
+      "AdyatanTech"
+    ]
+  },
+  "Skills in": {
+    "count": 4,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Java\",\"Spring\",\"REST APIs\",\"MySQL\",\"MongoDB.\",\"React\",\"Angular\",\"JavaScript\",\"HTML5\",\"CSS3\",\"Python\",\"NA\",\"Spring\",\"RESTful Web services\",\"RDBMS\",\"AWS\",\"AngularJS\"]",
+      "[\"Python\",\"NodeJS\",\"Golang\",\"ReactJS\",\"avaScript\",\"TypeScript\",\"HTML5\",\". CSS3.\",\"NA\"]",
+      "[\"ML algorithms\",\"boosting techniques\",\"model development\",\"deployment\",\"\",\"Deep Learning\",\"NLP\",\"Python\",\"SQL.\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "GOLGIX",
+      "loginext",
+      "Golgix (2nd visit)",
+      "Evernorth Health Services"
+    ]
+  },
+  "Share the updated Resume link with public access": {
+    "count": 4,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "loginext",
+      "NoboruWorld (2nd Visit)",
+      "Rockman Industries Ltd",
+      "Pine Labs"
+    ]
+  },
+  "Share the updated resume link with public access": {
+    "count": 4,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Consilio",
+      "IRISCarbon",
+      "HashedIn Technologies",
+      "Smartwinnr"
+    ]
+  },
+  "Share your updated Resume Link with public access": {
+    "count": 4,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "CME Group",
+      "Provakil",
+      "BiteSpeed(6th Visit)",
+      "Clear (Cleartax)"
+    ]
+  },
+  "Current Location (City with State)": {
+    "count": 3,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "GyanSys",
+      "AntBox(7th Visit)",
+      "Tata Power.."
+    ]
+  },
+  "First Name (as per PAN Card, refer 'Naming Convention Matrix' attachment for details)": {
+    "count": 3,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Middle Name (as per PAN Card, refer 'Naming Convention Matrix' attachment for details)": {
+    "count": 3,
+    "types": [
+      "string"
+    ],
+    "mandatory": false,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Last Name (as per PAN Card, refer 'Naming Convention Matrix' attachment for details)": {
+    "count": 3,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Emergency Contact number (Alternate number other than the registered number in superset)": {
+    "count": 3,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Are you flexible for any shift timings?": {
+    "count": 3,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Are you flexible to work on any Technology/Domain/Track?": {
+    "count": 3,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select your Nationality": {
+    "count": 3,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Indian\",\"Foreigner\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "If Foreign Passport, which Nationality passport?": {
+    "count": 3,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "If Foreign passport, do you have any of these documents?": {
+    "count": 3,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"OCI\",\"Employment Visa\",\"Others(Nepal passport/Bhutan passport /Refugee card)\",\"Not Applicable\"]",
+      "[\"OCI\",\"Employment Visa\",\"Others (Nepal passport/Bhutan passport /Refugee card)\",\"Not Applicable\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Disclaimer: The scores uploaded & educational documents given while registration is considered final and if any discrepancy is noted the profile will be rejected.": {
+    "count": 3,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I Agree\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Are you flexible to Work from any Location and city?": {
+    "count": 3,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(German Language) Provide Certification Name": {
+    "count": 3,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(German Language) Provide the name of the vendor/ OEM/ Alliance Partnership": {
+    "count": 3,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(German Language) Upload certificate": {
+    "count": 3,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Do you know German Language? Mention the language certification level completed or achieved. If not, Mention Not Applicable": {
+    "count": 3,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"A1\",\"A2\",\"B1\",\"B2\",\"C1\",\"C2\",\"Not Applicable\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(French Language) Provide Certification Name": {
+    "count": 3,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(French Language) Provide the name of the vendor/ OEM/ Alliance Partnership": {
+    "count": 3,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(French Language) Upload certificate": {
+    "count": 3,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Do you know French Language? Mention the language certification level completed or achieved. If not, Mention Not Applicable": {
+    "count": 3,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"A1\",\"A2\",\"B1\",\"B2\",\"C1\",\"C2\",\"Not Applicable\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Japanese Language) Provide Certification Name": {
+    "count": 3,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Japanese Language) Provide the name of the vendor/ OEM/ Alliance Partnership": {
+    "count": 3,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Japanese Language) Upload certificate": {
+    "count": 3,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Do you know Japanese Language? Mention the language certification level completed or achieved. If not, Mention Not Applicable": {
+    "count": 3,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"N1\",\"N2\",\"N3\",\"N4\",\"N5\",\"Not Applicable\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Are you physically challenged or impaired?": {
+    "count": 3,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "What kind of Infrastructure/Technology support would you require to work from Cognizant office?": {
+    "count": 3,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Upload proof of disability": {
+    "count": 3,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Choose the type of disability proof of document": {
+    "count": 3,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Government authorized certificate\",\"Unique Disability ID card\",\"Proof of having applied for the Unique Disability ID card\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Type of Disability": {
+    "count": 3,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Locomotor disability\",\"Cerebral Palsy\",\"Hearing Impairment\",\"Physical Impairment\",\"Acid Attack victim\",\"Autism Spectrum Disorder\",\"Dwarfism\",\"Hemophilia\",\"Intellectual Disability\",\"Mental Illness\",\"Muscular Dystrophy\",\"Sickle Cell disease\",\"Speech and Language disability\",\"Thalassemia\",\"Visual Impairment\",\"Others\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Please mention the type of disability": {
+    "count": 3,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Please mention the percentage of disability": {
+    "count": 3,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Do you have Voter ID card?": {
+    "count": 3,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Do you have hands-on knowledge or practical experience with AI / GenAI?": {
+    "count": 3,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\",\"Basic exposure only\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "How familiar are you with writing effective prompts for GenAI tools?": {
+    "count": 3,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Beginner -basic prompts\",\"limited understanding of structure\",\"Intermediate -can design prompts with some optimization for better outputs\",\"Advanced -able to consistently craft effective prompts for varied use cases\",\"Expert -deep expertise in prompt strategies\",\"able to teach/guide others\"]",
+      "[\"Beginner -basic prompts limited understanding of structure\",\"Intermediate -can design prompts with some optimization for better outputs\",\"Advanced -able to consistently craft effective prompts for varied use cases\",\"Expert -deep expertise in prompt strategies and able to teach/guide others\"]",
+      "[\"Beginner -basic prompts / limited understanding of structure\",\"Intermediate -can design prompts with some optimization for better outputs\",\"Advanced -able to consistently craft effective prompts for varied use cases\",\"Expert -deep expertise in prompt strategies; able to teach/guide others\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "How would you rate your proficiency in RAG concepts and implementation?": {
+    "count": 3,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"No Experience\",\"Beginner - Basic awareness of RAG concepts\",\"Intermediate - understands embeddings / similarity search / text chunking\",\"Advanced -can implement RAG workflows in projects\",\"Expert -deep expertise in designing / optimizing and scaling RAG systems\"]",
+      "[\"Beginner - Basic awareness of RAG concepts\",\"Intermediate - understands embeddings similarity search text chunking\",\"Advanced -can implement RAG workflows in projects\",\"Expert -deep expertise in designing optimizing and scaling RAG systems\"]",
+      "[\"Beginner -Basic awareness of RAG concepts\",\"Intermediate -understands embeddings similarity search text chunking\",\"Advanced -can implement RAG workflows in projects\",\"Expert -deep expertise in designing optimizing and scaling RAG systems\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "How would you describe your proficiency level in programming with Data Structures and front end frameworks (Angular/React)?": {
+    "count": 3,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Beginner -Familiar with concepts\",\"Intermediate -Can handle standard use cases independently\",\"Advanced -Can design optimize and debug complex scenarios\",\"Expert -Deep expertise and able to guide others\"]",
+      "[\"No Experience\",\"Beginner - Familiar with concepts\",\"Intermediate - Can handle standard use cases independently\",\"Advanced - Can design / optimize and debug complex scenarios\",\"Expert - Deep expertise and able to guide others\"]",
+      "[\"Beginner - Familiar with concepts\",\"Intermediate - Can handle standard use cases independently\",\"Advanced - Can design optimize and debug complex scenarios\",\"Expert - Deep expertise and able to guide others\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Github Profile Link": {
+    "count": 3,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "GOLGIX",
+      "Golgix (2nd visit)",
+      "Golgix (2nd visit)"
+    ]
+  },
+  "Linkedin ID": {
+    "count": 3,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "GOLGIX",
+      "Golgix (2nd visit)",
+      "Golgix (2nd visit)"
+    ]
+  },
+  "Share your resume link": {
+    "count": 3,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Kristellar Aerospace (P) Ltd.",
+      "Whatfix",
+      "AntBox(7th Visit)"
+    ]
+  },
+  "Share the Updated Resume Link with public access": {
+    "count": 3,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"SQL\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Sigmoid",
+      "Power Bridge Systems Pvt Ltd",
+      "Scaler"
+    ]
+  },
+  "Share your updated resume link with public access": {
+    "count": 3,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "NoboruWorld",
+      "Kinetic Age (2nd visit)",
+      "Fractal Analytics."
+    ]
+  },
+  "Share your updated Resume link with public access": {
+    "count": 3,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Aristok Technologies",
+      "Micron Technology",
+      "Mphasis"
+    ]
+  },
+  "Exposure to": {
+    "count": 3,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"RESTful API\",\"TypeScript\",\"Usage of GitHub copilot AI pair programming\",\"NA\"]",
+      "[\"Artificial Intelligence\",\"Generative AI\",\"Machine Learning\",\"data analytics\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Consilio",
+      "Consilio",
+      "Chubb"
+    ]
+  },
+  "Share your updated resume link": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Juspay\u00a0Technologies (P) Ltd.",
+      "Opus Technologies"
+    ]
+  },
+  "PAN Card Number": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "KPIT-Technologies",
+      "Accenture"
+    ]
+  },
+  "Do you have a PAN Card?": {
+    "count": 2,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Disclaimer : The name given while registration is considered final and if any discrepancy is noted the profile will be rejected.": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I Agree\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select Preferred Job Location - Preference 1": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Bangalore\",\"Chennai\",\"Coimbatore\",\"Kolkata\",\"Pune\",\"Kochi\",\"Hyderabad\",\"Gurgaon\",\"Noida\",\"Mumbai\",\"Bhubaneswar\"]",
+      "[\"Bangalore\",\"Bhubaneswar\",\"Chennai\",\"Coimbatore\",\"Gandhinagar\",\"Gurgaon\",\"Hyderabad\",\"Indore\",\"Kochi\",\"Kolkata\",\"Mumbai\",\"Noida\",\"Pune\",\"Vishakhapatanam\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select Preferred Job Location - Preference 2": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Bangalore\",\"Chennai\",\"Coimbatore\",\"Kolkata\",\"Pune\",\"Kochi\",\"Hyderabad\",\"Gurgaon\",\"Noida\",\"Mumbai\",\"Bhubaneswar\"]",
+      "[\"Bangalore\",\"Bhubaneswar\",\"Chennai\",\"Coimbatore\",\"Gandhinagar\",\"Gurgaon\",\"Hyderabad\",\"Indore\",\"Kochi\",\"Kolkata\",\"Mumbai\",\"Noida\",\"Pune\",\"Vishakhapatanam\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Do you have a Passport?": {
+    "count": 2,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "If yes, do you hold an Indian or a Foreign Passport?": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Indian Passport\",\"Foreign Passport\",\"No Passport Available\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "We request you to acknowledge the fact that you've voluntarily shared the above personal information with Cognizant for enabling Cognizant to facilitate physical onboarding and training. Please authorize Cognizant to retain the above information in its records.": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I Agree\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "File Upload for AWS": {
+    "count": 2,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in Python": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select the option that best describes the hands-on experience you have in Python": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Problem solving in competitive programming\",\"Internship and Application development\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Python)  Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "File Upload for Python": {
+    "count": 2,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Python) Provide Certification Name": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Provide the link of the solution developed for Python": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in Java": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select the option that best describes the hands-on experience you have in Java": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Competitive and Internship\"]",
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Problem solving in competitive programming\",\"Internship and Application development\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "File Upload for Java": {
+    "count": 2,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Java) Provide Certification Name": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Provide the link of the solution developed for Java": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Java) Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(HTML5 & Javascript & CSS3) Provide Certification Name": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select the skills in which you are proficient at Hands-on/ Certified": {
+    "count": 2,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Java\",\"SQL\",\"C#\",\"HTML5 & Javascript & CSS3\",\"Python\",\"Not Applicable\"]",
+      "[\"Java\",\"Javascript\",\"Python\",\"C#\",\"NodeJS\",\"React\",\"Angular\",\"TypeScript\",\"Spring Boot\",\"Flask\",\"Fast API\",\"Junit\",\"Pytest\",\"Jtest\",\"Docker\",\"Not Applicable\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select the technologies in which you are proficient at Hands-on/ Certified": {
+    "count": 2,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Pega\",\"ServiceNow\",\"Salesforce\",\"Mulesoft\",\"Oracle Services Product\",\"PLM\",\"Adobe\",\"Not Applicable\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select the additional skills in which you have theoretical, hands-on working experience or certification": {
+    "count": 2,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"UNIX\",\"C/C++\",\"UFT\",\"BISQUAD\",\"Angular\",\"React\",\"Devops\",\"Selenium\",\"Tosca\",\"Adobe\",\"CIM - Customer Interaction Management\",\"Digital Marketing\",\"Digital Analytics\",\"Drupal\",\"Magento PHP\",\"IBM Sterling\",\"Informatica\",\"GIS\",\"Java Springboot\",\"Mainframe\",\"Microservices\",\"Microsoft Business Group (MBG)\",\"MSBI\",\"Peoplesoft\",\"Reltio\",\"RPA (Robotic Process Automation)\",\"SAP MM\",\"SAP FICO\",\"SAP SD\",\"SAP PP\",\"SAP Hybris\",\"SAP HANA\",\"SAP ABAP\",\"SAP Basis\",\"SAP Analytics with MDG\",\"SAP Fiori/UI5\",\"SAP-ATTP\",\"SAP PI/PO\",\"SAP BTP\",\"SAP CX-Spartacus\",\"MATLAB\",\"Go Lang\",\"Sharepoint\",\"Sitecore\",\"Talend\",\"PowerBI\",\"Qlikview\",\"QlikSense\",\"Tableau\",\"PLM (Teamcenter)\",\"PLM (Windchill)\",\"PLM (Enovia)\",\"TIBCO\",\"AEM FE\",\"EDS\",\"AEM DAM\",\"Adobe Workfront\",\"AJO\",\"Marketo Assets\",\"Simulation(SIM4ME Thermodynamics)\",\"Device Management\",\"Control system protocol\",\"Visual C++\",\"Mainframe\",\"Not Applicable\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in Javascript": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select the option that best describes the hands-on experience you have in Javascript": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Competitive and Internship\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Javascript)  Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "File Upload for Javascript": {
+    "count": 2,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Javascript) Provide a link on Demo or Working Prototype": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Javascript) Provide the name of the vendor/ OEM/ Alliance Partnership": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Javascript) Provide Certification Name": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Do you have Cybersecurity as an Elective/Course as part of Engineering curriculum?": {
+    "count": 2,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Degree / Specialization\",\"Elective\",\"Not Applicable\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in Mulesoft": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select the option that best describes the hands-on experience you have in (Mulesoft)": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Elective\",\"Hackathon\",\"Project work\",\"Code programming\",\"Problem solving in competitive programming\",\"Internship and Application development\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Mulesoft)  If selected Others, please provide the name of the certificate": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Mulesoft)  Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "File Upload for Mulesoft": {
+    "count": 2,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Provide the link of the Solution developed for Mulesoft": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Mulesoft) Provide the name of the vendor": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in Pega": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select the option that best describes the hands-on experience you have in (Pega)": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Elective\",\"Hackathon\",\"Project work\",\"Code programming\",\"Problem solving in competitive programming\",\"Internship and Application development\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Pega) If selected Others, please provide the name of the certificate": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Pega) Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "File Upload for Pega": {
+    "count": 2,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Provide the link of the solution developed for Pega": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Pega) Provide the name of the vendor": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in Salesforce": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select the option that best describes the hands-on experience you have in (Salesforce)": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Elective\",\"Hackathon\",\"Project work\",\"Code programming\",\"Problem solving in competitive programming\",\"Internship and Application development\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Salesforce)  If selected Others, please provide the name of the certificate": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Salesforce) Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "File Upload for Salesforce": {
+    "count": 2,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Provide the link of the solution developed for Salesforce": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Salesforce) Provide the name of the vendor": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in ServiceNow": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select the option that best describes the hands-on experience you have in ServiceNow": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Elective\",\"Hackathon\",\"Project work\",\"Code programming\",\"Problem solving in competitive programming\",\"Internship and Application development\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "File Upload for ServiceNow": {
+    "count": 2,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(ServiceNow) Provide the name of the vendor": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Provide the link of the solution developed for ServiceNow": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(ServiceNow)  Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(ServiceNow)  If selected Others, please provide the name of the certificate": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Salesforce) Select the certification": {
+    "count": 2,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Salesforce Certified Platform Developer\",\"Platform App Builder certification\",\"Apex Specialist Super badge\",\"Process Automation Specialist Superbadge (Trail Head learning)\",\"Others\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Mulesoft) Select the certification": {
+    "count": 2,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Mulesoft Certified Developer (Level 1)\",\"Mulesoft Certified Developer 4 (Level 1)\",\"Others\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Pega) Select the certification": {
+    "count": 2,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"CERTIFIED PEGA SYSTEM ARCHITECT\",\"CERTIFIED PEGA SENIOR SYSTEM ARCHITECT\",\"Others\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(ServiceNow) Select the certification": {
+    "count": 2,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"ServiceNow Certified Application Developer (CAD)\",\"ServiceNow Certified System Administrator Certification (CSA)\",\"Others\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in Oracle Services Product": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select the option that best describes the hands-on experience you have in Oracle Services Product": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Elective\",\"Hackathon\",\"Project work\",\"Code programming\",\"Problem solving in competitive programming\",\"Internship and Application development\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Oracle Services Product) Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "File Upload for Oracle Services Product": {
+    "count": 2,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Oracle Services Product) Provide the link of the solution developed": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Oracle Services Product) Select the certification": {
+    "count": 2,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Oracle Cloud Infrastructure Foundation Associate\",\"Oracle Cloud Infrastructure AI Foundation Associate\",\"Others\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Oracle Services Product) Provide the name of the vendor": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Oracle Services Product) If selected Others, please provide the name of the certificate": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in PLM": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(PLM) Select the option that best describes the hands-on experience you have in PLM": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Elective\",\"Hackathon\",\"Project work\",\"Code programming\",\"Problem solving in competitive programming\",\"Internship and Application development\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(PLM) Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(PLM) Select the certification": {
+    "count": 2,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"PLM Windchill\",\"Enovia\",\"teamcenter\",\"Others\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(PLM) Provide the name of the vendor": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(PLM) If selected Others, please provide the name of the certificate": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(PLM) File Upload for PLM": {
+    "count": 2,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(PLM) Provide the link of the solution developed for PLM": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in Adobe": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Adobe) Select the option that best describes the hands-on experience you have in Adobe": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Elective\",\"Hackathon\",\"Project work\",\"Code programming\",\"Problem solving in competitive programming\",\"Internship and Application development\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Adobe) Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Adobe) Select the certification": {
+    "count": 2,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"AD0 E128 Adobe Experience Manager Sites Developer Professional\",\"Java SE 21 Developer Professional Exam Number 1Z0 830\",\"Others\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Adobe) Provide the name of the vendor": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Adobe) If selected Others, please provide the name of the certificate": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Adobe) File Upload for Adobe": {
+    "count": 2,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(Adobe) Provide the link of the solution developed for Adobe": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Brief summry of your projects": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "GOLGIX",
+      "Golgix (2nd visit)"
+    ]
+  },
+  "Share your updated resume link with public acess": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Golgix (2nd visit)",
+      "Rockwell Automation"
+    ]
+  },
+  "Share your updated Resume Link with public Access": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "BiteSpeed (4th Visit)",
+      "BiteSpeed (5th Visit)"
+    ]
+  },
+  "Share the 1 minute video with public access": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "BiteSpeed (5th Visit)",
+      "BiteSpeed(6th Visit)"
+    ]
+  },
+  "Basic understanding of networking, operating systems": {
+    "count": 2,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Window\",\"Linux\",\"NA\",\"Cybersecurity principles\"]"
+    ],
+    "sample_companies": [
+      "Consilio",
+      "Consilio"
+    ]
+  },
+  "Familiarity with email protocols": {
+    "count": 2,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"SMTP\",\"IMAP\",\"POP3\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Consilio",
+      "Consilio"
+    ]
+  },
+  "Authentication mechanisms": {
+    "count": 2,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"SPF\",\"DKIM\",\"DMARC\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Consilio",
+      "Consilio"
+    ]
+  },
+  "Do you have Cyber Security Certification": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "Consilio",
+      "Consilio"
+    ]
+  },
+  "Share the certificate link with public access": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": false,
+    "options": [],
+    "sample_companies": [
+      "Consilio",
+      "Consilio"
+    ]
+  },
+  "Share the updatred resume link with public access": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Consilio",
+      "Consilio"
+    ]
+  },
+  "Resume Link": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Tata Power Odisha DISCOMs",
+      "Tata Power.."
+    ]
+  },
+  "Permanent State": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Tata Power Odisha DISCOMs",
+      "Tata Power.."
+    ]
+  },
+  "Aadhaar No": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Tata Power Odisha DISCOMs",
+      "LTM"
+    ]
+  },
+  "Knowledge about ERP systems such as SAP & it\u2019s various modules": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "MINDSPRINT",
+      "MINDSPRINT"
+    ]
+  },
+  "Do you have SAP Knoweldge": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "MINDSPRINT",
+      "MINDSPRINT"
+    ]
+  },
+  "Do you have SAP Certificate?": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "MINDSPRINT",
+      "MINDSPRINT"
+    ]
+  },
+  "SAP Module known": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": false,
+    "options": [],
+    "sample_companies": [
+      "MINDSPRINT",
+      "MINDSPRINT"
+    ]
+  },
+  "Share the Updated Resume link with public access": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "MINDSPRINT",
+      "MINDSPRINT"
+    ]
+  },
+  "Share your updated Resume with public access": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Brakes India (P) Ltd.",
+      "IBM Consulting"
+    ]
+  },
+  "Skill in": {
+    "count": 2,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Experience in eLearning or EdTech platforms.\",\"Knowledge of instructional design principles.\",\"Familiarity with tools such as WordPress\",\"Google Analytics\",\"and plagiarism detection tools.\",\"NA\"]",
+      "[\"NET\",\"Java\",\"Python\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Rockwell Automation",
+      "Intellipaat"
+    ]
+  },
+  "Your current Location (cith with state)": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Provakil",
+      "Fractal Analytics."
+    ]
+  },
+  "If you were employed earlier, please share your employee ID": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": false,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in SQL": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Select the option that best describes the hands-on experience you have in SQL": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Competitive and Internship\"]",
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Problem solving in competitive programming\",\"Internship and Application development\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "File Upload for SQL": {
+    "count": 2,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(SQL) Provide Certification Name": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(SQL) Give write up in 300 words on how you applied the skill for the chosen work": {
+    "count": 2,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "(SQL)  Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 2,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Which AI / GenAI tools or technologies have you worked with? (Select all that apply)": {
+    "count": 2,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"ChatGPT\",\"Microsoft Copilot\",\"Google Gemini\",\"Anthropic Claude\",\"Others (please specify)\"]",
+      "[\"ChatGPT\",\"Microsoft Copilot\",\"Google Gemini\",\"Anthropic Claude\",\"None of the above\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Which of the following best describes your AI / agent experience? ((Select all that apply)": {
+    "count": 2,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Used AI tools or platforms\",\"Built a simple AI/GenAI application using APIs or frameworks\",\"Built an AI agent/workflow (e.g chatbot RAG automation)\",\"No hands-on experience yet\"]",
+      "[\"Used AI tools or platforms\",\"Built a simple AI/GenAI application using APIs or frameworks\",\"Built an AI agent/workflow (e.g.\",\"chatbot\",\"RAG\",\"automation)\",\"No hands-on experience yet\"]"
+    ],
+    "sample_companies": [
+      "Cognizant",
+      "Cognizant"
+    ]
+  },
+  "Share the google drive link of 1 Minutes Introduction video & updated resume with public access": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Bitespeed"
+    ]
+  },
+  "Are your genuinely interested for this job profile": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "Bitespeed"
+    ]
+  },
+  "Are you genuinely interested for this profile?": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "BCT Ventures"
+    ]
+  },
+  "Current Location(City with State)": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Juspay\u00a0Technologies (P) Ltd."
+    ]
+  },
+  "Are you genuinely interested for Sales profile?": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "HighRadius"
+    ]
+  },
+  "Current Address City (not hostel address)": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Virtusa."
+    ]
+  },
+  "Current Address with state & pincode (not hostel address)": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Virtusa."
+    ]
+  },
+  "Alternative Contact Number": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Virtusa."
+    ]
+  },
+  "Are you genuinely interested for Marketing profile?": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "HighRadius (Marketing Department ABM Intern Role)"
+    ]
+  },
+  "Are you planning to pursue higher education? If yes, then when": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "KPIT-Technologies"
+    ]
+  },
+  "Preferable work location - Pune, Bangalore": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Pune\",\"Bangalore\",\"Kochi\",\"Pune/Bangalore\",\"Any\"]"
+    ],
+    "sample_companies": [
+      "KPIT-Technologies"
+    ]
+  },
+  "Parent's/ Guardian Name": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "KPIT-Technologies"
+    ]
+  },
+  "Parent's/ Guardian Email ID": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "KPIT-Technologies"
+    ]
+  },
+  "Parent's/ Guardian Current Address": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "KPIT-Technologies"
+    ]
+  },
+  "What is your preference (Select one out below domains)?": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"AIML\",\"C++ and OOPS\",\"Embedded C\",\"Java (AWS)\",\"Python (AWS)\",\"Model Based Design/Matlab\"]"
+    ],
+    "sample_companies": [
+      "KPIT-Technologies"
+    ]
+  },
+  "Do you have bilingual proficiency in any of the foreign languages?": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Japanese\",\"French\",\"German\",\"None\"]"
+    ],
+    "sample_companies": [
+      "KPIT-Technologies"
+    ]
+  },
+  "Under supervision of Parent's or Guardian": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Parent's\",\"Guardian\"]"
+    ],
+    "sample_companies": [
+      "KPIT-Technologies"
+    ]
+  },
+  "Do you have the Industry Recognized Certificate for the track preferred?": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "KPIT-Technologies"
+    ]
+  },
+  "If other foreign languages, please specify. (if none mentioned NA)": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "KPIT-Technologies"
+    ]
+  },
+  "Do you have the Industry Recognized Certificate for the foreign language?": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "KPIT-Technologies"
+    ]
+  },
+  "Aadhaar Card Number": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "KPIT-Technologies"
+    ]
+  },
+  "What are the top one/two programming languages in which you have the most proficiency?": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"C\",\"C++\",\"Python\",\"Java\",\"C#\",\"Embedded C\"]"
+    ],
+    "sample_companies": [
+      "KPIT-Technologies"
+    ]
+  },
+  "profile preference": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"QA Engineer Manual\",\"SDET Automation\",\"DevOps Engineer\"]"
+    ],
+    "sample_companies": [
+      "Osfin.ai (2nd Visit)"
+    ]
+  },
+  "Share your resume link  with public assess": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Sasken Technologies Ltd."
+    ]
+  },
+  "Current Location city with state": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "IRIS CARBON"
+    ]
+  },
+  "Do you have AI Programming certifications": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "Panasonic Avionics India (P). Ltd"
+    ]
+  },
+  "If Yes, Share the Certification link": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Panasonic Avionics India (P). Ltd"
+    ]
+  },
+  "Additional programming language": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Java\",\"C++\",\"Javascript\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Panasonic Avionics India (P). Ltd"
+    ]
+  },
+  "Familiarity with AWS services": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"S3\",\"Lambda\",\"ECS\",\"EKS\",\"Bedrock\",\"SageMaker\",\"API Gateway\",\"DynamoDB\",\"RDS)\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Panasonic Avionics India (P). Ltd"
+    ]
+  },
+  "Exposure to AI frameworks such as": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"LangChain\",\"LangGraph\",\"CrewAI\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Panasonic Avionics India (P). Ltd"
+    ]
+  },
+  "Will you attend the entire process at their office in Pune (if shortlisted)?": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "Panasonic Avionics India (P). Ltd"
+    ]
+  },
+  "Share the updated resume link": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Panasonic Avionics India (P). Ltd"
+    ]
+  },
+  "Candidate Name (As per Aadhar Card)": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "EY India"
+    ]
+  },
+  "Alternative Mobile No.": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "EY India"
+    ]
+  },
+  "Additional Tech Skills/Certifications": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "EY India"
+    ]
+  },
+  "Candidate Current Location (City and State)": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "EY India"
+    ]
+  },
+  "Candidate Permanent Address (City and State)": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "EY India"
+    ]
+  },
+  "Have you been associated with Cognizant through any of the below channel ?": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Full time employment\",\"Contractor\",\"Internship\",\"Continuous skill development program (CSD)\",\"Vendor's Payroll\",\"Not Applicable\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "If you were associated earlier with Cognizant, please share your employee ID": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": false,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Java) Provide the name of the vendor/ OEM/ Alliance Partnership": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Java) Is the certification obtained through vendor/ OEM/ Alliance Partnership?": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Java Foundations Certified Junior Associate (JFCJA)\",\"Oracle Certified Associate - Java SE 8 Programmer\",\"Oracle Certified Professional - Java SE 6 Programmer\",\"Oracle Certified Professional (OCP) - Java SE Programmer\",\"Oracle Certified Associate - Java SE 7 Programmer\",\"Oracle Certified Foundation Java EE and Web Services\",\"Oracle Certified Associate - Java SE 8 Programmer (OCAJP/SCJA)\",\"Others\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Javascript) Is the certification obtained through vendor/ OEM/ Alliance Partnership?": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Python) Is the certification obtained through vendor/ OEM/ Alliance Partnership?": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Python) Provide the name of the vendor/ OEM/ Alliance Partnership": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in C#": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in NodeJS": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in React": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in Angular": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in TypeScript": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in Spring Boot": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in Flask": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in Fast API": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in Junit": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in Pytest": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in Jtest": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in Docker": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(C#) Select the option that best describes the hands-on experience you have in C#": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Competitive and Internship\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(NodeJS) Select the option that best describes the hands-on experience you have in NodeJS": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Competitive and Internship\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(React) Select the option that best describes the hands-on experience you have in React": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Competitive and Internship\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Angular) Select the option that best describes the hands-on experience you have in Angular": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Competitive and Internship\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(TypeScript) Select the option that best describes the hands-on experience you have in TypeScript": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Competitive and Internship\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Spring Boot) Select the option that best describes the hands-on experience you have in Spring Boot": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Competitive and Internship\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Flask) Select the option that best describes the hands-on experience you have in Flask": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Competitive and Internship\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Fast API) Select the option that best describes the hands-on experience you have in Fast API": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Competitive and Internship\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Junit) Select the option that best describes the hands-on experience you have in Junit": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Competitive and Internship\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Pytest) Select the option that best describes the hands-on experience you have in Pytest": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Competitive and Internship\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Jtest) Select the option that best describes the hands-on experience you have in Jtest": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Competitive and Internship\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Docker) Select the option that best describes the hands-on experience you have in Docker": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Competitive and Internship\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(C#) Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(NodeJS) Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(React) Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Angular) Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(TypeScript) Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Spring Boot) Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Flask) Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Fast API) Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Junit) Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Pytest) Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Jtest) Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Docker) Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Pytest) Give write up in 300 words on how you applied the skill for the chosen work": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(C#) Is the certification obtained through vendor/ OEM/ Alliance Partnership?": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(NodeJS) Is the certification obtained through vendor/ OEM/ Alliance Partnership?": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(React) Is the certification obtained through vendor/ OEM/ Alliance Partnership?": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Angular) Is the certification obtained through vendor/ OEM/ Alliance Partnership?": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(TypeScript) Is the certification obtained through vendor/ OEM/ Alliance Partnership?": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Spring Boot) Is the certification obtained through vendor/ OEM/ Alliance Partnership?": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Flask) Is the certification obtained through vendor/ OEM/ Alliance Partnership?": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Fast API) Is the certification obtained through vendor/ OEM/ Alliance Partnership?": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Junit) Is the certification obtained through vendor/ OEM/ Alliance Partnership?": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Pytest) Is the certification obtained through vendor/ OEM/ Alliance Partnership?": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Jtest) Is the certification obtained through vendor/ OEM/ Alliance Partnership?": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Docker) Is the certification obtained through vendor/ OEM/ Alliance Partnership?": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(C#) Provide the name of the vendor/ OEM/ Alliance Partnership": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(NodeJS) Provide the name of the vendor/ OEM/ Alliance Partnership": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(React) Provide the name of the vendor/ OEM/ Alliance Partnership": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Angular) Provide the name of the vendor/ OEM/ Alliance Partnership": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(TypeScript) Provide the name of the vendor/ OEM/ Alliance Partnership": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Spring Boot) Provide the name of the vendor/ OEM/ Alliance Partnership": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Flask) Provide the name of the vendor/ OEM/ Alliance Partnership": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Fast API) Provide the name of the vendor/ OEM/ Alliance Partnership": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Junit) Provide the name of the vendor/ OEM/ Alliance Partnership": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Pytest) Provide the name of the vendor/ OEM/ Alliance Partnership": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Jtest) Provide the name of the vendor/ OEM/ Alliance Partnership": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Docker) Provide the name of the vendor/ OEM/ Alliance Partnership": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(C#) Provide Certification Name": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(NodeJS) Provide Certification Name": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(React) Provide Certification Name": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Angular) Provide Certification Name": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(TypeScript) Provide Certification Name": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Spring Boot) Provide Certification Name": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Flask) Provide Certification Name": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Fast API) Provide Certification Name": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Junit) Provide Certification Name": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Pytest) Provide Certification Name": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Jtest) Provide Certification Name": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Docker) Provide Certification Name": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(C#) File Upload for C#": {
+    "count": 1,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(NodeJS) File Upload for NodeJS": {
+    "count": 1,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(React) File Upload for React": {
+    "count": 1,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Angular) File Upload for Angular": {
+    "count": 1,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(TypeScript) File Upload for TypeScript": {
+    "count": 1,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Spring Boot) File Upload for Spring Boot": {
+    "count": 1,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Flask) File Upload for Flask": {
+    "count": 1,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Fast API) File Upload for Fast API": {
+    "count": 1,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Junit) File Upload for Junit": {
+    "count": 1,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Pytest) File Upload for Pytest": {
+    "count": 1,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Jtest) File Upload for Jtest": {
+    "count": 1,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Docker) File Upload for Docker": {
+    "count": 1,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(C#) Provide the link of the solution developed for C#": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(NodeJS) Provide the link of the solution developed for NodeJS": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(React) Provide the link of the solution developed for React": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Angular) Provide the link of the solution developed for Angular": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(TypeScript) Provide the link of the solution developed for TypeScript": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Spring Boot) Provide the link of the solution developed for Spring Boot": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Flask) Provide the link of the solution developed for Flask": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Fast API) Provide the link of the solution developed for Fast API": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Junit) Provide the link of the solution developed for Junit": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Pytest) Provide the link of the solution developed for Pytest": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Jtest) Provide the link of the solution developed for Jtest": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Docker) Provide the link of the solution developed for Docker": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select the Cloud Platform in which you are proficient - Hands-on/ Certified": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"AWS\",\"AZURE\",\"GCP\",\"Not Applicable\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in Cloud - AWS": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in Cloud - AZURE": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in Cloud - GCP": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(AWS) Is the certification obtained through vendor/ OEM/ Alliance Partnership?": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(AZURE) Is the certification obtained through vendor/ OEM/ Alliance Partnership?": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(GCP) Is the certification obtained through vendor/ OEM/ Alliance Partnership?": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(AWS) Provide Certification Name": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(AZURE) Provide Certification Name": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(GCP) Provide Certification Name": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(AWS) Provide the name of the vendor/ OEM/ Alliance Partnership": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(AZURE) Provide the name of the vendor/ OEM/ Alliance Partnership": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(GCP) Provide the name of the vendor/ OEM/ Alliance Partnership": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(AWS) Select the option that best describes the hands-on experience you have in AWS": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Competitive and Internship\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(AWS) Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(AZURE) Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(GCP) Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(AZURE) Select the option that best describes the hands-on experience you have in AZURE": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Competitive and Internship\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(GCP) Select the option that best describes the hands-on experience you have in GCP": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Competitive and Internship\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "File Upload for AZURE": {
+    "count": 1,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "File Upload for GCP": {
+    "count": 1,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(AWS) Provide the link of the solution developed for AWS": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(AZURE) Provide the link of the solution developed for AZURE": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(GCP) Provide the link of the solution developed for GCP": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Which AI / GenAI tools or technologies have you worked with?": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"ChatGPT\",\"Microsoft Copilot\",\"Google Gemini\",\"Anthropic Claude\",\"Others\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "If you select \u201cOthers\u201d in the AI tools question, please specify the AI tools you have worked with": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Which of the following best describes your AI / agent experience?": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": false,
+    "options": [
+      "[\"Used AI tools or platforms\",\"Built a simple AI/GenAI application using APIs or frameworks\",\"Built an AI agent/workflow e.g. chatbot; RAG; automation\",\"No hands-on experience yet\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Choose the certification you hold in Oracle": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"MySQL 2021 Certified Implementation Specialist\",\"Oracle Certified Foundations Associate - Database\",\"Oracle Certified Foundations Associate - Java\",\"Oracle Cloud Infrastructure 2022 Certified Foundations Associate\",\"Oracle Cloud Infrastructure 2021 Certified Foundations Associate\",\"Oracle SOA Suite 12c Certified Implementation Specialist\",\"Not Applicable\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Coding Proficiency  in": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Python\",\"Golang\",\"Java\",\"C\",\"C++\",\"Clojure\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Viasat India"
+    ]
+  },
+  "Share the Updated Resume link with public Access": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "BiteSpeed (3rd visit)"
+    ]
+  },
+  "Share the 1 Minutes introduction Video link with public access": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "BiteSpeed (3rd visit)"
+    ]
+  },
+  "Do you have PAN Card": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "Accenture"
+    ]
+  },
+  "Have appeared the Accenture Recruitment assessment/ interview process in the last three months.?": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "Accenture"
+    ]
+  },
+  "Full Name As per the PAN card) *": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Accenture"
+    ]
+  },
+  "First Name (As per the  PAN card) Name should be more than or equal to two alphabet)": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Accenture"
+    ]
+  },
+  "Middle Name  (As per the  PAN card) Name should be more than or equal to two alphabet)": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Accenture"
+    ]
+  },
+  "Last Name (As per the  PAN card) Name should be more than or equal to two alphabet) NB: In case you do not have last name kindly mention your father/mother's name as specified in PAN card": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Accenture"
+    ]
+  },
+  "Father's Name as mention in your PAN Card *": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Accenture"
+    ]
+  },
+  "Mother's Name as mention in your PAN Card *": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Accenture"
+    ]
+  },
+  "10th Class pass in": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Regular\",\"Correspondence\",\"NIOS\"]"
+    ],
+    "sample_companies": [
+      "Accenture"
+    ]
+  },
+  "12thDiploma  Pass in": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Regular\",\"Correspondence\",\"NIOS\"]"
+    ],
+    "sample_companies": [
+      "Accenture"
+    ]
+  },
+  "Graduation Pass in   (for MCA/M.Tech. ) student - B.Tech Students can put NA": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Regular\",\"Correspondence\",\"NIOS\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Accenture"
+    ]
+  },
+  "Total Academic Year Gap": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"0\",\"1\",\"2\",\"More than2\"]"
+    ],
+    "sample_companies": [
+      "Accenture"
+    ]
+  },
+  "Link for open source contribution": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "GOLGIX"
+    ]
+  },
+  "Full Stack Development using React Certificate proof": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "GOLGIX"
+    ]
+  },
+  "Strong understanding of": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"cybersecurity fundamentals\",\"network security\",\"TCP/IP\",\"security architecture\"]"
+    ],
+    "sample_companies": [
+      "Kristellar Aerospace (P) Ltd."
+    ]
+  },
+  "Good knowledge in": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"wireless/RF communication\",\"wireless security\",\"protocol analysis\",\"SDR technologies\",\"Knowledge of engineering drawings\",\"tolerance stack-up analysis\",\"GD&T.\"]"
+    ],
+    "sample_companies": [
+      "Kristellar Aerospace (P) Ltd."
+    ]
+  },
+  "Programming Language Known": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Python\",\"Java\",\"JavaScript\",\"C++\",\"Scala\",\"NA\",\"SQL\"]"
+    ],
+    "sample_companies": [
+      "Sigmoid"
+    ]
+  },
+  "Profile Apply for": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Operations Intern\",\"Sales Intern\",\"Software Engineering Intern\",\"Marketing & Content Intern\",\"UI/UX Design Intern\"]"
+    ],
+    "sample_companies": [
+      "Kinetic Age"
+    ]
+  },
+  "Profile Applied for": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Full Stack Web & Mobile Engineer\",\"Quality Assurance Engineer\",\"Client Success Engineer\"]"
+    ],
+    "sample_companies": [
+      "loginext"
+    ]
+  },
+  "Skills Known": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Git/GitHub & GitHub Actions\",\"Docker & Kubernetes fundamentals\",\"Linux/Bash scripting\",\"Python or PowerShell\",\"YAML\",\"IaC exposure\",\"Azure basics\",\"DevSecOps concepts (SAST/SCA)\",\"PyTest\",\"Playwright\",\"Selenium\",\"API testing\",\"k6/JMeter exposure\",\"ML/GenAI\",\"LLM-as-judge\",\"SQL\",\"Java\",\"JavaScript\",\"APIs\",\"HTML/CSS\",\"Salesforce Trailhead\",\"Apex\",\"SOQL\",\"Lightning Experience\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Protiviti"
+    ]
+  },
+  "Preferred Skills for AI DevOps Engineering Intern": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Git/GitHub & GitHub Actions\",\"Docker & Kubernetes fundamentals\",\"Linux/Bash scripting; Python or PowerShell; YAML; IaC exposure (Terraform/Bicep a plus); Azure basics (AKS\",\"APIM\",\"monitoring)\",\"understanding of DevSecOps concepts (SAST/SCA).\",\"Python & PyTest\",\"test automation (Playwright/Selenium)\",\"API testing (Postman/REST)\",\"performance tools (k6/JMeter exposure)\",\"ML/GenAI fundamentals and evaluation concepts (metrics\",\"prompt regression\",\"LLM-as-judge)\",\"Git/GitHub\",\"SQL.\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Protiviti"
+    ]
+  },
+  "Preferred Skills for Oracle Engineer-Intern": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"SQL\",\"PL/SQL programming\",\"Oracle Database\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Protiviti"
+    ]
+  },
+  "Preferred Skills for Intelligent Automation- Intern": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Python\",\"Java\",\"JavaScript\",\"scripting\",\"APIs\",\"RPA tools\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Protiviti"
+    ]
+  },
+  "Preferred Skills for Salesforce Engineer- Intern": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Apex classes\",\"Lightning Web Components (LWC)\",\"Salesforce CRM concepts\",\"Java\",\"JavaScript\",\"HTML/CSS\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Protiviti"
+    ]
+  },
+  "Profile Interested for": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"UI/UX Intern\",\"Devops/Security Intern\",\"AI/Python Intern\"]"
+    ],
+    "sample_companies": [
+      "Protiviti"
+    ]
+  },
+  "Requirement for UI/UX Intern Profile": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Strong proficiency in Figma\",\"Hands on experience with AI assisted development\",\"Strong understanding of UI UX principles\",\"Responsive design\",\"typography\",\"and layouts.Good visual sense and attention to detail\",\"Portfolio or personal UI UX projects is a plus\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Protiviti"
+    ]
+  },
+  "Good to have (for UI UX Profile": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"HTML\",\"CSS\",\"JavaScript\",\"Tailwind CSS\",\"design systems\",\"AI coding tools\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Protiviti"
+    ]
+  },
+  "Requirements for Devops/Security Intern": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Knowledge of Linux\",\"networking\",\"and Docker.\",\"Basic scripting knowledge (Python/Bash)\",\"Interest in DevOps\",\"Cloud\",\"or Cybersecurity\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Protiviti"
+    ]
+  },
+  "Good to have (Devops/Security Profile)": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"AWS\",\"Azure\",\"GCP\",\"Kubernetes\",\"Jenkins\",\"OWASP knowledge\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Protiviti"
+    ]
+  },
+  "Requirements for Ai/Python Intern": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Good knowledge of Python and OOP.\",\"Understanding of REST APIs and databases\",\"Familiarity with Git\",\"Interest in AI\",\"ML\",\"or Generative AI\",\"NAGitHub.\"]"
+    ],
+    "sample_companies": [
+      "Protiviti"
+    ]
+  },
+  "Good to have for AI/Python profile": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"FastAPI\",\"Flask\",\"Docker\",\"Pandas\",\"NumPy\",\"LLM API experience\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Protiviti"
+    ]
+  },
+  "Share the Resume link with public access": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Protiviti"
+    ]
+  },
+  "Technical Skills(Strong understanding of)": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Data Structures & Algorithms\",\"Object-Oriented Programming (OOP)\",\"Database Concepts\",\"Operating Systems\",\"Computer Networks\"]"
+    ],
+    "sample_companies": [
+      "Providence"
+    ]
+  },
+  "Knowledge of one or more programming language": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Python\",\"C#\",\"Java\",\"JavaScript\",\"Web technologies\",\"HTML\",\"CSS\",\"React\",\"Angular\",\"SDLC\",\"SQL databases\",\"MySQL\",\"SQL Server\",\"PostgreSQL\",\"Azure\",\"AWS\",\"GCP\",\"APIs\",\"Microservices\",\"AI/ML concepts\",\"DevOps and CI\",\"CD fundamentals\"]"
+    ],
+    "sample_companies": [
+      "Providence"
+    ]
+  },
+  "Share your updated Resume Link": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Providence"
+    ]
+  },
+  "Brief summary of 1\u20132 strongest projects": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Golgix (2nd visit)"
+    ]
+  },
+  "Mandatory skill in": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"SQL\",\"Frontend (React)\",\"BI\",\"Python\"]"
+    ],
+    "sample_companies": [
+      "Golgix (2nd visit)"
+    ]
+  },
+  "Profile Preference 1": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Product Management\",\"HR Ops\",\"Presales\",\"Marketing (Events)\",\"Marketing (Content & Social)\",\"Customer Success & Services\",\"Technical Services\",\"Sales\",\"Marketing & Partner Operations\",\"Cloud Operations\",\"AI in Products Team\",\"QA\",\"Product Development\"]"
+    ],
+    "sample_companies": [
+      "MetricStream"
+    ]
+  },
+  "Profile Preference 2": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Product Management\",\"HR Ops\",\"Presales\",\"Marketing (Events)\",\"Marketing (Content & Social)\",\"Customer Success & Services\",\"Technical Services\",\"Sales\",\"Marketing & Partner Operations\",\"Cloud Operations\",\"AI in Products Team\",\"QA\",\"Product Development\"]"
+    ],
+    "sample_companies": [
+      "MetricStream"
+    ]
+  },
+  "Profile Preference 3": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Product Management\",\"HR Ops\",\"Presales\",\"Marketing (Events)\",\"Marketing (Content & Social)\",\"Customer Success & Services\",\"Technical Services\",\"Sales\",\"Marketing & Partner Operations\",\"Cloud Operations\",\"AI in Products Team\",\"QA\",\"Product Development\"]"
+    ],
+    "sample_companies": [
+      "MetricStream"
+    ]
+  },
+  "Profile Preference 4": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Product Management\",\"HR Ops\",\"Presales\",\"Marketing (Events)\",\"Marketing (Content & Social)\",\"Customer Success & Services\",\"Technical Services\",\"Sales\",\"Marketing & Partner Operations\",\"Cloud Operations\",\"AI in Products Team\",\"QA\",\"Product Development\"]"
+    ],
+    "sample_companies": [
+      "MetricStream"
+    ]
+  },
+  "Skills known": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"UX/Design. SDLC\",\"Agile-Scrum methodologies\",\"HRIS/ATS tools\",\"HubSpot\",\"Premiere Pro\",\"CapCut\",\"SEMrush\",\"Unix commands\",\"SQL\",\"Claude\",\"Copilot\",\"PL/SQL\",\"Java\",\"JS\",\"ReactJS\",\"(LLM tools\",\"agent frameworks\",\"prompt engineering\",\"BPMN 2.0\",\"SDLC understanding\",\"Java\",\"Oracle\",\"React\",\"Claude Code\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "MetricStream"
+    ]
+  },
+  "\"Share the 1 minute video with public access": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "BiteSpeed (4th Visit)"
+    ]
+  },
+  "Are you genuinely interested for Digital Marketing Profile?": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "Aristok Technologies"
+    ]
+  },
+  "Proficiency in": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Java\",\".Net\",\"UI\",\"Data Science\",\"Database\",\"Python\",\"C#\",\"JavaScript\",\"Angular\",\"ReactJs\",\"LLM\",\"AI\",\"ML\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Opus Technologies"
+    ]
+  },
+  "Experience with cloud platforms": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"AWS\",\"Azure\",\"Google Cloud\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Opus Technologies"
+    ]
+  },
+  "Exposure to front-end technologies": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"React\",\"Angular\",\"Vue.Js\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Opus Technologies"
+    ]
+  },
+  "Have you attended the interview using the link mentioned in the notice?": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "ZenStatement"
+    ]
+  },
+  "Are you genuinely interested for this position?": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "NoboruWorld (2nd Visit)"
+    ]
+  },
+  "Total No. of Educational Year Gap": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"0\",\"1\",\"2\",\"3 More than 3\"]"
+    ],
+    "sample_companies": [
+      "Tata Power Odisha DISCOMs"
+    ]
+  },
+  "Current Location": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Tata Power Odisha DISCOMs"
+    ]
+  },
+  "WHATSAPP NO": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Tata Power Odisha DISCOMs"
+    ]
+  },
+  "Permanent Address": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Tata Power Odisha DISCOMs"
+    ]
+  },
+  "Permanent Post Office": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Tata Power Odisha DISCOMs"
+    ]
+  },
+  "Permanent Dist": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Tata Power Odisha DISCOMs"
+    ]
+  },
+  "Pin Code": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Tata Power Odisha DISCOMs"
+    ]
+  },
+  "Category (SC/ST/OBC/SEBC/MINORITY/GE)": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Tata Power Odisha DISCOMs"
+    ]
+  },
+  "Profile Preference": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"GTM Growth Executive Intern\",\"SDE Intern\"]"
+    ],
+    "sample_companies": [
+      "AntBox(7th Visit)"
+    ]
+  },
+  "Techncial Skills in Data Engineering, ETL Concepts, PySpark": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Navikenz Ltd."
+    ]
+  },
+  "Skills in SQL, SQL Server, Stored Procedures, Built-in Functions, Indexes & Views, Advanced SQL Features": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"no\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Navikenz Ltd."
+    ]
+  },
+  "Skills in Data Science, Data Analytics, Exploratory Data Analysis, Data Visualization": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Navikenz Ltd."
+    ]
+  },
+  "Skills in Artificial Intelligence, Machine Learning, Generative AI (Gen AI), Agentic AI": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Navikenz Ltd."
+    ]
+  },
+  "Skills in LangGraph / Long-chain frameworks, Guardrails": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Navikenz Ltd."
+    ]
+  },
+  "Skills in Data Structures": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Navikenz Ltd."
+    ]
+  },
+  "Cloud Platform Skill in": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"AWS\",\"GCP\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Navikenz Ltd."
+    ]
+  },
+  "Skills in React, Node.js, Angular": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"React\",\"Node.js\",\"Angular\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Navikenz Ltd."
+    ]
+  },
+  "Share the Resume Link with piublic access": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Navikenz Ltd."
+    ]
+  },
+  "AGE as on 1st Sept'2026": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Rockman Industries Ltd"
+    ]
+  },
+  "FATHER\u2019S NAME": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Rockman Industries Ltd"
+    ]
+  },
+  "HOMETOWN (city with state)": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Rockman Industries Ltd"
+    ]
+  },
+  "Knowledge of popular technology stacks": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Angular\",\"React\",\"Node.js\",\"JavaScript frameworks\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Chubb"
+    ]
+  },
+  "Knowledge of databases": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"MySQL\",\"MongoDB\",\"Apache\",\"UI/UX design\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Chubb"
+    ]
+  },
+  "Knowledge of cloud technologies on": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"AWS\",\"Microsoft Azure\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "EXL Services"
+    ]
+  },
+  "Knoweldge in": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"AI\",\"ML\",\"Visual Studio\",\"Net\",\"ASP.Net\",\"API Integration\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "EXL Services"
+    ]
+  },
+  "Knowledge in programming languages": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"SQL\",\"R\",\"Python\",\"Power BI\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "EXL Services"
+    ]
+  },
+  "Name as per the Aadhar card": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "EXL Services"
+    ]
+  },
+  "Hometown (city with state)": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "EXL Services"
+    ]
+  },
+  "Current Location (State)": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "EXL Services"
+    ]
+  },
+  "Pincode": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "EXL Services"
+    ]
+  },
+  "Person with Disability (PWD) (Yes/No)": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "EXL Services"
+    ]
+  },
+  "Class 10th School Name": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "EXL Services"
+    ]
+  },
+  "Class 12th/Diploma College Name": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "EXL Services"
+    ]
+  },
+  "Project Summary(you have done)": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "EXL Services"
+    ]
+  },
+  "Father's Occupation": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Brakes India (P) Ltd."
+    ]
+  },
+  "Student's Alternate Mobile No.": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Brakes India (P) Ltd."
+    ]
+  },
+  "Area for Interest": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Brakes India (P) Ltd."
+    ]
+  },
+  "Programming Skills in": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Java\",\"C++\",\"Python\",\"Node.js\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "IBM Consulting"
+    ]
+  },
+  "10th course type": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Fulltime\",\"Correspondence\",\"Distance\",\"NIOS\"]"
+    ],
+    "sample_companies": [
+      "Infocepts Technologies"
+    ]
+  },
+  "12th/Diploma course type": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Fulltime\",\"Correspondence\",\"Distance\",\"NIOS\"]"
+    ],
+    "sample_companies": [
+      "Infocepts Technologies"
+    ]
+  },
+  "B.Tech Couse type": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Fulltime\",\"Correspondence\",\"Lateral Entry\",\"NIOS\"]"
+    ],
+    "sample_companies": [
+      "Infocepts Technologies"
+    ]
+  },
+  "Are you interested for this profile?": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "pando"
+    ]
+  },
+  "Share your updated Resume llink with public access": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "pando"
+    ]
+  },
+  "Share your updated resume with public access": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Murphi.ai"
+    ]
+  },
+  "Technical Skills": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"AI & Generative AI\",\"\",\"OpenAI models and APIs\",\"Codex\",\"Claude\",\"Gemini\",\"Google Vertex AI\",\"LangChain\",\"\",\"RAG architectures\",\"Vector databases\",\"Embedding models\",\"AI agents\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Murphi.ai"
+    ]
+  },
+  "Programming Knweldge in": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Python\",\"APIs / REST services\",\"Backend application development\",\"Data structures and algorithms\",\"\",\"Object-oriented programming\",\"Git / GitHub\",\"JavaScript\",\"TypeScript\",\"Node.js\",\"Java\",\"\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Murphi.ai"
+    ]
+  },
+  "Knoweldge in Database": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"SQL\",\"PostgreSQL\",\"MySQL\",\"NoSQL databases\",\"JSON\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Murphi.ai"
+    ]
+  },
+  "Full Name (as per Aadhaar card)": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "LTM"
+    ]
+  },
+  "Personal Email ID (not College Email ID) which you have provided in Supoerset": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "LTM"
+    ]
+  },
+  "Class 10th Pass in": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Regular\",\"Correspondence\",\"NIOS\"]"
+    ],
+    "sample_companies": [
+      "LTM"
+    ]
+  },
+  "Class 12th/Diploma Pass in": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Regular\",\"Correspondence\",\"NIOS\"]"
+    ],
+    "sample_companies": [
+      "LTM"
+    ]
+  },
+  "Graduation Pass in (for MCA & M.Tech Studnets) B.Tech students can put NA": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Regular\",\"Correspoence\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "LTM"
+    ]
+  },
+  "Year Gap between 10th to 11th Class": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"0\",\"1\",\"2\",\"More than2\"]"
+    ],
+    "sample_companies": [
+      "LTM"
+    ]
+  },
+  "Year Gap Between 12th to 1st Year of Graduation": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"0\",\"1\",\"2\",\"More than 2\"]"
+    ],
+    "sample_companies": [
+      "LTM"
+    ]
+  },
+  "Total Year Gap bewteen 10th to 1st Year of Graduation": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"0\",\"1\",\"2\",\"More than 2\"]"
+    ],
+    "sample_companies": [
+      "LTM"
+    ]
+  },
+  "Year Gap between Graduation to 1st Year of PG (B.Tech Students can put NA)": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"0\",\"1\",\"2\",\"More than 2\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "LTM"
+    ]
+  },
+  "Do you have pancard?": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "LTM"
+    ]
+  },
+  "Alternate Number": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Rockwell Automation"
+    ]
+  },
+  "Age": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Rockwell Automation"
+    ]
+  },
+  "Flexible for relocation": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "Rockwell Automation"
+    ]
+  },
+  "Valid Govt ID": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "Rockwell Automation"
+    ]
+  },
+  "Home town location": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Rockwell Automation"
+    ]
+  },
+  "Demonstrated interest in": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Cyber Security and Cloud Technologies\",\"foundational knowledge of  networking\",\"information security\",\"cyber threats\",\"coursework\",\"projects\",\"certifications\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Evernorth Health Services"
+    ]
+  },
+  "Current location (city with state)": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "AdyatanTech"
+    ]
+  },
+  "Will you attend the Interview at thier officce in Hyderabad if shortlisted": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "AdyatanTech"
+    ]
+  },
+  "Alternate Mobile No": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Tata Power.."
+    ]
+  },
+  "Permanent Address  (city with state)": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Tata Power.."
+    ]
+  },
+  "Permanent District": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Tata Power.."
+    ]
+  },
+  "*Postal Code": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Tata Power.."
+    ]
+  },
+  "*Domicile State": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Tata Power.."
+    ]
+  },
+  "*Domicile City": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Tata Power.."
+    ]
+  },
+  "Current Location(city with State)": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "MathCo"
+    ]
+  },
+  "Resume link": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "MathCo"
+    ]
+  },
+  "Do you have any gap in your education ?": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "PwC India"
+    ]
+  },
+  "What is the duration of the gap?": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"1 year\",\"2 year\",\"3 year\",\"4 year\",\"5 year\"]"
+    ],
+    "sample_companies": [
+      "PwC India"
+    ]
+  },
+  "State the reason for the gap": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "PwC India"
+    ]
+  },
+  "PwC india reserves the right to cancel the offer in case it is found out the data provided by you is not accurate or you fail to meet the eligibility criteria at the time of joining": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Agree\",\"Disagree\"]"
+    ],
+    "sample_companies": [
+      "PwC India"
+    ]
+  },
+  "Please Share your 1st preferred location of posting": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Gurgaon/Delhi/Noida\",\"Pune\",\"Bangalore\",\"Kolkata\",\"Mumbai\"]"
+    ],
+    "sample_companies": [
+      "PwC India"
+    ]
+  },
+  "Please Share your 2nd preferred location of posting": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Gurgaon/Delhi/Noida\",\"Pune\",\"Bangalore\",\"Kolkata\",\"Mumbai\"]"
+    ],
+    "sample_companies": [
+      "PwC India"
+    ]
+  },
+  "Please Share your 3rd preferred location of posting": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Gurgaon/Delhi/Noida\",\"Pune\",\"Bangalore\",\"Kolkata\",\"Mumbai\"]"
+    ],
+    "sample_companies": [
+      "PwC India"
+    ]
+  },
+  "PwC India has offices all over India, are you open to relocate to any location as per business need": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "PwC India"
+    ]
+  },
+  "Do you have all the relevant work-experience documents from your previous organization/s": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "PwC India"
+    ]
+  },
+  "Are you on sabattical from your organization currently": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "PwC India"
+    ]
+  },
+  "Please share your alternate phone No": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "PwC India"
+    ]
+  },
+  "Were you at any stage of your professional career, employed with PwC India": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "PwC India"
+    ]
+  },
+  "If you were employeed with PwC India, please provide your employee ID (please enter NA if your were not employed with PwC India)": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "PwC India"
+    ]
+  },
+  "Do you confirm that the information shared is correct and accurate": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "PwC India"
+    ]
+  },
+  "Emergency contact person contact number \"": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "PwC India"
+    ]
+  },
+  "Marital status": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Married\",\"Single\"]"
+    ],
+    "sample_companies": [
+      "PwC India"
+    ]
+  },
+  "Emergency contact person name": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "PwC India"
+    ]
+  },
+  "If others, please specify your nationality": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": false,
+    "options": [],
+    "sample_companies": [
+      "PwC India"
+    ]
+  },
+  "Mobile Number": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "PwC India"
+    ]
+  },
+  "PwC India can use the data you have shared for future opportunities as well, do you agree to PwC India collecting and storing your data": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "PwC India"
+    ]
+  },
+  "Are you interested for this profile": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "Power Bridge Systems Pvt Ltd"
+    ]
+  },
+  "Will you available at KIIT Campus  if the process will be on or before 16th Oct'2026": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "Power Bridge Systems Pvt Ltd"
+    ]
+  },
+  "Hometown (City & State)": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Intellipaat"
+    ]
+  },
+  "Resume Link with publoc access": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Intellipaat"
+    ]
+  },
+  "Are you comfortable with relocating to Bangalore? (Y/N)": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "Intellipaat"
+    ]
+  },
+  "Immediate Joining (Y/N)": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "Intellipaat"
+    ]
+  },
+  "Strong Technical Skills in": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Java\",\"SQL\",\"Analytics\",\"Google Cloud\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "CME Group"
+    ]
+  },
+  "Do you have Agentic  AI Skills": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "CME Group"
+    ]
+  },
+  "will you participate CME Process physically during the last week of October'2026": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "CME Group"
+    ]
+  },
+  "Are you genuinely interested for Edutech Profile": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "Scaler"
+    ]
+  },
+  "Share your updated Resume Link with PUBLIC ACCESS": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": false,
+    "options": [],
+    "sample_companies": [
+      "Bluekaktus"
+    ]
+  },
+  "Are you genuinely Interested fir this role?": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": false,
+    "options": [],
+    "sample_companies": [
+      "Bluekaktus"
+    ]
+  },
+  "Are you now in KIIT Campus": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": false,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "Bluekaktus"
+    ]
+  },
+  "Skills Set": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": false,
+    "options": [
+      "[\"REST APIs\",\"MQTT\",\"WebSocket's\",\"Docker,\",\"Kubernetes\",\"AWS\",\"Azure\",\"GCP\",\"Git\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Pine Labs"
+    ]
+  },
+  "Are you genuinely interested for  this profile?": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "BiteSpeed(6th Visit)"
+    ]
+  },
+  "Domicile State": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Clear (Cleartax)"
+    ]
+  },
+  "Are you genuinely interested for this profile": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "Clear (Cleartax)"
+    ]
+  },
+  "Candidate Full Name as per Government ID": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Tech Mahindra"
+    ]
+  },
+  "Permanent Address (city with state)": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Tech Mahindra"
+    ]
+  },
+  "Current address (city with state) not hostel address": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Tech Mahindra"
+    ]
+  },
+  "10th School Name": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Tech Mahindra"
+    ]
+  },
+  "12th/Diploma School/College Name": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Tech Mahindra"
+    ]
+  },
+  "Graduation College Name/University Name for M.Tech Students. B.Tech can put NA": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Tech Mahindra"
+    ]
+  },
+  "Academic Year Gap, if any  (Months)": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Tech Mahindra"
+    ]
+  },
+  "Any Disabilty if any , plz mentioned the details": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Tech Mahindra"
+    ]
+  },
+  "Share the Updated resume link with public access": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Tech Mahindra"
+    ]
+  },
+  "Categpory": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"General\",\"ST\",\"SC\",\"PwD\"]"
+    ],
+    "sample_companies": [
+      "Tech Mahindra"
+    ]
+  },
+  "Candidate Full Name(Name as per Aadhar Card)": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "HashedIn Technologies"
+    ]
+  },
+  "Education Gap (Please specify duration in Month and If No Gap Please specify as 0)": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "HashedIn Technologies"
+    ]
+  },
+  "Current Address state (not hostel address)": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "HashedIn Technologies"
+    ]
+  },
+  "Have you shortlisted for  Deloitte Interview? (Yes/No)": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "HashedIn Technologies"
+    ]
+  },
+  "People with Disability? (Yes/No)": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "HashedIn Technologies"
+    ]
+  },
+  "If Disability, please specify the type": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": false,
+    "options": [],
+    "sample_companies": [
+      "HashedIn Technologies"
+    ]
+  },
+  "Have you done any certificaion , if yes please mentioned the cerification otherwise put NA": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "HashedIn Technologies"
+    ]
+  },
+  "Proficient in": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"JavaScript\",\"Angular 10+\",\"React\",\"Node.js\",\"and MongoDB\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Smartwinnr"
+    ]
+  },
+  "Familiarity with": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Ionic 4+\",\"Cordova\",\"Capacitor\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Smartwinnr"
+    ]
+  },
+  "Good understanding of": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"data structures\",\"algorithms\",\"design patterns\",\"NA\"]"
+    ],
+    "sample_companies": [
+      "Smartwinnr"
+    ]
+  },
+  "Comfortable working with Git and agile development environments": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "Smartwinnr"
+    ]
+  },
+  "Select Preferred Internship Location - Preference 1": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Bangalore\",\"Chennai\",\"Hyderabad\",\"Kochi\",\"Kolkata\",\"Pune\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select Preferred Internship Location - Preference 2": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Bangalore\",\"Chennai\",\"Hyderabad\",\"Kochi\",\"Kolkata\",\"Pune\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Have you been associated with Cognizant through any of the below channel?": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Full time employment\",\"Contractor\",\"Internship\",\"Continuous skill development program (CSD)\",\"Vendor's Payroll\",\"Not Applicable\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select the cloud technologies in which you are proficient": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"AWS\",\"Microsoft Azure\",\"Google GCP\",\"Not Applicable\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in AWS": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "What kind of Hands-on do you have in AWS?": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Problem solving in competitive programming\",\"Internship and Application development\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(AWS)  Please provide a demonstration of the working prototype by uploading a file or sharing a link": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(AWS) Provide a link on Demo or Working Prototype": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(AWS) Give write up in 300 words on how you applied the skill for the chosen work": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(AWS) Select the certification": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"AWS Certified Developer - Associate\",\"AWS Certified Solutions Architect - Associate\",\"AWS Certified Cloud Practitioner\",\"Other\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(AWS) Please provide the name of the vendor": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(AWS) If Selected Others, please provide the name of the Certificate": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in Microsoft Azure": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "What kind of Hands-on do you have in Microsoft Azure?": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Problem solving in competitive programming\",\"Internship and Application development\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Microsoft Azure)  Please provide a demonstration of the working prototype by uploading a file or sharing a link": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "File Upload for Microsoft Azure": {
+    "count": 1,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Microsoft Azure) Provide a link on Demo or Working Prototype": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Microsoft Azure) Give write up in 300 words on how you applied the skill for the chosen work": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Microsoft Azure) Select the certification": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Microsoft Certified: Azure Fundamentals\",\"Microsoft Certified: Azure Developer Associate\",\"Other\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Microsoft Azure) Please provide the name of the vendor": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Microsoft Azure) If Selected Others, please provide the name of the Certificate": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in Google GCP": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "What kind of Hands-on do you have in Google GCP?": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Problem solving in competitive programming\",\"Internship and Application development\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Google GCP)  Please provide a demonstration of the working prototype by uploading a file or sharing a link": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "File Upload for Google GCP": {
+    "count": 1,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Google GCP) Provide a link on Demo or Working Prototype": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Google GCP) Give write up in 300 words on how you applied the skill for the chosen work": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Google GCP) Select the certification": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Google Cloud Certified: Cloud Engineer\",\"Google Cloud Certified: Cloud Developer\",\"Google Cloud Certified: Data Engineer\",\"Google Cloud Certified: Machine Learning Engineer\",\"Other\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Google GCP) Please provide the name of the vendor": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Google GCP) If Selected Others, please provide the name of the Certificate": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Mulesoft) Give write up in 300 words on how you applied the skill for the chosen work": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Pega)  Give write up in 300 words on how you applied the skill for the chosen work": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Salesforce) Give write up in 300 words on how you applied the skill for the chosen work": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Python) If selected Others, please provide the name of the certificate": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Python) Provide the name of the vendor": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Python) Give write up in 300 words on how you applied the skill for the chosen work": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Java) If selected Others, please provide the name of the certificate": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Java) Provide the name of the vendor": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Java) Give write up in 300 words on how you applied the skill for the chosen work": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(ServiceNow)  Give write up in 300 words on how you applied the skill for the chosen work": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(HTML5 & Javascript & CSS3) If selected Others, please provide the name of the certificate": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select the option that best describes the hands-on experience you have in HTML5 & Javascript & CSS3?": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Problem solving in competitive programming\",\"Internship and Application development\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(HTML5 & Javascript & CSS3) Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in HTML5 & Javascript & CSS3": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "File Upload for HTML5 & Javascript & CSS3": {
+    "count": 1,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Provide the link of the solution developed for  HTML5 & Javascript & CSS3": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(HTML5 & Javascript & CSS3) Provide the name of the vendor": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(HTML5 & Javascript & CSS3) Give write up in 300 words on how you applied the skill for the chosen work": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Provide the link of the solution developed for SQL": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(SQL) If selected Others, please provide the name of the certificate": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(SQL) Provide the name of the vendor": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Java) Select the certification": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Java Foundations Certified Junior Associate (JFCJA)\",\"Oracle Certified Associate - Java SE 8 Programmer\",\"Oracle Certified Professional - Java SE 6 Programmer\",\"Oracle Certified Professional (OCP) - Java SE Programmer\",\"Oracle Certified Associate - Java SE 7 Programmer\",\"Oracle Certified Foundation Java EE and Web Services\",\"Oracle Certified Associate - Java SE 8 Programmer (OCAJP/SCJA)\",\"Others\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(SQL) Select the certification": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Oracle Database SQL Certified Associate\",\"MySQL 8.0 Database Developer Oracle Certified Professional\",\"Oracle Certified Professional - MySQL 5.6 Database Administrator\",\"Oracle Certified Professional - MySQL 5.7 Database Administrator\",\"Others\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Python) Select the certification": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"PCED \u2013 Certified Entry-Level Data Analyst with Python\",\"PCEP\u2122 \u2013 Certified Entry-Level Python Programmer\",\"PCAP\u2122 \u2013 Certified Associate in Python Programming\",\"Others\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(HTML5 & Javascript & CSS3) Select the certification": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Microsoft Technology Associate(MTA)\",\"Others\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Oracle Services Product) Give write up in 300 words on how you applied the skill for the chosen work": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(PLM) Give write up in 300 words on how you applied the skill for the chosen work": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Adobe) Give write up in 300 words on how you applied the skill for the chosen work": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "When will you receive your 8th-semester marksheet?": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"April'27\",\"May'27\",\"June'27\",\"July'27\",\"August'27\",\"September'27\",\"October'27\",\"November'27\",\"December'27\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Candidates are required to declare their current employment status accurately. The Company reserves the right to revoke the offer of employment at any stage, including post\u2013offer release or during onboarding, if it is identified that the candidate is an active employee within Cognizant or elsewhere or has provided inaccurate or incomplete information.": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I agree\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Do you have a PAN Card": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Disclaimer : The name given while registration is considered final and if any discrepancy is noted the profile will be rejected (Refer attachment for details)": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I Agree\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Personal Email ID (Any Email ID other than college email ID (Gmail/Hotmail/Outlook/yahoo.. etc))": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Please select the skill you are most proficient (Skill 1)": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"React\",\"PL/SQL\",\"Maven\",\"Spring Core\",\"Spring Boot\",\"Spring Data JPA\",\"Spring REST\",\"Hibernate\",\"Microservices\",\"Not Applicable\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Please select the proficiency (Skill 1)": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"1 - Theoretical and Conceptual knowledge\",\"2 - Hands-on working knowledge\",\"3 - Certified\",\"4 - Not Applicable\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select the source through which you have acquired the skill proficiency (Skill 1)": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"College course / Elective\",\"Self - learnt\",\"Learning Platform\",\"Vendor program\",\"Certification thorugh Vendor/OEM\",\"Project work\",\"Hackathon / Industry Forum or Competition\",\"Not Applicable\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Please select the proficiency (Skill 2)": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"1 - Theoretical and Conceptual knowledge\",\"2 - Hands-on working knowledge\",\"3 - Certified\",\"4 - Not Applicable\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select the source through which you have acquired the skill proficiency (Skill 2)": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"College course / Elective\",\"Self - learnt\",\"Learning Platform\",\"Vendor program\",\"Certification through Vendor/OEM\",\"Project work\",\"Hackathon / Industry Forum or Competition\",\"Not Applicable\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Disclaimer: We request you to acknowledge the fact that you've voluntarily shared the above personal information with Cognizant for enabling Cognizant to facilitate physical onboarding and training. Please authorize Cognizant to retain the above information in its records.": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I Agree\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Were you employed with Cognizant earlier?": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Do you have a Passport": {
+    "count": 1,
+    "types": [
+      "boolean"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "If yes, do you hold an Indian or a Foreign Passport": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Indian Passport\",\"Foreign Passport\",\"No Passport Available\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Please select the skill you are most proficient (Skill 2)": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"React\",\"PL/SQL\",\"Maven\",\"Spring Core\",\"Spring Boot\",\"Spring Data JPA\",\"Spring REST\",\"Hibernate\",\"Microservices\",\"Not Applicable\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Please select the skill you are most proficient (Skill 3)": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"React\",\"PL/SQL\",\"Maven\",\"Spring Core\",\"Spring Boot\",\"Spring Data JPA\",\"Spring REST\",\"Hibernate\",\"Microservices\",\"Not Applicable\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Please select the proficiency (Skill 3)": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"1 - Theoretical and Conceptual knowledge\",\"2 - Hands-on working knowledge\",\"3 - Certified\",\"4 - Not Applicable\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select the source through which you have acquired the skill proficiency (Skill 3)": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"College course / Elective\",\"Self - learnt\",\"Learning Platform\",\"Vendor program\",\"Certification thorugh Vendor/OEM\",\"Project work\",\"Hackathon / Industry Forum or Competition\",\"Not Applicable\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select the skills in which you are proficient": {
+    "count": 1,
+    "types": [
+      "select:multiple"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"HTML\",\"CSS\",\"Javascript\",\"Database/SQL\",\"Java programming\",\"Not Applicable\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in HTML5": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select the option that best describes the hands-on experience you have in HTML5": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Competitive and Internship\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "File Upload for HTML5": {
+    "count": 1,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(HTML5) Provide the name of the vendor/ OEM/ Alliance Partnership": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(HTML5) Provide Certification Name": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(HTML5) Provide a link on Demo or Working Prototype": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(HTML5) Give write up in 300 words on how you applied the skill for the chosen work": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(HTML5)  Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in CSS": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select the option that best describes the hands-on experience you have in CSS": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Competitive and Internship\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "File Upload for CSS": {
+    "count": 1,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(CSS) Provide the name of the vendor/ OEM/ Alliance Partnership": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(CSS) Provide Certification Name": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(CSS) Provide a link on Demo or Working Prototype": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(CSS) Give write up in 300 words on how you applied the skill for the chosen work": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(CSS)  Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Javascript) Give write up in 300 words on how you applied the skill for the chosen work": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(SQL) Provide the name of the vendor/ OEM/ Alliance Partnership": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(SQL) Provide a link on Demo or Working Prototype": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select your proficiency in Java programming": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hands-on working knowledge\",\"Certified\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Select the option that best describes the hands-on experience you have in Java programming": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Hackathon\",\"Project work\",\"Code programming\",\"Competitive and Internship\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "File Upload for Java programming": {
+    "count": 1,
+    "types": [
+      "file"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Java programming) Provide the name of the vendor/ OEM/ Alliance Partnership": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Java programming) Provide Certification Name": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Java programming) Provide a link on Demo or Working Prototype": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Java programming) Give write up in 300 words on how you applied the skill for the chosen work": {
+    "count": 1,
+    "types": [
+      "string"
+    ],
+    "mandatory": true,
+    "options": [],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "(Java programming)  Please provide the details of solution developed by uploading a file or sharing a link": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I want to upload File/Certificate\",\"I want to provide a link\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Candidates are required to declare their current employment status accurately. The Company reserves the right to revoke the offer of employment at any stage, including post\u2013offer release or during onboarding, if it is identified that the candidate is an active employee within Cognizant or elsewhere or has provided inaccurate or incomplete information": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"I agree\"]"
+    ],
+    "sample_companies": [
+      "Cognizant"
+    ]
+  },
+  "Are you comfortable relocating to Bangalore to work from office?": {
+    "count": 1,
+    "types": [
+      "select:single"
+    ],
+    "mandatory": true,
+    "options": [
+      "[\"Yes\",\"No\"]"
+    ],
+    "sample_companies": [
+      "Practo"
+    ]
+  }
+}

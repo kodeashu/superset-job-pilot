@@ -1,0 +1,48 @@
+name: Superset Placement Job Pilot
+
+on:
+  schedule:
+    # Runs every 15 minutes 24/7 (UTC time)
+    - cron: '*/15 * * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub web UI anytime
+
+jobs:
+  check-and-apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Restore SQLite Job Cache
+        uses: actions/cache@v4
+        with:
+          path: data/superset_jobs.sqlite
+          key: superset-db-${{ github.run_id }}
+          restore-keys: |
+            superset-db-
+
+      - name: Run Superset Job Pilot Sync & Auto-Apply
+        env:
+          SUPERSET_EMAIL: ${{ secrets.SUPERSET_EMAIL }}
+          SUPERSET_PASSWORD: ${{ secrets.SUPERSET_PASSWORD }}
+          SUPERSET_TOKEN: ${{ secrets.SUPERSET_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          AUTO_APPLY_ELIGIBLE: 'true'
+          DEFAULT_RESUME_NAME: 'Default_Resume.pdf'
+          ENABLE_GMAIL_MONITOR: 'false'
+        run: |
+          python main.py run

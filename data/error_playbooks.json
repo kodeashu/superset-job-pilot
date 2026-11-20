@@ -1,0 +1,142 @@
+[
+  {
+    "id": "ERR_409_NOT_OPEN",
+    "match_patterns": [
+      "409",
+      "not open for new applications",
+      "job profile not open",
+      "closed for applications",
+      "application deadline has passed"
+    ],
+    "title": "Drive Closed for Applications (HTTP 409 Conflict)",
+    "description": "Superset rejected application because the company has moved to the next recruitment stage (e.g., IN_PROCESS, SHORTLISTING) or the deadline timestamp lapsed.",
+    "root_cause": "The job profile is no longer accepting new submissions on the TNP Suite backend.",
+    "auto_healable": true,
+    "auto_heal_action": "CLOSE_AND_UPDATE_DRIVE",
+    "remediation": "Mark drive as CLOSED_OR_EXPIRED in SQLite database and UI cache, cancel any scheduled retries, and update badge to Closed.",
+    "tags": ["playbook", "409", "closed", "superset_api", "auto_healable"]
+  },
+  {
+    "id": "ERR_409_ALREADY_APPLIED",
+    "match_patterns": [
+      "409",
+      "already applied",
+      "duplicate application",
+      "candidate has already submitted"
+    ],
+    "title": "Already Applied to Drive (HTTP 409 Conflict)",
+    "description": "The student has already successfully submitted an application for this drive in a previous session or via the official web portal.",
+    "root_cause": "Drive is already recorded under candidate's active applications on Superset.",
+    "auto_healable": true,
+    "auto_heal_action": "MARK_AS_APPLIED",
+    "remediation": "Update local drive status to APPLIED in SQLite database and cache. Sync calendar events and notify candidate.",
+    "tags": ["playbook", "409", "applied", "superset_api", "auto_healable"]
+  },
+  {
+    "id": "ERR_401_UNAUTHORIZED",
+    "match_patterns": [
+      "401",
+      "unauthorized",
+      "token expired",
+      "session invalid",
+      "jwt expired",
+      "login required"
+    ],
+    "title": "Superset Session / Token Expired (HTTP 401)",
+    "description": "The active session cookie or JWT bearer token has expired or become invalid.",
+    "root_cause": "Superset session cookies expire periodically or after backend redeployments.",
+    "auto_healable": true,
+    "auto_heal_action": "REAUTHENTICATE_SESSION",
+    "remediation": "Re-execute automated login flow via SupersetClient, acquire fresh auth cookies and CSRF tokens, and transparently retry the failed request.",
+    "tags": ["playbook", "401", "auth", "session", "auto_healable"]
+  },
+  {
+    "id": "ERR_403_INELIGIBLE",
+    "match_patterns": [
+      "403",
+      "forbidden",
+      "not eligible",
+      "age restricted",
+      "eligibility criteria",
+      "access denied"
+    ],
+    "title": "Candidate Ineligible / Access Forbidden (HTTP 403)",
+    "description": "Superset backend marks the student ineligible due to college placement policy, CGPA cutoff, graduation batch mismatch, or age criteria.",
+    "root_cause": "Student does not satisfy the academic or demographic criteria defined by the recruiting company.",
+    "auto_healable": true,
+    "auto_heal_action": "MARK_INELIGIBLE",
+    "remediation": "Mark drive as INELIGIBLE in local tracking database, record reasons in logs, and suppress future auto-apply attempts for this drive.",
+    "tags": ["playbook", "403", "eligibility", "superset_api", "auto_healable"]
+  },
+  {
+    "id": "ERR_400_MISSING_ATTRIBUTE",
+    "match_patterns": [
+      "400",
+      "bad request",
+      "attributeList",
+      "missing mandatory",
+      "validation failed",
+      "required question"
+    ],
+    "title": "Missing Mandatory Questionnaire Attribute (HTTP 400)",
+    "description": "The application payload is missing a required custom question answer or file attachment required by the company.",
+    "root_cause": "Company added or modified custom questionnaire fields that were not in the default submission payload.",
+    "auto_healable": true,
+    "auto_heal_action": "RESOLVE_AND_RETRY_ATTRIBUTE",
+    "remediation": "Query RAG with the missing attribute key against candidate profile facts. If high confidence, inject value into payload and retry. Otherwise create an Unclear Data ticket.",
+    "tags": ["playbook", "400", "questionnaire", "attributes", "auto_healable"]
+  },
+  {
+    "id": "ERR_429_RATE_LIMIT",
+    "match_patterns": [
+      "429",
+      "too many requests",
+      "rate limit",
+      "throttled"
+    ],
+    "title": "API Rate Limit Exceeded (HTTP 429)",
+    "description": "Superset server is receiving requests faster than allowed per minute per IP or session.",
+    "root_cause": "Frequent polling or high concurrency during drive synchronization.",
+    "auto_healable": true,
+    "auto_heal_action": "EXPONENTIAL_BACKOFF",
+    "remediation": "Sleep with exponential jitter (15s to 45s), serve cached drive data to the UI, and automatically resume polling on cooldown.",
+    "tags": ["playbook", "429", "rate_limit", "network", "auto_healable"]
+  },
+  {
+    "id": "ERR_500_502_SERVER_ERROR",
+    "match_patterns": [
+      "500",
+      "502",
+      "503",
+      "504",
+      "internal server error",
+      "bad gateway",
+      "service unavailable",
+      "gateway timeout"
+    ],
+    "title": "Superset TNP Suite Server Outage (HTTP 5xx)",
+    "description": "Superset infrastructure is temporarily down, restarting, or experiencing high load during major placement drives.",
+    "root_cause": "Remote server failure on joinsuperset.com infrastructure.",
+    "auto_healable": true,
+    "auto_heal_action": "RETRY_WITH_JITTER",
+    "remediation": "Hold application attempts in queue, retry up to 3 times with 10s backoff intervals, and notify user only if downtime persists beyond 10 minutes.",
+    "tags": ["playbook", "5xx", "outage", "network", "auto_healable"]
+  },
+  {
+    "id": "ERR_UNCLEAR_QUESTION",
+    "match_patterns": [
+      "unclear data",
+      "ambiguous",
+      "low confidence",
+      "missing proof",
+      "specialized certification"
+    ],
+    "title": "Unclear Questionnaire Information",
+    "description": "A drive questionnaire asks for specialized certifications, foreign language ratings, or custom portfolio links not present in candidate profile.",
+    "root_cause": "Custom question requires explicit candidate input or document upload.",
+    "auto_healable": false,
+    "auto_heal_action": "DISPATCH_CLARIFICATION_ALERT",
+    "remediation": "Dispatch immediate Telegram notification to candidate, queue clarification ticket on Mission Control, and hold application until user confirms.",
+    "tags": ["playbook", "unclear", "clarification", "telegram", "human_intervention"]
+  }
+]

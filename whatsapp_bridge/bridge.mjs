@@ -34,6 +34,7 @@ let mePhone = '';
 let meName = '';
 let lastError = '';
 let reconnectTimer = null;
+let reconnectAttempts = 0;
 let starting = false;
 
 function hasSavedCreds() {
@@ -69,6 +70,20 @@ function clearReconnectTimer() {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
   }
+}
+
+function scheduleReconnect(delayMs) {
+  if (!hasSavedCreds() && state === 'logged_out') return;
+  clearReconnectTimer();
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    startSocket({ fresh: false }).catch((e) => {
+      lastError = e?.message || String(e);
+      state = 'connecting';
+      reconnectAttempts = Math.min(reconnectAttempts + 1, 6);
+      scheduleReconnect(Math.min(30000, 3000 * Math.pow(2, reconnectAttempts - 1)));
+    });
+  }, delayMs);
 }
 
 async function teardownSocket() {
@@ -125,8 +140,17 @@ async function startSocket({ fresh = false } = {}) {
       markOnlineOnConnect: false,
       syncFullHistory: false,
       connectTimeoutMs: 25000,
+      keepAliveIntervalMs: 25000,
+      defaultQueryTimeoutMs: 20000,
+      retryRequestDelayMs: 2000,
     });
     sock = socket;
+
+    if (socket.ws && typeof socket.ws.on === 'function') {
+      socket.ws.on('error', (wsErr) => {
+        console.warn('[WA-BRIDGE] WebSocket error (auto-recovering):', wsErr?.message || wsErr);
+      });
+    }
 
     socket.ev.on('creds.update', saveCreds);
 
@@ -153,6 +177,7 @@ async function startSocket({ fresh = false } = {}) {
 
       if (connection === 'open') {
         state = 'connected';
+        reconnectAttempts = 0;
         qrDataUrl = '';
         qrText = '';
         lastError = '';
@@ -173,6 +198,7 @@ async function startSocket({ fresh = false } = {}) {
 
         if (isLoggedOut) {
           state = 'logged_out';
+          reconnectAttempts = 0;
           qrDataUrl = '';
           mePhone = '';
           meName = '';
@@ -186,18 +212,16 @@ async function startSocket({ fresh = false } = {}) {
           sock = null;
           console.log('[WA-BRIDGE] Session logged out — cleared local auth.');
         } else {
-          // 515 restartRequired (normal right after QR scan!) or transient network drop -> reconnect
-          const delayMs = statusCode === DisconnectReason.restartRequired || statusCode === 515 ? 800 : 3500;
+          // 515 restartRequired (normal right after QR scan!) or transient network/sleep drop -> backoff reconnect
+          let delayMs = 800;
+          if (statusCode !== DisconnectReason.restartRequired && statusCode !== 515) {
+            reconnectAttempts = Math.min(reconnectAttempts + 1, 5);
+            delayMs = Math.min(30000, 3000 * Math.pow(2, reconnectAttempts - 1));
+          }
           state = 'connecting';
           lastError = statusCode === 515 ? '' : reasonMsg;
-          console.log(`[WA-BRIDGE] Reconnecting in ${delayMs}ms (code=${statusCode})...`);
-          clearReconnectTimer();
-          reconnectTimer = setTimeout(() => {
-            startSocket({ fresh: false }).catch((e) => {
-              lastError = e.message;
-              state = 'error';
-            });
-          }, delayMs);
+          console.log(`[WA-BRIDGE] Reconnecting in ${delayMs}ms (code=${statusCode}, attempt=${reconnectAttempts})...`);
+          scheduleReconnect(delayMs);
         }
       }
     });
@@ -323,6 +347,22 @@ const server = http.createServer(async (req, res) => {
   } catch (err) {
     console.error('[WA-BRIDGE] HTTP error:', err);
     return sendJson(res, 500, { success: false, message: err.message || 'Internal bridge error' });
+  }
+});
+
+// Prevent Baileys transient WebSocket sleep/wake errors (e.g. 1006 / 408 / Bad MAC) from terminating the daemon
+process.on('unhandledRejection', (reason) => {
+  const msg = reason?.message || String(reason);
+  console.warn('[WA-BRIDGE] Caught unhandled rejection (keeping bridge alive):', msg);
+  if (state !== 'connected' && hasSavedCreds() && !reconnectTimer) {
+    scheduleReconnect(4000);
+  }
+});
+
+process.on('uncaughtException', (err) => {
+  console.warn('[WA-BRIDGE] Caught uncaught exception (keeping bridge alive):', err?.message || err);
+  if (state !== 'connected' && hasSavedCreds() && !reconnectTimer) {
+    scheduleReconnect(4000);
   }
 });
 

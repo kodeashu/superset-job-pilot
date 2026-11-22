@@ -515,6 +515,24 @@ class UserManager:
 
             # Strict cryptographic verification of user's password against stored PBKDF2 hash
             if verify_password(pw_clean, existing["password_hash"]):
+                # In fresh cloud containers (e.g. Render Docker), enrich minimal seeded owner profile from Superset once
+                if (
+                    not user_deserialized.get("full_name")
+                    or user_deserialized.get("full_name") == "Student"
+                    or not (user_deserialized.get("profile") or {}).get("current_cgpa")
+                ):
+                    try:
+                        from superset_client import SupersetClient
+                        sc = SupersetClient(email=email_clean, password=pw_clean)
+                        if sc.login():
+                            imported = self._import_profile_from_superset(sc, email_clean, full_name_override)
+                            merged = {**imported, **{k: v for k, v in (user_deserialized.get("profile") or {}).items() if v not in ("", None)}}
+                            if merged.get("full_name") == "Student" and imported.get("full_name"):
+                                merged["full_name"] = imported["full_name"]
+                            self.update_user_profile(user_deserialized["user_id"], merged)
+                            user_deserialized = self.get_user_by_id(user_deserialized["user_id"]) or user_deserialized
+                    except Exception as enrich_err:
+                        logger.debug(f"Non-blocking profile enrichment skipped: {enrich_err}")
                 token = self.create_session(user_deserialized["user_id"])
                 return True, f"Welcome back, {user_deserialized['full_name']}!", user_deserialized, token
 

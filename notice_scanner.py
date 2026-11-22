@@ -5,6 +5,7 @@ Smart Notice Categorizer, and Pending Offer Watchdog for Superset Job Pilot.
 import io
 import logging
 import re
+import threading
 import time
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Tuple
@@ -19,6 +20,9 @@ from calendar_sync import CalendarSync
 
 logger = logging.getLogger(__name__)
 IST = pytz.timezone("Asia/Kolkata")
+_SCAN_LOCK = threading.Lock()
+MAX_PDF_BYTES = 6 * 1024 * 1024
+MAX_PDF_PAGES = 45
 
 PAGE_MARKER_PREFIX = "<<<SJP_PAGE:"
 PAGE_MARKER_SUFFIX = ">>>"
@@ -103,19 +107,23 @@ def extract_pdf_text_with_pages(pdf_bytes: bytes) -> Tuple[str, int]:
     Extracts text from every page of a PDF using pypdf, preserving page numbers
     via <<<SJP_PAGE:N>>> markers so cached text still reports the exact page number.
     """
-    if not pdf_bytes:
+    if not pdf_bytes or len(pdf_bytes) > MAX_PDF_BYTES:
         return "", 0
     try:
         reader = PdfReader(io.BytesIO(pdf_bytes))
         page_count = len(reader.pages)
+        pages_to_read = min(page_count, MAX_PDF_PAGES)
         parts: List[str] = []
-        for idx, page in enumerate(reader.pages, start=1):
+        for idx, page in enumerate(reader.pages[:pages_to_read], start=1):
             try:
                 page_txt = (page.extract_text() or "").strip()
             except Exception as pe:
                 logger.debug(f"Page {idx} extraction error: {pe}")
                 page_txt = ""
             parts.append(f"{PAGE_MARKER_PREFIX}{idx}{PAGE_MARKER_SUFFIX}\n{page_txt}")
+            # Yield the GIL briefly so health checks & API requests stay responsive on low-vCPU hosts
+            if idx < pages_to_read:
+                time.sleep(0.015)
         return "\n".join(parts), page_count
     except Exception as e:
         logger.warning(f"Failed to parse PDF bytes ({len(pdf_bytes)}B): {e}")
@@ -730,15 +738,36 @@ def scan_notices_for_user(
     user: Dict[str, Any],
     max_pages: int = 2,
     page_size: int = 25,
-    max_pdfs_to_download: int = 18,
+    max_pdfs_to_download: int = 8,
     send_alerts: bool = True,
 ) -> Dict[str, Any]:
     """
     Fetches live homepage notices, downloads & caches any uncached PDFs, scans
     every PDF + notice body for the logged-in student's roll number / email / full name,
     polls /pending_actions for job offers, updates per-user SQLite caches, and fires
-    deduplicated Telegram alerts for brand-new shortlist hits or pending offers.
+    deduplicated Telegram & WhatsApp alerts for brand-new shortlist hits or pending offers.
     """
+    with _SCAN_LOCK:
+        return _scan_notices_for_user_locked(
+            superset_client=superset_client,
+            user_manager=user_manager,
+            user=user,
+            max_pages=max_pages,
+            page_size=page_size,
+            max_pdfs_to_download=max_pdfs_to_download,
+            send_alerts=send_alerts,
+        )
+
+
+def _scan_notices_for_user_locked(
+    superset_client,
+    user_manager,
+    user: Dict[str, Any],
+    max_pages: int = 2,
+    page_size: int = 25,
+    max_pdfs_to_download: int = 8,
+    send_alerts: bool = True,
+) -> Dict[str, Any]:
     user_id = user["user_id"]
     profile = user.get("profile") or {}
     roll_number = str(user.get("roll_number") or profile.get("roll_number") or "").strip()

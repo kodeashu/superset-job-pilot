@@ -89,9 +89,8 @@ def main():
         timeout=20,
     )
 
-    print("5/5 Triggering live Superset job & shortlist PDF scan on cloud instance...")
+    print("5/5 Triggering live Superset drive & background shortlist scan on cloud instance...")
     r_sync = sess.post(f"{base_url}/api/sync", headers=headers, timeout=60)
-    r_scan = sess.post(f"{base_url}/api/notices/scan", headers=headers, timeout=90)
 
     r_status = sess.get(f"{base_url}/api/status", headers=headers, timeout=20).json()
     r_master_check = sess.get(f"{base_url}/api/resume/master", headers=headers, timeout=20).json()
@@ -99,10 +98,10 @@ def main():
     print(
         f"DONE! Cloud instance verified: "
         f"jobs={r_status.get('total_jobs')} | applied={r_status.get('applied_jobs')} | "
-        f"shortlists={r_status.get('shortlisted_count')} | "
+        f"cgpa_set={bool(r_status.get('cgpa'))} | "
         f"resume_projects={len(m_out.get('projects') or [])} | "
         f"resume_photo={'yes' if m_out.get('photo_b64') else 'no'} | "
-        f"sync_ok={r_sync.status_code == 200} | scan_ok={r_scan.status_code == 200}"
+        f"sync_ok={r_sync.status_code == 200}"
     )
 
 

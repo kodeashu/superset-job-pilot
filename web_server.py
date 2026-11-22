@@ -80,6 +80,8 @@ def background_monitor_worker():
     """Autonomous 24/7 background worker that syncs Superset every Config.POLL_INTERVAL_MINUTES."""
     global last_sync_info, daemon_active, _cached_jobs, _cache_time
     log_event(f"Autonomous background engine online. Poll cadence: {Config.POLL_INTERVAL_MINUTES}m.", "INFO")
+    # Brief boot grace period so cloud health probes pass cleanly before initial sync
+    time.sleep(8)
 
     while True:
         if not daemon_active:
@@ -138,7 +140,7 @@ def background_monitor_worker():
                                         "SUCCESS",
                                     )
                             n_res = scan_notices_for_user(
-                                sc_u, um, u_obj, max_pages=2, page_size=25, max_pdfs_to_download=12, send_alerts=True
+                                sc_u, um, u_obj, max_pages=2, page_size=25, max_pdfs_to_download=6, send_alerts=True
                             )
                             nc = n_res.get("counts", {})
                             log_event(
@@ -5092,17 +5094,10 @@ def index():
 
 @app.route("/api/health", methods=["GET"])
 def api_health():
-    """Lightweight unauthenticated health probe for Docker, Railway, Fly.io, and Render (zero PII)."""
-    wa_online = False
-    try:
-        r = requests.get(f"{Config.WHATSAPP_BRIDGE_URL.rstrip('/')}/status", timeout=0.6)
-        wa_online = (r.status_code == 200)
-    except Exception:
-        wa_online = False
+    """Instant non-blocking health probe (<1ms, zero PII) for Docker, Render, Railway & Fly.io."""
     return jsonify({
         "status": "ok",
         "daemon_active": daemon_active,
-        "whatsapp_bridge_online": wa_online,
     })
 
 
@@ -5349,7 +5344,7 @@ def trigger_sync():
             try:
                 sc_n = _get_superset_for_user(u_obj)
                 if sc_n.login():
-                    scan_notices_for_user(sc_n, user_manager, u_obj, max_pages=2, page_size=25, max_pdfs_to_download=12, send_alerts=True)
+                    scan_notices_for_user(sc_n, user_manager, u_obj, max_pages=2, page_size=25, max_pdfs_to_download=6, send_alerts=True)
             except Exception as bg_err:
                 logger.debug(f"Background notice scan warning: {bg_err}")
 
@@ -5441,7 +5436,7 @@ def get_notices():
                 student_name=user["full_name"],
             ))
         result = scan_notices_for_user(
-            superset, user_manager, user, max_pages=2, page_size=25, max_pdfs_to_download=14, send_alerts=True
+            superset, user_manager, user, max_pages=2, page_size=25, max_pdfs_to_download=6, send_alerts=True
         )
         return jsonify(result)
     except Exception as e:
@@ -5469,7 +5464,7 @@ def scan_notices_endpoint():
             return jsonify({"success": False, "message": "Superset authentication failed."}), 401
 
         result = scan_notices_for_user(
-            superset, user_manager, user, max_pages=2, page_size=25, max_pdfs_to_download=20, send_alerts=True
+            superset, user_manager, user, max_pages=2, page_size=25, max_pdfs_to_download=8, send_alerts=True
         )
         c = result.get("counts", {})
         log_event(

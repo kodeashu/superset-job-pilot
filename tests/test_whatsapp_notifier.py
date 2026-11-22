@@ -432,6 +432,30 @@ class TestFlaskWhatsAppApi(unittest.TestCase):
                     u_after = um.get_user_by_id(uid)
                     self.assertEqual(u_after["profile"]["whatsapp_config"]["provider"], "local_qr")
 
+    def test_stateless_hmac_session_survives_sessions_table_wipe_and_revokes_on_logout(self):
+        td_kwargs = {"ignore_cleanup_errors": True} if sys.version_info >= (3, 10) else {}
+        with tempfile.TemporaryDirectory(**td_kwargs) as td:
+            um, uid = _make_isolated_um_and_user(td, "session-test-u1")
+            tok = um.create_session(uid, ttl_days=90)
+            self.assertTrue(tok.startswith("sjp1."))
+            self.assertIsNotNone(um.get_user_by_token(tok))
+
+            # Wipe sessions table to simulate Render/Docker ephemeral restart
+            with um._connect() as conn:
+                conn.execute("DELETE FROM sessions")
+                conn.commit()
+            u_restored = um.get_user_by_token(tok)
+            self.assertIsNotNone(u_restored)
+            self.assertEqual(u_restored["email"], "rohan@example.edu")
+
+            # Tampered token must fail
+            tampered = tok[:-1] + ("A" if tok[-1] != "A" else "B")
+            self.assertIsNone(um.get_user_by_token(tampered))
+
+            # Explicit sign-out revokes immediately
+            um.destroy_session(tok)
+            self.assertIsNone(um.get_user_by_token(tok))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -2039,7 +2039,7 @@ async function apiFetch(url, options = {}) {
   if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
   if (options.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
 
-  const res = await fetch(url, Object.assign({}, options, { headers }));
+  const res = await fetch(url, Object.assign({ credentials: 'same-origin' }, options, { headers }));
   const rawText = await res.text();
   let data = null;
   if (rawText && rawText.trim()) {
@@ -2061,6 +2061,9 @@ async function apiFetch(url, options = {}) {
   }
 
   if (res.status === 401 && !url.includes('/api/auth/')) {
+    authToken = '';
+    currentUser = null;
+    try { localStorage.removeItem('sjp_token'); } catch (e) {}
     showAuthOverlay();
   }
   return { ok: res.ok, status: res.status, data };
@@ -5125,8 +5128,9 @@ def auth_login():
             "is_admin": user["is_admin"],
         },
     })
-    resp.set_cookie("sjp_token", token, httponly=True, samesite="Lax", max_age=30 * 86400)
-    resp.set_cookie("sjp_logged_out", "0", max_age=30 * 86400)
+    is_https = bool(request.is_secure or request.headers.get("X-Forwarded-Proto") == "https")
+    resp.set_cookie("sjp_token", token, httponly=True, samesite="Lax", secure=is_https, max_age=90 * 86400)
+    resp.set_cookie("sjp_logged_out", "0", max_age=90 * 86400)
     return resp
 
 
@@ -5159,8 +5163,9 @@ def auth_register():
             "is_admin": user["is_admin"],
         },
     })
-    resp.set_cookie("sjp_token", token, httponly=True, samesite="Lax", max_age=30 * 86400)
-    resp.set_cookie("sjp_logged_out", "0", max_age=30 * 86400)
+    is_https = bool(request.is_secure or request.headers.get("X-Forwarded-Proto") == "https")
+    resp.set_cookie("sjp_token", token, httponly=True, samesite="Lax", secure=is_https, max_age=90 * 86400)
+    resp.set_cookie("sjp_logged_out", "0", max_age=90 * 86400)
     return resp
 
 
@@ -5169,8 +5174,11 @@ def auth_me():
     user = get_current_user()
     if not user:
         return jsonify({"authenticated": False}), 401
-    token = _extract_token() or user_manager.create_session(user["user_id"])
-    return jsonify({
+    token = _extract_token()
+    # Auto-upgrade legacy opaque tokens or localhost auto-sessions to 90-day stateless signed tokens
+    if not token or not token.startswith("sjp1."):
+        token = user_manager.create_session(user["user_id"])
+    resp = jsonify({
         "authenticated": True,
         "token": token,
         "user": {
@@ -5182,6 +5190,9 @@ def auth_me():
             "is_admin": user["is_admin"],
         },
     })
+    is_https = bool(request.is_secure or request.headers.get("X-Forwarded-Proto") == "https")
+    resp.set_cookie("sjp_token", token, httponly=True, samesite="Lax", secure=is_https, max_age=90 * 86400)
+    return resp
 
 
 @app.route("/api/auth/logout", methods=["POST"])
@@ -5296,9 +5307,9 @@ def trigger_sync():
             return jsonify({
                 "success": False,
                 "has_errors": True,
-                "errors": ["Superset authentication failed. Check your Superset credentials."],
-                "message": "Superset authentication failed.",
-            }), 401
+                "errors": ["Superset portal temporarily unavailable or credentials rejected. Please retry."],
+                "message": "Superset portal temporarily unavailable or credentials rejected.",
+            }), 502
 
         jobs = superset.fetch_job_profiles()
         sorted_jobs = sorted(jobs, key=lambda x: x.get("raw", {}).get("createdAt") or 0, reverse=True)
@@ -5461,7 +5472,7 @@ def scan_notices_endpoint():
     try:
         superset = _get_superset_for_user(user)
         if not superset.login():
-            return jsonify({"success": False, "message": "Superset authentication failed."}), 401
+            return jsonify({"success": False, "message": "Superset portal temporarily unavailable."}), 502
 
         result = scan_notices_for_user(
             superset, user_manager, user, max_pages=2, page_size=25, max_pdfs_to_download=8, send_alerts=True
@@ -5492,7 +5503,7 @@ def proxy_notice_attachment_pdf(notice_id, attachment_id):
     try:
         superset = _get_superset_for_user(user)
         if not superset.login():
-            return jsonify({"error": "Superset authentication failed"}), 401
+            return jsonify({"error": "Superset portal temporarily unavailable"}), 502
 
         content_bytes, content_type, _ = superset.download_notice_attachment(notice_id, attachment_id)
         if not content_bytes:
@@ -5759,7 +5770,7 @@ def get_job_application_preview(job_id):
         resolver = AttributeResolver(user_id=user["user_id"], profile_data=user["profile"])
         superset = _get_superset_for_user(user)
         if not superset.login():
-            return jsonify({"error": "Failed to log in to Superset"}), 401
+            return jsonify({"error": "Superset portal temporarily unavailable"}), 502
 
         detail_url = f"{superset.base_url}/tnpsuite-core/students/{superset.user_uuid}/job_profiles/{job_id}"
         resp = superset.session.get(detail_url, timeout=12)
@@ -5840,9 +5851,9 @@ def manual_apply(job_id):
 
         superset = _get_superset_for_user(user)
         if not superset.login():
-            err_msg = "Superset authentication failed. Please check your credentials."
+            err_msg = "Superset portal temporarily unavailable. Please retry in a moment."
             log_event(err_msg, "ERROR")
-            return jsonify({"success": False, "message": err_msg}), 401
+            return jsonify({"success": False, "message": err_msg}), 502
 
         res = superset.apply_to_job(
             job_id,

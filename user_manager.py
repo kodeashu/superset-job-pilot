@@ -262,6 +262,11 @@ class UserManager:
                     FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
                 );
 
+                CREATE TABLE IF NOT EXISTS revoked_tokens (
+                    token_hash TEXT PRIMARY KEY,
+                    revoked_at INTEGER NOT NULL
+                );
+
                 CREATE TABLE IF NOT EXISTS invite_codes (
                     code TEXT PRIMARY KEY,
                     label TEXT DEFAULT 'College Friend Invite',
@@ -408,17 +413,53 @@ class UserManager:
                 logger.warning(f"Could not remove legacy student_profile.json: {e}")
 
     # ═══════════════════════════════════════════════════════════════════
-    # SESSION & USER MANAGEMENT
+    # SESSION & USER MANAGEMENT (90-Day Stateless HMAC-SHA256 + Revocation)
     # ═══════════════════════════════════════════════════════════════════
 
-    def create_session(self, user_id: str, ttl_days: int = 30) -> str:
-        raw_token = secrets.token_urlsafe(36)
-        token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+    @staticmethod
+    def _session_signing_key() -> bytes:
+        return hmac.new(_get_or_create_secret_key(), b"sjp-stateless-session-v1", hashlib.sha256).digest()
+
+    @classmethod
+    def _sign_session_token(cls, email: str, expires_at: int) -> str:
+        payload = {"e": email.strip().lower(), "exp": int(expires_at), "n": secrets.token_hex(8)}
+        raw_json = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+        payload_b64 = base64.urlsafe_b64encode(raw_json).decode("ascii").rstrip("=")
+        sig = hmac.new(cls._session_signing_key(), payload_b64.encode("ascii"), hashlib.sha256).digest()
+        sig_b64 = base64.urlsafe_b64encode(sig).decode("ascii").rstrip("=")
+        return f"sjp1.{payload_b64}.{sig_b64}"
+
+    @classmethod
+    def _verify_session_token(cls, raw_token: str) -> Optional[str]:
+        parts = (raw_token or "").split(".")
+        if len(parts) != 3 or parts[0] != "sjp1":
+            return None
+        _, payload_b64, sig_b64 = parts
+        expected_sig = base64.urlsafe_b64encode(
+            hmac.new(cls._session_signing_key(), payload_b64.encode("ascii"), hashlib.sha256).digest()
+        ).decode("ascii").rstrip("=")
+        if not hmac.compare_digest(expected_sig, sig_b64):
+            return None
+        try:
+            padded = payload_b64 + "=" * (-len(payload_b64) % 4)
+            data = json.loads(base64.urlsafe_b64decode(padded.encode("ascii")).decode("utf-8"))
+            if int(data.get("exp", 0)) <= int(time.time()):
+                return None
+            email = str(data.get("e") or "").strip().lower()
+            return email or None
+        except Exception:
+            return None
+
+    def create_session(self, user_id: str, ttl_days: int = 90) -> str:
         now = int(time.time())
         expires = now + ttl_days * 86400
         with self._connect() as conn:
+            row = conn.execute("SELECT email FROM users WHERE user_id = ?", (user_id,)).fetchone()
+            email = row["email"] if row else ""
+            raw_token = self._sign_session_token(email, expires) if email else secrets.token_urlsafe(36)
+            token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
             conn.execute(
-                "INSERT INTO sessions (token_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
+                "INSERT OR REPLACE INTO sessions (token_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
                 (token_hash, user_id, now, expires),
             )
             conn.commit()
@@ -430,6 +471,10 @@ class UserManager:
         token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
         with self._connect() as conn:
             conn.execute("DELETE FROM sessions WHERE token_hash = ?", (token_hash,))
+            conn.execute(
+                "INSERT OR REPLACE INTO revoked_tokens (token_hash, revoked_at) VALUES (?, ?)",
+                (token_hash, int(time.time())),
+            )
             conn.commit()
 
     def get_user_by_token(self, raw_token: str) -> Optional[Dict[str, Any]]:
@@ -438,6 +483,22 @@ class UserManager:
         token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
         now = int(time.time())
         with self._connect() as conn:
+            revoked = conn.execute(
+                "SELECT 1 FROM revoked_tokens WHERE token_hash = ?",
+                (token_hash,),
+            ).fetchone()
+            if revoked:
+                return None
+
+            # 1. Stateless HMAC-SHA256 signed token (survives Render/Docker ephemeral container restarts!)
+            if raw_token.startswith("sjp1."):
+                email = self._verify_session_token(raw_token)
+                if not email:
+                    return None
+                row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+                return self._deserialize_user_row(row) if row else None
+
+            # 2. Legacy opaque SQLite session fallback
             row = conn.execute(
                 """
                 SELECT u.* FROM sessions s

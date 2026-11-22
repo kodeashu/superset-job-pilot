@@ -6,6 +6,12 @@ services:
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/health
     autoDeploy: true
+    buildFilter:
+      ignoredPaths:
+        - .github/**
+        - README.md
+        - LOCAL_SETUP_AND_HANDOVER.md
+        - tests/**
     envVars:
       - key: DATA_DIR
         value: /app/data

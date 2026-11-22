@@ -1,0 +1,21 @@
+name: Render Cloud Keep-Alive Ping
+
+on:
+  schedule:
+    # Ping every 10 minutes so Render's free Docker instance stays awake 24/7
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping Render /api/health
+        env:
+          HEALTH_URL: ${{ vars.RENDER_HEALTH_URL || 'https://superset-job-pilot.onrender.com/api/health' }}
+        run: |
+          echo "Pinging ${HEALTH_URL}..."
+          response=$(curl -fsS --retry 2 --retry-delay 15 --max-time 60 "${HEALTH_URL}")
+          echo "Response: ${response}"
+          echo "${response}" | grep -q '"status":"ok"'

@@ -42,8 +42,9 @@ class Config:
     GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "")
     ENABLE_GMAIL_MONITOR = os.getenv("ENABLE_GMAIL_MONITOR", "false").lower() in ("true", "1", "yes")
     
-    # Storage & Database
-    DB_PATH = BASE_DIR / "data" / "superset_jobs.sqlite"
+    # Storage & Database (supports Docker persistent volume via DATA_DIR)
+    DATA_DIR = Path(os.getenv("DATA_DIR", str(BASE_DIR / "data")))
+    DB_PATH = DATA_DIR / "superset_jobs.sqlite"
     
     # Execution intervals
     POLL_INTERVAL_MINUTES = int(os.getenv("POLL_INTERVAL_MINUTES", "15"))

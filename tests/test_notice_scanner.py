@@ -8,6 +8,7 @@ Unit & integration test suite for:
 All test fixtures use synthetic student identities — zero personal PII.
 """
 import io
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -188,7 +189,8 @@ class TestNoticeScannerCore(unittest.TestCase):
 
 class TestEndToEndNoticeOrchestrator(unittest.TestCase):
     def setUp(self):
-        self.tmpdir = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
+        td_kwargs = {"ignore_cleanup_errors": True} if sys.version_info >= (3, 10) else {}
+        self.tmpdir = tempfile.TemporaryDirectory(**td_kwargs)
         self.db_path = Path(self.tmpdir.name) / "test_vault.sqlite"
         # Prevent migrating host owner into test DB
         with patch.object(UserManager, "_migrate_owner_and_sanitize_files", return_value=None):

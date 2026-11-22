@@ -14,3 +14,4 @@ netlify_safe/
 .netlify/
 whatsapp_bridge/node_modules/
 data/wa_auth/
+data/.vault_secret

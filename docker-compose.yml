@@ -1,0 +1,37 @@
+services:
+  superset-job-pilot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: superset-job-pilot
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      - PORT=8080
+      - DATA_DIR=/app/data
+      - WA_AUTH_DIR=/app/data/wa_auth
+      - WHATSAPP_BRIDGE_URL=http://127.0.0.1:8091
+      - ENABLE_WHATSAPP_BRIDGE=true
+      - CHROME_BIN=/usr/bin/chromium
+      - POLL_INTERVAL_MINUTES=${POLL_INTERVAL_MINUTES:-15}
+      - AUTO_APPLY_ELIGIBLE=${AUTO_APPLY_ELIGIBLE:-false}
+      # Optional: pass secrets via .env or cloud host env vars
+      - APP_SECRET_KEY=${APP_SECRET_KEY:-}
+      - SUPERSET_EMAIL=${SUPERSET_EMAIL:-}
+      - SUPERSET_PASSWORD=${SUPERSET_PASSWORD:-}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    volumes:
+      # Persists encrypted multi-user vault, job/notice caches, and WhatsApp QR session across rebuilds
+      - superset_data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+
+volumes:
+  superset_data:

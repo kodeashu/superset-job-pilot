@@ -1,0 +1,33 @@
+# Secrets, local environments, and runtime data (NEVER bake into Docker image!)
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.github/
+.netlify/
+netlify_dist/
+netlify_safe/
+
+# Persistent user vault & WhatsApp session live on mounted volume /app/data
+data/users_vault.sqlite*
+data/superset_jobs.sqlite*
+data/*.sqlite*
+data/student_profile.json
+data/error_history.json
+data/pending_clarifications.json
+data/clarifications_memory.json
+data/wa_auth/
+data/.vault_secret
+
+# Installed inside Docker image from lockfile
+whatsapp_bridge/node_modules/
+
+# Docs & local scratch
+*.md
+!README.md
+.DS_Store

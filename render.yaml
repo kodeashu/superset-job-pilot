@@ -1,13 +1,17 @@
 services:
   - type: web
     name: superset-job-pilot
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 wsgi:app
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.0
+      - key: DATA_DIR
+        value: /app/data
+      - key: WA_AUTH_DIR
+        value: /app/data/wa_auth
+      - key: ENABLE_WHATSAPP_BRIDGE
+        value: "true"
       - key: AI_PROVIDER
         value: heuristic
       - key: ENABLE_OLLAMA
-        value: false
+        value: "false"

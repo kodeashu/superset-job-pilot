@@ -22,8 +22,9 @@ from config import BASE_DIR, Config
 
 logger = logging.getLogger(__name__)
 
-VAULT_DB_PATH = BASE_DIR / "data" / "users_vault.sqlite"
-LEGACY_PROFILE_PATH = BASE_DIR / "data" / "student_profile.json"
+VAULT_DB_PATH = Config.DATA_DIR / "users_vault.sqlite"
+VAULT_SECRET_PATH = Config.DATA_DIR / ".vault_secret"
+LEGACY_PROFILE_PATH = Config.DATA_DIR / "student_profile.json"
 EXAMPLE_PROFILE_PATH = BASE_DIR / "data" / "student_profile.example.json"
 ENV_PATH = BASE_DIR / ".env"
 
@@ -110,7 +111,7 @@ DEFAULT_PROFILE_TEMPLATE: Dict[str, Any] = {
 
 
 def _get_or_create_secret_key() -> bytes:
-    """Fetches APP_SECRET_KEY from environment/.env or generates and persists a 256-bit key."""
+    """Fetches APP_SECRET_KEY from env, .env, or persistent DATA_DIR/.vault_secret (Docker-safe)."""
     key_str = os.getenv("APP_SECRET_KEY", "").strip()
     if not key_str and ENV_PATH.exists():
         try:
@@ -121,14 +122,32 @@ def _get_or_create_secret_key() -> bytes:
         except Exception:
             pass
 
+    if not key_str and VAULT_SECRET_PATH.exists():
+        try:
+            key_str = VAULT_SECRET_PATH.read_text(encoding="utf-8").strip()
+        except Exception:
+            pass
+
     if not key_str:
         key_str = secrets.token_urlsafe(48)
         os.environ["APP_SECRET_KEY"] = key_str
+        # Persist inside DATA_DIR (survives Docker container rebuilds when /app/data is a mounted volume)
         try:
-            with open(ENV_PATH, "a", encoding="utf-8") as f:
-                f.write(f"\n# Auto-generated 256-bit Vault Master Key\nAPP_SECRET_KEY={key_str}\n")
+            VAULT_SECRET_PATH.parent.mkdir(parents=True, exist_ok=True)
+            VAULT_SECRET_PATH.write_text(key_str, encoding="utf-8")
+            try:
+                os.chmod(VAULT_SECRET_PATH, 0o600)
+            except Exception:
+                pass
         except Exception as e:
-            logger.warning(f"Could not persist APP_SECRET_KEY to .env: {e}")
+            logger.warning(f"Could not persist APP_SECRET_KEY to {VAULT_SECRET_PATH}: {e}")
+        # Also persist to local .env if present (non-Docker local runs)
+        if ENV_PATH.exists():
+            try:
+                with open(ENV_PATH, "a", encoding="utf-8") as f:
+                    f.write(f"\n# Auto-generated 256-bit Vault Master Key\nAPP_SECRET_KEY={key_str}\n")
+            except Exception as e:
+                logger.warning(f"Could not persist APP_SECRET_KEY to .env: {e}")
 
     return hashlib.sha256(key_str.encode("utf-8")).digest()
 

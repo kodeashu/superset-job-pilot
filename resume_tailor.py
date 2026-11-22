@@ -98,6 +98,9 @@ CHROME_CANDIDATES = [
 
 
 def _find_chrome_binary() -> Optional[str]:
+    env_bin = os.getenv("CHROME_BIN", "").strip()
+    if env_bin and os.path.exists(env_bin) and os.access(env_bin, os.X_OK):
+        return env_bin
     for cand in CHROME_CANDIDATES:
         if os.path.isabs(cand):
             if os.path.exists(cand) and os.access(cand, os.X_OK):
@@ -849,6 +852,7 @@ def render_html_to_pdf_bytes(html_str: str) -> Tuple[Optional[bytes], str]:
             "--headless=new",
             "--disable-gpu",
             "--no-sandbox",
+            "--disable-dev-shm-usage",
             "--no-pdf-header-footer",
             f"--print-to-pdf={pdf_path}",
             html_path.as_uri(),

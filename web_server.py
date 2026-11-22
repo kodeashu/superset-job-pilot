@@ -5090,6 +5090,22 @@ def index():
     return render_template_string(HTML_TEMPLATE)
 
 
+@app.route("/api/health", methods=["GET"])
+def api_health():
+    """Lightweight unauthenticated health probe for Docker, Railway, Fly.io, and Render (zero PII)."""
+    wa_online = False
+    try:
+        r = requests.get(f"{Config.WHATSAPP_BRIDGE_URL.rstrip('/')}/status", timeout=0.6)
+        wa_online = (r.status_code == 200)
+    except Exception:
+        wa_online = False
+    return jsonify({
+        "status": "ok",
+        "daemon_active": daemon_active,
+        "whatsapp_bridge_online": wa_online,
+    })
+
+
 @app.route("/api/auth/login", methods=["POST"])
 def auth_login():
     data = request.get_json(silent=True) or {}
@@ -6339,4 +6355,4 @@ def api_whatsapp_send_digest():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080, debug=False)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 8080)), debug=False)

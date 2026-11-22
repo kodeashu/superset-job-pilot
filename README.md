@@ -77,6 +77,32 @@ python3 main.py status
 
 ---
 
+## 🐳 24/7 All-in-One Docker Deployment (No Laptop / No Tunnel Expiry)
+
+The included [`Dockerfile`](Dockerfile), [`docker-compose.yml`](docker-compose.yml), [`railway.json`](railway.json), [`fly.toml`](fly.toml), and [`render.yaml`](render.yaml) bundle **Python 3.11 + Gunicorn**, **Node.js 22 WhatsApp Linked-Device QR Bridge**, and **Headless Chromium (1-Page A4 Resume PDF Export)** into a single container with persistent storage at `/app/data`.
+
+### Option A: Local / VPS (`docker compose`)
+```bash
+docker compose up -d --build
+# Open http://localhost:8080 (health check: http://localhost:8080/api/health)
+```
+All encrypted accounts (`users_vault.sqlite`), `.vault_secret`, and your WhatsApp Linked-Device session (`wa_auth/`) persist in the `superset_data` volume mounted at `/app/data`.
+
+### Option B: Railway (Easiest 24/7 Cloud Host)
+1. Create a new project in [Railway](https://railway.com) → **Deploy from GitHub repo** → select `superset-job-pilot` (`railway.json` auto-detects `Dockerfile` and `/api/health`).
+2. Add a **Volume** mounted at `/app/data` (keeps your encrypted vault + WhatsApp QR linked across redeploys).
+3. Add optional env vars (`APP_SECRET_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `GEMINI_API_KEY`) and generate a Railway Public Domain — then point Netlify `_redirects` (or visit the Railway domain directly) for permanent 24/7 access with zero `HTTP 530`.
+
+### Option C: Fly.io (`bom` Mumbai Region)
+```bash
+fly launch --no-deploy --copy-config
+fly volumes create superset_data --size 1 --region bom
+fly secrets set APP_SECRET_KEY="$(openssl rand -base64 36)"
+fly deploy
+```
+
+---
+
 ## ☁️ Deploy Free 24/7 on GitHub Actions
 
 You don't need to keep your laptop running:

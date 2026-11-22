@@ -3,6 +3,7 @@ Unit & Flask integration tests for WhatsApp Job Opening & Shortlist Venue Alerts
 Uses 100% synthetic student fixtures — zero personal PII.
 """
 import json
+import sys
 import tempfile
 import time
 import unittest
@@ -234,7 +235,8 @@ class TestRoleSpecificVenueAndDeduplication(unittest.TestCase):
         self.assertIn("B2B Sales", ev_sales["matched_profile"])
 
     def test_job_opening_whatsapp_deduplication(self):
-        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as td:
+        td_kwargs = {"ignore_cleanup_errors": True} if sys.version_info >= (3, 10) else {}
+        with tempfile.TemporaryDirectory(**td_kwargs) as td:
             um, uid = _make_isolated_um_and_user(td, "wa-dedup-u1")
             um.update_user_profile(uid, {
                 "whatsapp_config": {
@@ -298,11 +300,20 @@ class TestFlaskWhatsAppApi(unittest.TestCase):
         import web_server
 
         client = web_server.app.test_client()
+        # Public /api/health returns 200 OK with zero PII for Docker/Railway/Fly probes
+        rh = client.get("/api/health", headers={"Host": "public.example.com", "X-Forwarded-For": "1.2.3.4"})
+        self.assertEqual(rh.status_code, 200)
+        dh = rh.get_json()
+        self.assertEqual(dh["status"], "ok")
+        self.assertNotIn("email", dh)
+        self.assertNotIn("student_name", dh)
+
         # Unauthenticated remote must return 401
         r_unauth = client.get("/api/whatsapp/config", headers={"Host": "public.example.com", "X-Forwarded-For": "1.2.3.4"})
         self.assertEqual(r_unauth.status_code, 401)
 
-        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as td:
+        td_kwargs = {"ignore_cleanup_errors": True} if sys.version_info >= (3, 10) else {}
+        with tempfile.TemporaryDirectory(**td_kwargs) as td:
             um, uid = _make_isolated_um_and_user(td, "wa-flask-u1")
             um.set_cached_notices(uid, [
                 {

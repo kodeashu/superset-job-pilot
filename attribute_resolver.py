@@ -55,7 +55,7 @@ class AttributeResolver:
             logger.error(f"Error saving profile to encrypted vault: {e}")
 
     def resolve_attribute(self, attr: dict) -> Any:
-        """Determines the most accurate answer for a single Superset attribute question."""
+        """Determines the most accurate valid answer for a single Superset attribute question."""
         name = str(attr.get("name") or "").strip()
         attr_type = str(attr.get("attrType") or "string")
         options_raw = attr.get("options")
@@ -63,11 +63,69 @@ class AttributeResolver:
         options = []
         if options_raw:
             try:
-                options = json.loads(options_raw) if isinstance(options_raw, str) else options_raw
+                parsed = json.loads(options_raw) if isinstance(options_raw, str) else options_raw
+                if isinstance(parsed, list):
+                    options = parsed
             except Exception:
                 options = []
 
         nl = name.lower()
+        raw_ans = self._resolve_attribute_raw(attr, name, nl, attr_type, options)
+        return self._coerce_to_options(raw_ans, options, attr_type, nl)
+
+    @staticmethod
+    def _coerce_to_options(raw_ans: Any, options: list, attr_type: str, nl: str) -> Any:
+        """Guarantees that whenever finite options exist, the returned value matches a valid option."""
+        if not options:
+            return raw_ans
+
+        if attr_type == "select:multiple":
+            if isinstance(raw_ans, list) and all(item in options for item in raw_ans) and raw_ans:
+                return raw_ans
+            raw_str = str(raw_ans or "").strip().lower()
+            matched = [opt for opt in options if str(opt).strip().lower() in raw_str]
+            return matched if matched else [options[0]]
+
+        if isinstance(raw_ans, bool):
+            raw_str = "yes" if raw_ans else "no"
+        else:
+            raw_str = str(raw_ans if raw_ans is not None else "").strip()
+
+        # 1. Exact or case-insensitive match
+        for opt in options:
+            if raw_ans == opt or raw_str.lower() == str(opt).strip().lower():
+                return opt
+
+        # 2. Pure Yes/No option set
+        opt_lowers = {str(o).strip().lower() for o in options}
+        if opt_lowers.issubset({"yes", "no", "y", "n"}):
+            neg = raw_str.lower() in ("no", "false", "0", "none", "na", "n", "")
+            target = "no" if neg else "yes"
+            for opt in options:
+                if str(opt).strip().lower().startswith(target[0]):
+                    return opt
+
+        # 3. Token overlap best-match
+        if raw_str:
+            raw_tokens = {t for t in raw_str.lower().replace("/", " ").replace(",", " ").split() if len(t) > 1}
+            if raw_tokens:
+                best_opt = None
+                best_score = 0
+                for opt in options:
+                    o_low = str(opt).strip().lower()
+                    o_tokens = {t for t in o_low.replace("/", " ").replace(",", " ").split() if len(t) > 1}
+                    score = len(raw_tokens & o_tokens)
+                    if raw_str.lower() in o_low or o_low in raw_str.lower():
+                        score += 2
+                    if score > best_score:
+                        best_score = score
+                        best_opt = opt
+                if best_opt is not None and best_score > 0:
+                    return best_opt
+
+        return options[0]
+
+    def _resolve_attribute_raw(self, attr: dict, name: str, nl: str, attr_type: str, options: list) -> Any:
         p = self.profile
 
         # 0. Check User-Verified Clarifications & Dynamic RAG Memory
@@ -210,6 +268,62 @@ class AttributeResolver:
                     return opt
             return p.get("employment_status", "No")
 
+        # 5c. Role / Profile / Track Selection (score options against candidate's real engineering stack)
+        if any(
+            k in nl
+            for k in [
+                "profile applied",
+                "role applied",
+                "applying for",
+                "preferred role",
+                "preferred profile",
+                "select profile",
+                "select role",
+                "choose role",
+                "which profile",
+                "job role",
+            ]
+        ) and len(options) >= 2:
+            rm = p.get("resume_master") if isinstance(p.get("resume_master"), dict) else {}
+            profile_blob = " ".join(
+                [
+                    str(p.get("technical_skills") or ""),
+                    " ".join(str(s.get("items") or "") for s in (rm.get("skills") or []) if isinstance(s, dict)),
+                    " ".join(str(pr.get("title") or "") + " " + str(pr.get("tech") or "") for pr in (rm.get("projects") or []) if isinstance(pr, dict)),
+                ]
+            ).lower()
+            best_opt = options[0]
+            best_score = -999
+            for opt in options:
+                ol = str(opt).lower()
+                score = 0
+                for kw, pts in [
+                    ("full stack", 5),
+                    ("software", 4),
+                    ("application developer", 4),
+                    ("developer", 3),
+                    ("engineer", 2),
+                    ("backend", 3),
+                    ("frontend", 3),
+                    ("web", 2),
+                    ("python", 3),
+                    ("react", 3),
+                    ("node", 2),
+                    ("aws", 3),
+                    ("cloud", 2),
+                    ("ai", 2),
+                    ("data", 1),
+                ]:
+                    if kw in ol:
+                        score += pts + (2 if kw in profile_blob else 0)
+                for neg_kw in ("sales", "b2b", "marketing", "business development", "hr", "non-tech", "voice"):
+                    if neg_kw in ol:
+                        score -= 6
+                if score > best_score:
+                    best_score = score
+                    best_opt = opt
+            return best_opt
+
         # 6. Flexibility (Shift, Location, Domain, Technology)
         if "shift" in nl:
             return "Yes" if "Yes" in options or not options else options[0]
@@ -223,8 +337,8 @@ class AttributeResolver:
         # 7. Resume, Video & Social/Code Links
         if "video" in nl:
             return p.get("intro_video_link") or p.get("resume_link") or ""
-        if "resume" in nl and ("link" in nl or "share" in nl or "url" in nl):
-            return p.get("resume_link", "")
+        if "resume" in nl and any(k in nl for k in ["link", "share", "url", "drive", "public"]):
+            return p.get("resume_link") or p.get("portfolio_link") or ""
         if "github" in nl:
             return p.get("github_link", "")
         if "linkedin" in nl:
@@ -238,8 +352,23 @@ class AttributeResolver:
         if "permanent" in nl and ("location" in nl or "city" in nl or "address" in nl or "native" in nl or "state" in nl):
             return p.get("permanent_location") or p.get("permanent_address") or p.get("current_location", "Bhubaneswar, Odisha")
 
-        # 8b. Technical Skills & Certifications
-        if "skill" in nl or "certification" in nl or "tech skill" in nl:
+        # 8b. Technical Skills & Certifications (respect Yes/No options vs free-text list!)
+        if any(k in nl for k in ["skill", "certification", "certifications", "tech skill", "course"]):
+            opt_lowers = {str(o).strip().lower() for o in options}
+            is_yes_no = bool(options) and opt_lowers.issubset({"yes", "no", "y", "n", "true", "false", "na", "not applicable"})
+            has_bool_intent = is_yes_no or attr_type == "boolean" or any(
+                p_kw in nl for p_kw in ["do you have", "have you done", "have you completed", "are you certified", "done any"]
+            )
+            has_certs = bool(
+                (isinstance(p.get("resume_master"), dict) and p["resume_master"].get("certifications"))
+                or p.get("technical_skills")
+            )
+            if has_bool_intent:
+                if attr_type == "boolean":
+                    return has_certs
+                return "Yes" if has_certs else "No"
+            if options:
+                return options[0]
             return p.get("technical_skills") or "Python, FastAPI, React, SQL, Cloud & Agentic AI Systems"
 
         # 9. Gaps (10th to 12th, 12th to Graduation, Total) - MUST CHECK BEFORE 10th/12th
@@ -390,46 +519,86 @@ class AttributeResolver:
         return resolved
 
     def preview_answers_for_job(self, job_data: dict) -> list:
-        """Returns a list of { key, question, type, options, answer, mandatory } for UI display."""
+        """Returns a list of { key, question, type, options, answer, mandatory, is_answered, needs_review } for UI display."""
         jp = job_data.get("jobProfile", {})
         attr_list = jp.get("attributeList") or job_data.get("attributes") or []
 
         if isinstance(attr_list, dict):
             return []
 
+        custom_clarifs = self.profile.get("custom_clarifications") or {}
         preview = []
         for attr in attr_list:
             if not isinstance(attr, dict):
                 continue
             name = attr.get("name", "")
             attr_type = attr.get("attrType", "string")
-            mandatory = attr.get("mandatory", False)
+            mandatory = bool(attr.get("mandatory", False))
             options_raw = attr.get("options")
             options = []
             if options_raw:
                 try:
-                    options = json.loads(options_raw) if isinstance(options_raw, str) else options_raw
+                    parsed = json.loads(options_raw) if isinstance(options_raw, str) else options_raw
+                    if isinstance(parsed, list):
+                        options = parsed
                 except Exception:
                     options = []
 
             ans = self.resolve_attribute(attr)
+            is_answered = not (
+                ans is None
+                or (isinstance(ans, str) and not ans.strip())
+                or (isinstance(ans, list) and len(ans) == 0)
+            )
+            is_saved_clarif = name in custom_clarifs
 
-            clarity_meta = {
-                "is_unclear": False,
-                "confidence": 0.95,
-                "clarity_reason": "Verified from profile facts",
-            }
-            try:
-                from ambiguity_manager import AmbiguityManager
-                am = AmbiguityManager()
-                eval_res = am.ai.evaluate_question_clarity(attr, ans)
+            norm_opts = {str(o).strip().lower() for o in options}
+            is_choice_question = (
+                len(options) >= 2
+                and not norm_opts.issubset(
+                    {"yes", "no", "i agree", "agree", "regular", "fulltime", "0", "indian", "india", "single", "unmarried", "none", "na", "not applicable"}
+                )
+                and any(
+                    k in name.lower()
+                    for k in ["profile", "role", "track", "domain", "location", "preferred", "stream", "choose", "select"]
+                )
+            )
+            needs_review = bool((mandatory and not is_answered) or (is_choice_question and not is_saved_clarif))
+
+            if not is_answered:
                 clarity_meta = {
-                    "is_unclear": eval_res.get("is_unclear", False),
-                    "confidence": eval_res.get("confidence", 0.95),
-                    "clarity_reason": eval_res.get("reason", ""),
+                    "is_unclear": True,
+                    "confidence": 0.0,
+                    "clarity_reason": "Required — enter answer below before applying" if mandatory else "Optional — blank by default",
                 }
-            except Exception:
-                pass
+            elif is_saved_clarif:
+                clarity_meta = {
+                    "is_unclear": False,
+                    "confidence": 1.0,
+                    "clarity_reason": "Saved from your custom edits",
+                }
+            elif needs_review:
+                clarity_meta = {
+                    "is_unclear": False,
+                    "confidence": 0.78,
+                    "clarity_reason": "Multiple tracks — confirm or switch option below",
+                }
+            else:
+                clarity_meta = {
+                    "is_unclear": False,
+                    "confidence": 0.96,
+                    "clarity_reason": "Verified from your profile vault",
+                }
+                try:
+                    from ambiguity_manager import AmbiguityManager
+                    am = AmbiguityManager()
+                    eval_res = am.ai.evaluate_question_clarity(attr, ans)
+                    if eval_res.get("is_unclear"):
+                        clarity_meta["is_unclear"] = True
+                        clarity_meta["confidence"] = eval_res.get("confidence", 0.6)
+                        clarity_meta["clarity_reason"] = eval_res.get("reason", clarity_meta["clarity_reason"])
+                except Exception:
+                    pass
 
             attr_key = attr.get("attrKey") or attr.get("identifier") or name
             preview.append(
@@ -440,6 +609,8 @@ class AttributeResolver:
                     "mandatory": mandatory,
                     "options": options,
                     "answer": ans,
+                    "is_answered": is_answered,
+                    "needs_review": needs_review,
                     **clarity_meta,
                 }
             )

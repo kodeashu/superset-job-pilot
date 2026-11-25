@@ -13,10 +13,15 @@ import logging
 import os
 import secrets
 import sqlite3
+import sys
+import threading
 import time
 import uuid
+import zlib
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+import requests
 
 from config import BASE_DIR, Config
 
@@ -220,6 +225,114 @@ def verify_password(password: str, stored_hash: str) -> bool:
         return False
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# ZERO-KNOWLEDGE ENCRYPTED CLOUD VAULT SYNC (NETLIFY BLOBS BACKING)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def derive_cloud_vault_credentials(email: str, superset_password: str) -> Tuple[str, str, bytes, bytes]:
+    """
+    Derives deterministic per-user cloud storage coordinates & keys from (email, superset_password).
+    The remote blob server receives only ciphertext (`cv1.*`) and SHA-256(write_token).
+    """
+    norm_email = (email or "").strip().lower()
+    vault_id = hashlib.sha256(f"sjp-cv-id-v1:{norm_email}".encode("utf-8")).hexdigest()
+    master = hashlib.pbkdf2_hmac(
+        "sha256",
+        (superset_password or "").encode("utf-8"),
+        f"sjp-cv-salt-v1:{norm_email}".encode("utf-8"),
+        120_000,
+        dklen=96,
+    )
+    enc_key, mac_key, wt_key = master[:32], master[32:64], master[64:96]
+    write_token = hmac.new(wt_key, vault_id.encode("ascii"), hashlib.sha256).hexdigest()
+    return vault_id, write_token, enc_key, mac_key
+
+
+def encrypt_cloud_vault_blob(email: str, superset_password: str, profile: Dict[str, Any]) -> Tuple[str, str, str]:
+    """Compresses and Encrypt-then-MAC protects a profile dict as a zero-knowledge `cv1.*` blob."""
+    vault_id, write_token, enc_key, mac_key = derive_cloud_vault_credentials(email, superset_password)
+    compressed = zlib.compress(json.dumps(profile, separators=(",", ":")).encode("utf-8"), 9)
+    nonce = secrets.token_bytes(16)
+    stream = _keystream(enc_key, nonce, len(compressed))
+    ciphertext = bytes(a ^ b for a, b in zip(compressed, stream))
+    mac = hmac.new(mac_key, nonce + ciphertext, hashlib.sha256).digest()
+    blob = "cv1." + base64.urlsafe_b64encode(nonce + mac + ciphertext).decode("ascii")
+    return vault_id, write_token, blob
+
+
+def decrypt_cloud_vault_blob(email: str, superset_password: str, blob: str) -> Optional[Dict[str, Any]]:
+    """Verifies HMAC and decrypts/decompresses a zero-knowledge `cv1.*` cloud vault blob."""
+    if not blob or not isinstance(blob, str) or not blob.startswith("cv1."):
+        return None
+    try:
+        _, _, enc_key, mac_key = derive_cloud_vault_credentials(email, superset_password)
+        raw = base64.urlsafe_b64decode(blob[4:].encode("ascii"))
+        if len(raw) < 48:
+            return None
+        nonce = raw[:16]
+        mac = raw[16:48]
+        ciphertext = raw[48:]
+        expected_mac = hmac.new(mac_key, nonce + ciphertext, hashlib.sha256).digest()
+        if not hmac.compare_digest(mac, expected_mac):
+            return None
+        stream = _keystream(enc_key, nonce, len(ciphertext))
+        compressed = bytes(a ^ b for a, b in zip(ciphertext, stream))
+        parsed = json.loads(zlib.decompress(compressed).decode("utf-8"))
+        return parsed if isinstance(parsed, dict) else None
+    except Exception:
+        return None
+
+
+def _cloud_sync_enabled() -> bool:
+    return bool(Config.CLOUD_VAULT_SYNC_URL and "unittest" not in sys.modules)
+
+
+def pull_cloud_vault_profile(email: str, superset_password: str, sync_url: str = "") -> Optional[Dict[str, Any]]:
+    """Fetches and decrypts the user's cloud vault backup if available."""
+    url = (sync_url or Config.CLOUD_VAULT_SYNC_URL or "").strip()
+    if not url or not email or not superset_password:
+        return None
+    try:
+        vault_id, _, _, _ = derive_cloud_vault_credentials(email, superset_password)
+        resp = requests.get(url, params={"id": vault_id}, timeout=8)
+        if resp.status_code != 200:
+            return None
+        data = resp.json()
+        payload = data.get("payload") if isinstance(data, dict) else None
+        if not payload:
+            return None
+        return decrypt_cloud_vault_blob(email, superset_password, payload)
+    except Exception as e:
+        logger.debug(f"Cloud vault pull skipped/failed for {email}: {e}")
+        return None
+
+
+def push_cloud_vault_profile(email: str, superset_password: str, profile: Dict[str, Any], sync_url: str = "") -> bool:
+    """Encrypts and uploads the user's full profile vault to durable cloud blob storage."""
+    url = (sync_url or Config.CLOUD_VAULT_SYNC_URL or "").strip()
+    if not url or not email or not superset_password or not isinstance(profile, dict):
+        return False
+    try:
+        vault_id, write_token, blob = encrypt_cloud_vault_blob(email, superset_password, profile)
+        resp = requests.post(
+            url,
+            json={"id": vault_id, "payload": blob, "write_token": write_token},
+            timeout=10,
+        )
+        return resp.status_code == 200 and bool(resp.json().get("success"))
+    except Exception as e:
+        logger.debug(f"Cloud vault push skipped/failed for {email}: {e}")
+        return False
+
+
+def _push_cloud_vault_async(email: str, superset_password: str, profile: Dict[str, Any]):
+    threading.Thread(
+        target=push_cloud_vault_profile,
+        args=(email, superset_password, dict(profile)),
+        daemon=True,
+    ).start()
+
+
 class UserManager:
     """Manages multi-user accounts, encrypted student profiles, sessions, and invite codes."""
 
@@ -353,7 +466,8 @@ class UserManager:
             with self._connect() as conn:
                 existing = conn.execute("SELECT user_id, encrypted_profile FROM users WHERE email = ?", (owner_email,)).fetchone()
                 if not existing:
-                    merged_profile = {**DEFAULT_PROFILE_TEMPLATE, **legacy_profile}
+                    cloud_prof = pull_cloud_vault_profile(owner_email, owner_pw) if _cloud_sync_enabled() else None
+                    merged_profile = {**DEFAULT_PROFILE_TEMPLATE, **(cloud_prof or {}), **legacy_profile}
                     merged_profile["email"] = owner_email
                     full_name = merged_profile.get("full_name") or "Student"
                     roll_no = merged_profile.get("roll_number") or owner_email.split("@")[0]
@@ -381,21 +495,36 @@ class UserManager:
                         ),
                     )
                     conn.commit()
-                    logger.info(f"Migrated owner account ({owner_email}) into encrypted users_vault.sqlite.")
-                elif legacy_profile.get("full_name"):
-                    # Ensure owner's encrypted profile has all fields from legacy_profile
+                    logger.info(
+                        f"Migrated owner account ({owner_email}) into encrypted users_vault.sqlite"
+                        + (" (restored full profile from Cloud Vault)." if cloud_prof else ".")
+                    )
+                else:
+                    # Ensure owner's encrypted profile has all rich fields from cloud vault & legacy_profile
                     try:
                         curr_p = json.loads(decrypt_secret(existing["encrypted_profile"]))
                     except Exception:
                         curr_p = {}
-                    if not curr_p.get("full_name"):
-                        merged_profile = {**DEFAULT_PROFILE_TEMPLATE, **legacy_profile, **curr_p}
+                    needs_cloud = (
+                        not curr_p.get("dob")
+                        or not curr_p.get("resume_link")
+                        or not curr_p.get("resume_master")
+                    )
+                    cloud_prof = pull_cloud_vault_profile(owner_email, owner_pw) if (needs_cloud and _cloud_sync_enabled()) else None
+                    if cloud_prof or (legacy_profile.get("full_name") and not curr_p.get("full_name")):
+                        non_empty_curr = {k: v for k, v in curr_p.items() if v not in ("", None, [], {})}
+                        merged_profile = {
+                            **DEFAULT_PROFILE_TEMPLATE,
+                            **(cloud_prof or {}),
+                            **legacy_profile,
+                            **non_empty_curr,
+                        }
                         conn.execute(
                             "UPDATE users SET encrypted_profile = ?, full_name = ?, roll_number = ? WHERE user_id = ?",
                             (
                                 encrypt_secret(json.dumps(merged_profile)),
-                                merged_profile.get("full_name", ""),
-                                merged_profile.get("roll_number", ""),
+                                merged_profile.get("full_name") or "Student",
+                                merged_profile.get("roll_number") or owner_email.split("@")[0],
                                 existing["user_id"],
                             ),
                         )
@@ -576,21 +705,33 @@ class UserManager:
 
             # Strict cryptographic verification of user's password against stored PBKDF2 hash
             if verify_password(pw_clean, existing["password_hash"]):
-                # In fresh cloud containers (e.g. Render Docker), enrich minimal seeded owner profile from Superset once
+                curr_p = user_deserialized.get("profile") or {}
+                # 1. Restore from Cloud Vault if container profile is missing rich fields
+                if _cloud_sync_enabled() and (not curr_p.get("dob") or not curr_p.get("resume_master")):
+                    cloud_prof = pull_cloud_vault_profile(email_clean, pw_clean)
+                    if cloud_prof:
+                        non_empty_curr = {k: v for k, v in curr_p.items() if v not in ("", None, [], {})}
+                        merged = {**DEFAULT_PROFILE_TEMPLATE, **cloud_prof, **non_empty_curr}
+                        self.update_user_profile(user_deserialized["user_id"], merged, push_cloud=False)
+                        user_deserialized = self.get_user_by_id(user_deserialized["user_id"]) or user_deserialized
+                        curr_p = user_deserialized.get("profile") or {}
+
+                # 2. Enrich minimal profile from Superset API if still missing core fields
                 if (
                     not user_deserialized.get("full_name")
                     or user_deserialized.get("full_name") == "Student"
-                    or not (user_deserialized.get("profile") or {}).get("current_cgpa")
+                    or not curr_p.get("current_cgpa")
                 ):
                     try:
                         from superset_client import SupersetClient
                         sc = SupersetClient(email=email_clean, password=pw_clean)
                         if sc.login():
                             imported = self._import_profile_from_superset(sc, email_clean, full_name_override)
-                            merged = {**imported, **{k: v for k, v in (user_deserialized.get("profile") or {}).items() if v not in ("", None)}}
+                            non_empty_curr = {k: v for k, v in curr_p.items() if v not in ("", None, [], {})}
+                            merged = {**imported, **non_empty_curr}
                             if merged.get("full_name") == "Student" and imported.get("full_name"):
                                 merged["full_name"] = imported["full_name"]
-                            self.update_user_profile(user_deserialized["user_id"], merged)
+                            self.update_user_profile(user_deserialized["user_id"], merged, push_cloud=False)
                             user_deserialized = self.get_user_by_id(user_deserialized["user_id"]) or user_deserialized
                     except Exception as enrich_err:
                         logger.debug(f"Non-blocking profile enrichment skipped: {enrich_err}")
@@ -631,8 +772,12 @@ class UserManager:
         if not sc.login():
             return False, "Superset authentication failed. Please check your Superset email and password.", None, ""
 
-        # Auto-import student details from Superset
+        # Auto-import student details from Superset + merge any prior Cloud Vault backup
         imported_profile = self._import_profile_from_superset(sc, email_clean, full_name_override)
+        cloud_prof = pull_cloud_vault_profile(email_clean, pw_clean) if _cloud_sync_enabled() else None
+        if cloud_prof:
+            non_empty_imp = {k: v for k, v in imported_profile.items() if v not in ("", None, [], {})}
+            imported_profile = {**DEFAULT_PROFILE_TEMPLATE, **non_empty_imp, **cloud_prof}
         full_name = imported_profile.get("full_name") or full_name_override or email_clean.split("@")[0]
         roll_no = imported_profile.get("roll_number") or email_clean.split("@")[0]
         uid = str(uuid.uuid4())
@@ -669,12 +814,24 @@ class UserManager:
         return True, f"Account created & synced with Superset for {full_name}!", user, token
 
     def _import_profile_from_superset(self, sc, email: str, full_name_override: str = "") -> Dict[str, Any]:
-        """Pulls student profile fields directly from Superset /tnpsuite-core/students/{uuid}."""
+        """Pulls rich student profile fields directly from Superset /tnpsuite-core/students/{uuid}."""
         prof = dict(DEFAULT_PROFILE_TEMPLATE)
         prof["email"] = email
         roll_guess = email.split("@")[0]
         prof["roll_number"] = roll_guess
         prof["identification_number"] = roll_guess
+
+        def _fmt_addr(addr_obj: Any) -> Tuple[str, str]:
+            if not isinstance(addr_obj, dict):
+                return "", ""
+            parts = [
+                str(addr_obj.get(k) or "").strip()
+                for k in ("addressLine", "cityTownVillage", "district", "state", "pincode", "country")
+            ]
+            full_addr = ", ".join(p for p in parts if p)
+            loc_parts = [str(addr_obj.get(k) or "").strip() for k in ("cityTownVillage", "state")]
+            short_loc = ", ".join(p for p in loc_parts if p)
+            return full_addr, short_loc
 
         try:
             url = f"{sc.base_url}/tnpsuite-core/students/{sc.user_uuid}"
@@ -690,16 +847,42 @@ class UserManager:
                 prof["first_name"] = first or full_name.split()[0]
                 prof["middle_name"] = middle
                 prof["last_name"] = last or (full_name.split()[-1] if len(full_name.split()) > 1 else "")
-                prof["roll_number"] = str(sdata.get("rollNumber") or sdata.get("enrollmentNumber") or roll_guess)
+                prof["roll_number"] = str(sdata.get("rollNumber") or sdata.get("identificationNumber") or sdata.get("enrollmentNumber") or roll_guess)
                 prof["identification_number"] = prof["roll_number"]
                 if sdata.get("mobile") or sdata.get("phone"):
                     prof["phone_number"] = str(sdata.get("mobile") or sdata.get("phone"))
                 if sdata.get("gender"):
                     prof["gender"] = str(sdata.get("gender")).capitalize()
+                if sdata.get("dob"):
+                    prof["dob"] = str(sdata.get("dob")).strip()
+                if sdata.get("personalEmail"):
+                    prof["personal_email"] = str(sdata.get("personalEmail")).strip()
+                if sdata.get("collegeName"):
+                    prof["graduation_college"] = str(sdata.get("collegeName")).strip()
                 if sdata.get("currentCgpa") or sdata.get("cgpa"):
                     prof["current_cgpa"] = str(sdata.get("currentCgpa") or sdata.get("cgpa"))
                 if sdata.get("departmentName") or sdata.get("branch"):
                     prof["graduation_branch"] = str(sdata.get("departmentName") or sdata.get("branch"))
+
+                cur_full, cur_loc = _fmt_addr(sdata.get("currentAddress"))
+                if cur_full:
+                    prof["current_address"] = cur_full
+                if cur_loc:
+                    prof["current_location"] = cur_loc
+
+                perm_full, perm_loc = _fmt_addr(sdata.get("permanentAddress"))
+                if perm_full:
+                    prof["permanent_address"] = perm_full
+                if perm_loc:
+                    prof["permanent_location"] = perm_loc
+
+                inv = sdata.get("invitation") if isinstance(sdata.get("invitation"), dict) else {}
+                if not prof.get("current_cgpa") and inv.get("currentCourseScoreValue"):
+                    prof["current_cgpa"] = str(inv.get("currentCourseScoreValue"))
+                if inv.get("currentCourseOngoingBacklogs") is not None:
+                    prof["active_backlogs"] = str(inv.get("currentCourseOngoingBacklogs"))
+                if inv.get("currentCourseTotalBacklogs") is not None:
+                    prof["history_backlogs"] = str(inv.get("currentCourseTotalBacklogs"))
         except Exception as e:
             logger.debug(f"Auto-import profile from Superset warning: {e}")
             prof["full_name"] = full_name_override or sc.student_name or roll_guess
@@ -710,7 +893,7 @@ class UserManager:
     # PER-USER PROFILE, SETTINGS & JOB CACHE
     # ═══════════════════════════════════════════════════════════════════
 
-    def update_user_profile(self, user_id: str, new_data: Dict[str, Any]) -> Dict[str, Any]:
+    def update_user_profile(self, user_id: str, new_data: Dict[str, Any], push_cloud: bool = True) -> Dict[str, Any]:
         user = self.get_user_by_id(user_id)
         if not user:
             raise ValueError("User not found")
@@ -725,6 +908,8 @@ class UserManager:
                 (encrypt_secret(json.dumps(profile)), full_name, roll_no, user_id),
             )
             conn.commit()
+        if push_cloud and _cloud_sync_enabled() and user.get("email") and user.get("superset_password"):
+            _push_cloud_vault_async(user["email"], user["superset_password"], profile)
         return profile
 
     def set_user_auto_apply(self, user_id: str, enabled: bool) -> bool:

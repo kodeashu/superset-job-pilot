@@ -17,7 +17,7 @@ from unittest.mock import MagicMock, patch
 from pypdf import PdfWriter
 from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 
-from datetime import date
+from datetime import date, timedelta
 from notice_scanner import (
     classify_notice_category,
     extract_event_details,
@@ -204,8 +204,9 @@ class TestEndToEndNoticeOrchestrator(unittest.TestCase):
             "profile": {"roll_number": "23051234", "full_name": "Aarav Sharma"},
             "telegram_chat_id": "123456",
         }
+        self._future_date_str = (date.today() + timedelta(days=1)).strftime("%d %b %Y")
         self.pdf_bytes = _build_synthetic_pdf([
-            "KIIT T&P Shortlisted list for DeltaX Online Test on 22nd Nov'2026",
+            f"KIIT T&P Shortlisted list for DeltaX Online Test on {self._future_date_str}",
             "12 23051234 Aarav Sharma 23051234@kiit.ac.in Computer Lab-2, Campus-6 4:30 PM",
         ])
 
@@ -231,12 +232,12 @@ class TestEndToEndNoticeOrchestrator(unittest.TestCase):
             },
             {
                 "identifier": "n-shortlist",
-                "title": "DeltaX Recruitment Drive - Online Test on 22nd Nov'2026",
-                "content": "<p>Online test scheduled on 22nd Nov'2026 at Computer Lab-2, Campus-6 at 4:30 PM.</p>",
+                "title": f"DeltaX Recruitment Drive - Online Test on {self._future_date_str}",
+                "content": f"<p>Online test scheduled on {self._future_date_str} at Computer Lab-2, Campus-6 at 4:30 PM.</p>",
                 "lastModifiedByUserName": "TNP Coordinator",
                 "type": "MESSAGE",
                 "publishedAt": 1795175428000,
-                "attachments": [{"identifier": "att-pdf-1", "name": "Shortlisted list for DeltaX 22nd Nov'2026.pdf", "type": "DOC"}],
+                "attachments": [{"identifier": "att-pdf-1", "name": f"Shortlisted list for DeltaX {self._future_date_str}.pdf", "type": "DOC"}],
             },
             # Exact duplicate spam post
             {

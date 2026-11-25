@@ -26,6 +26,8 @@ data/.vault_secret
 
 # Installed inside Docker image from lockfile
 whatsapp_bridge/node_modules/
+/node_modules/
+netlify/
 
 # Docs & local scratch
 *.md

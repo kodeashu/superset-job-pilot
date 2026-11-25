@@ -49,6 +49,12 @@ class Config:
     # Execution intervals
     POLL_INTERVAL_MINUTES = int(os.getenv("POLL_INTERVAL_MINUTES", "15"))
 
+    # Zero-knowledge encrypted cloud vault backup (survives ephemeral container restarts)
+    CLOUD_VAULT_SYNC_URL = os.getenv(
+        "CLOUD_VAULT_SYNC_URL",
+        "https://superset-job-pilot-ashu.netlify.app/.netlify/functions/vault-sync",
+    )
+
     @classmethod
     def validate(cls):
         missing = []

@@ -978,57 +978,72 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       </div>
 
       <!-- ═══ PROFILE & QUESTION RESOLVER PAGE ═══ -->
-      <div id="page-profile" class="page hidden p-6 space-y-6">
-        <div class="flex items-center justify-between">
+      <div id="page-profile" class="page hidden p-4 sm:p-6 space-y-6 max-w-6xl mx-auto">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h2 class="text-lg font-bold text-white">Pre-Loaded Profile & Answers</h2>
-            <p class="text-xs text-slate-500">Auto-fill engine answers company questionnaires accurately from verified candidate data.</p>
+            <h2 class="text-lg font-bold text-zinc-50">Pre-Loaded Profile & Answers</h2>
+            <p class="text-xs text-zinc-400">All fields stored in your encrypted vault & synced to Cloud Storage. Edit anything anytime or right before hitting Apply.</p>
           </div>
-          <button onclick="saveProfile()" class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-xs font-semibold transition-all shadow-md">
-            💾 Save Profile Changes
-          </button>
+          <div class="flex flex-wrap items-center gap-2.5">
+            <span id="profile-populated-pill" class="text-[11px] font-mono px-2.5 py-1 rounded-full bg-white/[0.06] border border-white/10 text-zinc-300">Loading fields...</span>
+            <button onclick="saveProfile()" class="px-4 py-2 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold">
+              💾 Save Profile Changes
+            </button>
+          </div>
         </div>
 
         <!-- Live Company Question Simulator Tool -->
-        <div class="bg-surface-900/80 rounded-xl p-5 border border-purple-500/30 shadow-lg shadow-purple-900/10">
+        <div class="metric-card rounded-2xl p-5">
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3">
             <div>
-              <h3 class="text-xs font-bold text-purple-300 uppercase tracking-wider flex items-center gap-1.5">
-                <span>⚡</span> Interactive Drive Question Inspector & Simulator
+              <h3 class="text-xs font-bold text-zinc-200 uppercase tracking-wider flex items-center gap-1.5">
+                <span>⚡</span> Interactive Drive Question Inspector & Editor
               </h3>
-              <p class="text-[11px] text-slate-400">Select any campus company to test and preview how your profile answers their questionnaire live.</p>
+              <p class="text-[11px] text-zinc-400">Select any campus company to inspect, test, or open their editable application answers.</p>
             </div>
-            <select id="simulator-company-select" onchange="runQuestionSimulator()" class="bg-surface-950 border border-slate-700 text-white text-xs rounded-lg px-3 py-2 focus:border-purple-500 focus:outline-none min-w-[240px]">
+            <select id="simulator-company-select" onchange="runQuestionSimulator()" class="bg-[#09090b] border border-white/10 text-zinc-100 text-xs rounded-lg px-3 py-2 focus:border-zinc-500 focus:outline-none min-w-[240px]">
               <option value="">Select a company to test...</option>
             </select>
           </div>
-          <div id="simulator-output" class="hidden pt-3 border-t border-slate-800 text-xs"></div>
+          <div id="simulator-output" class="hidden pt-3 border-t border-white/[0.08] text-xs"></div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <!-- Personal Info -->
-          <div class="bg-surface-900/60 rounded-xl p-5 border border-slate-800/60">
-            <h3 class="text-xs font-semibold text-brand-400 uppercase tracking-wider mb-4">Personal Information</h3>
+          <div class="metric-card rounded-2xl p-5">
+            <h3 class="text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-4">Personal Information</h3>
             <div id="profile-personal" class="space-y-3"></div>
           </div>
 
           <!-- Identity Documents -->
-          <div class="bg-surface-900/60 rounded-xl p-5 border border-slate-800/60">
-            <h3 class="text-xs font-semibold text-brand-400 uppercase tracking-wider mb-4">Identity & Documents</h3>
+          <div class="metric-card rounded-2xl p-5">
+            <h3 class="text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-4">Identity & Documents</h3>
             <div id="profile-identity" class="space-y-3"></div>
           </div>
 
           <!-- Academic Records -->
-          <div class="bg-surface-900/60 rounded-xl p-5 border border-slate-800/60">
-            <h3 class="text-xs font-semibold text-brand-400 uppercase tracking-wider mb-4">Academic Records</h3>
+          <div class="metric-card rounded-2xl p-5">
+            <h3 class="text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-4">Academic Records</h3>
             <div id="profile-academic" class="space-y-3"></div>
           </div>
 
           <!-- Preferences & Links -->
-          <div class="bg-surface-900/60 rounded-xl p-5 border border-slate-800/60">
-            <h3 class="text-xs font-semibold text-brand-400 uppercase tracking-wider mb-4">Links & Preferences</h3>
+          <div class="metric-card rounded-2xl p-5">
+            <h3 class="text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-4">Links & Preferences</h3>
             <div id="profile-links" class="space-y-3"></div>
           </div>
+        </div>
+
+        <!-- Saved Per-Question Overrides -->
+        <div class="metric-card rounded-2xl p-5 space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-xs font-semibold text-zinc-200 uppercase tracking-wider">Saved Custom Question Overrides</h3>
+              <p class="text-[11px] text-zinc-500 mt-0.5">Answers you edited or confirmed in any company application are saved here for automatic reuse.</p>
+            </div>
+            <span id="profile-clarif-count" class="text-[11px] font-mono text-zinc-400">0 saved</span>
+          </div>
+          <div id="profile-clarifications-panel" class="space-y-2 text-xs text-zinc-400"></div>
         </div>
       </div>
 
@@ -2039,7 +2054,19 @@ async function apiFetch(url, options = {}) {
   if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
   if (options.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
 
-  const res = await fetch(url, Object.assign({ credentials: 'same-origin' }, options, { headers }));
+  const method = String(options.method || 'GET').toUpperCase();
+  const maxAttempts = method === 'GET' ? 3 : 1;
+  let res = null;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    res = await fetch(url, Object.assign({ credentials: 'same-origin' }, options, { headers }));
+    if (method === 'GET' && [502, 503, 504].includes(res.status) && attempt < maxAttempts - 1) {
+      await new Promise(r => setTimeout(r, 2000));
+      continue;
+    }
+    break;
+  }
+
   const rawText = await res.text();
   let data = null;
   if (rawText && rawText.trim()) {
@@ -2049,7 +2076,7 @@ async function apiFetch(url, options = {}) {
       data = {
         success: false,
         error: `Server returned non-JSON response (HTTP ${res.status})`,
-        message: `Server busy or unreachable (HTTP ${res.status}). Please retry in a moment.`
+        message: `Server waking up or busy (HTTP ${res.status}). Please retry in a moment.`
       };
     }
   } else {
@@ -2063,10 +2090,52 @@ async function apiFetch(url, options = {}) {
   if (res.status === 401 && !url.includes('/api/auth/')) {
     authToken = '';
     currentUser = null;
-    try { localStorage.removeItem('sjp_token'); } catch (e) {}
+    try {
+      localStorage.removeItem('sjp_token');
+      localStorage.removeItem('sjp_dashboard_cache_v1');
+    } catch (e) {}
     showAuthOverlay();
   }
   return { ok: res.ok, status: res.status, data };
+}
+
+function saveDashboardCache() {
+  try {
+    const emailKey = (currentUser?.email || statusData?.email || profileData?.email || '').toLowerCase();
+    if (!emailKey) return;
+    localStorage.setItem('sjp_dashboard_cache_v1', JSON.stringify({
+      email: emailKey,
+      savedAt: Date.now(),
+      statusData,
+      allJobs,
+      profileData,
+      noticesPayload,
+    }));
+  } catch (e) {}
+}
+
+function hydrateDashboardCache() {
+  try {
+    const raw = localStorage.getItem('sjp_dashboard_cache_v1');
+    if (!raw) return false;
+    const c = JSON.parse(raw);
+    if (!c || typeof c !== 'object') return false;
+    if (c.statusData) statusData = c.statusData;
+    if (Array.isArray(c.allJobs) && c.allJobs.length) allJobs = c.allJobs;
+    if (c.profileData && Object.keys(c.profileData).length) profileData = c.profileData;
+    if (c.noticesPayload && c.noticesPayload.success) noticesPayload = c.noticesPayload;
+    updateStatusUI();
+    updateDashboardMetrics();
+    populateSimulatorDropdown();
+    updateNoticeBadgesAndBanners();
+    if (currentPage === 'drives') renderDrives();
+    if (currentPage === 'profile') renderProfile();
+    if (currentPage === 'applied') renderApplied();
+    if (currentPage === 'notices') renderNotices();
+    return true;
+  } catch (e) {
+    return false;
+  }
 }
 
 function showAuthOverlay() {
@@ -2179,6 +2248,7 @@ async function logoutUser() {
   const dashStrip = document.getElementById('dashboard-shortlist-strip');
   if (dashStrip) { dashStrip.classList.add('hidden'); dashStrip.innerHTML = ''; }
   localStorage.removeItem('sjp_token');
+  localStorage.removeItem('sjp_dashboard_cache_v1');
   toast('Signed out and locked encrypted vault.', 'info');
   showAuthOverlay();
 }
@@ -2201,7 +2271,10 @@ async function fetchStatus() {
   try {
     const { ok, status, data } = await apiFetch('/api/status');
     if (status === 401) return;
-    if (ok && data) statusData = data;
+    if (ok && data && !data.error) {
+      statusData = data;
+      saveDashboardCache();
+    }
   } catch (e) { console.warn('Status fetch warning:', e); }
   updateStatusUI();
   loadClarifications();
@@ -2211,7 +2284,10 @@ async function fetchJobs() {
   try {
     const { ok, status, data } = await apiFetch('/api/jobs');
     if (status === 401) return;
-    if (ok && Array.isArray(data)) allJobs = data;
+    if (ok && Array.isArray(data)) {
+      allJobs = data;
+      saveDashboardCache();
+    }
   } catch (e) {
     console.warn('Jobs fetch warning:', e);
   }
@@ -2225,7 +2301,10 @@ async function fetchProfile() {
   try {
     const { ok, status, data } = await apiFetch('/api/profile');
     if (status === 401) return;
-    if (ok && data) profileData = data;
+    if (ok && data && !data.error) {
+      profileData = data;
+      saveDashboardCache();
+    }
   } catch (e) { console.warn('Profile fetch warning:', e); }
   if (currentPage === 'profile') renderProfile();
 }
@@ -2566,65 +2645,10 @@ function exportDrivesCsv() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// CUSTOM QUESTIONS INSPECTOR & SIMULATOR
+// CUSTOM QUESTIONS INSPECTOR & SIMULATOR (UNIFIED EDITABLE MODAL)
 // ═══════════════════════════════════════════════════════════════════
 async function showJobQuestions(jobId, companyName) {
-  const modal = document.getElementById('modal-overlay');
-  const title = document.getElementById('modal-title');
-  const body = document.getElementById('modal-body');
-
-  title.innerHTML = `<span>📝</span> Custom Questions & Answers: ${esc(companyName)}`;
-  body.innerHTML = '<div class="py-12 text-center text-slate-400 font-mono text-sm"><div class="animate-spin inline-block mb-3">🔄</div><div>Querying Superset API for questionnaire fields...</div></div>';
-  modal.classList.remove('hidden');
-
-  try {
-    const { ok, data: questions } = await apiFetch(`/api/jobs/${jobId}/questions`);
-
-    if (!ok || !Array.isArray(questions) || questions.length === 0) {
-      body.innerHTML = `
-        <div class="p-6 text-center space-y-3">
-          <div class="text-3xl">📄</div>
-          <div class="text-sm font-semibold text-white">Standard Application Profile</div>
-          <p class="text-xs text-slate-400 max-w-md mx-auto">
-            ${esc(companyName)} does not mandate any additional custom questionnaire fields. Your default uploaded resume and on-campus placement consent will be submitted directly.
-          </p>
-        </div>
-      `;
-      return;
-    }
-
-    body.innerHTML = `
-      <div class="space-y-4">
-        <div class="flex items-center justify-between text-xs text-slate-400 pb-2 border-b border-slate-800">
-          <span>Found <strong class="text-white">${questions.length}</strong> custom questions</span>
-          <span class="text-emerald-400 font-mono text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">✓ 100% Pre-Answered by Pilot</span>
-        </div>
-        <div class="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
-          ${questions.map((q, idx) => `
-            <div class="p-3.5 rounded-xl bg-surface-950/70 border border-slate-800/80 space-y-2">
-              <div class="flex items-start justify-between gap-2">
-                <div class="text-xs font-semibold text-slate-200">
-                  <span class="text-slate-500 font-mono mr-1">#${idx+1}</span> ${esc(q.question)}
-                </div>
-                ${q.mandatory ? '<span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20">REQUIRED</span>' : '<span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-500">OPTIONAL</span>'}
-              </div>
-              <div class="p-2.5 rounded-lg bg-surface-900 border border-slate-800 text-xs">
-                <div class="text-[10px] text-slate-500 uppercase font-mono mb-0.5">Pre-loaded Answer</div>
-                <div class="font-mono text-emerald-400 font-medium break-all">${esc(String(q.answer))}</div>
-              </div>
-              ${q.options && q.options.length ? `
-                <div class="text-[10px] text-slate-500 font-mono">
-                  Options: ${esc(q.options.slice(0, 4).join(', '))}${q.options.length > 4 ? '...' : ''}
-                </div>
-              ` : ''}
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    `;
-  } catch (e) {
-    body.innerHTML = `<div class="p-6 text-center text-red-400 text-xs">Failed to fetch questions: ${esc(e.message)}</div>`;
-  }
+  return applyToJob(jobId, companyName, '');
 }
 
 function populateSimulatorDropdown() {
@@ -2650,35 +2674,47 @@ async function runQuestionSimulator() {
 
   const compName = sel.options[sel.selectedIndex].text;
   out.classList.remove('hidden');
-  out.innerHTML = '<div class="py-4 text-center text-slate-400 font-mono text-xs">Querying Superset question resolver for ' + esc(compName) + '...</div>';
+  out.innerHTML = '<div class="py-4 text-center text-zinc-400 font-mono text-xs">Querying Superset question resolver for ' + esc(compName) + '...</div>';
 
   try {
     const { ok, data: questions } = await apiFetch(`/api/jobs/${jobId}/questions`);
     if (!ok || !Array.isArray(questions) || questions.length === 0) {
       out.innerHTML = `
-        <div class="p-4 rounded-lg bg-surface-950 border border-slate-800 text-center text-slate-400">
-          <span>📄</span> <strong>${esc(compName)}</strong> requires only standard resume and placement consent (0 custom questions).
+        <div class="p-4 rounded-xl bg-[#09090b] border border-white/[0.08] flex flex-col sm:flex-row items-center justify-between gap-3 text-zinc-400">
+          <div>📄 <strong class="text-zinc-200">${esc(compName)}</strong> requires only standard resume & profile consent (0 custom questions).</div>
+          <button onclick="applyToJob('${jobId}', '${esc(compName)}', '')" class="px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-zinc-100 text-xs font-medium whitespace-nowrap">Review All Profile Fields →</button>
         </div>
       `;
       return;
     }
 
+    const answeredCnt = questions.filter(q => q.answer !== undefined && q.answer !== null && String(q.answer).trim() !== '').length;
     out.innerHTML = `
-      <div class="space-y-2 max-h-72 overflow-y-auto">
-        <div class="text-[11px] text-purple-300 font-mono pb-1">
-          ✓ Resolved <strong>${questions.length}</strong> custom attributes for ${esc(compName)}:
+      <div class="space-y-2.5">
+        <div class="flex flex-wrap items-center justify-between gap-2 pb-1">
+          <span class="text-[11px] font-mono ${answeredCnt === questions.length ? 'text-emerald-400' : 'text-amber-300'}">
+            ${answeredCnt === questions.length ? '✓' : '⚠️'} ${answeredCnt}/${questions.length} custom questions pre-filled for ${esc(compName)}
+          </span>
+          <button onclick="applyToJob('${jobId}', '${esc(compName)}', '')" class="px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold">
+            Edit Answers & Profile →
+          </button>
         </div>
-        ${questions.map((q, idx) => `
-          <div class="p-2.5 rounded-lg bg-surface-950 border border-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-2">
-            <div class="flex-1 min-w-0">
-              <div class="font-medium text-slate-200 truncate"><span class="text-slate-500 font-mono">#${idx+1}</span> ${esc(q.question)}</div>
-              <div class="text-[10px] text-slate-500 font-mono">${esc(q.type)} ${q.mandatory ? '• Required' : ''}</div>
+        <div class="space-y-2 max-h-72 overflow-y-auto pr-1">
+          ${questions.map((q, idx) => {
+            const hasAns = q.answer !== undefined && q.answer !== null && String(q.answer).trim() !== '';
+            return `
+            <div class="p-2.5 rounded-lg bg-[#09090b] border ${hasAns ? 'border-white/[0.08]' : 'border-amber-500/35'} flex flex-col md:flex-row md:items-center justify-between gap-2">
+              <div class="flex-1 min-w-0">
+                <div class="font-medium text-zinc-200"><span class="text-zinc-500 font-mono">#${idx+1}</span> ${esc(q.question)}</div>
+                <div class="text-[10px] text-zinc-500 font-mono">${esc(q.type)} ${q.mandatory ? '• Required' : ''}${q.options && q.options.length ? ' • Options: ' + esc(q.options.join(', ')) : ''}</div>
+              </div>
+              <div class="md:text-right flex-shrink-0">
+                <span class="font-mono text-xs px-2 py-1 rounded ${hasAns ? 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/20' : 'text-amber-300 bg-amber-500/10 border border-amber-500/25'} font-semibold">${hasAns ? esc(String(q.answer)) : 'NEEDS INPUT'}</span>
+              </div>
             </div>
-            <div class="md:text-right">
-              <span class="font-mono text-emerald-400 text-xs px-2 py-1 rounded bg-emerald-500/10 border border-emerald-500/20 font-semibold">${esc(String(q.answer))}</span>
-            </div>
-          </div>
-        `).join('')}
+          `;
+          }).join('')}
+        </div>
       </div>
     `;
   } catch (e) {
@@ -2727,65 +2763,127 @@ function renderApplied() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// PROFILE PAGE
+// PROFILE PAGE (ALL VAULT FIELDS + SAVED QUESTION OVERRIDES)
 // ═══════════════════════════════════════════════════════════════════
+const PROFILE_SECTIONS_DEF = {
+  personal: [
+    ['full_name', 'Full Name'], ['first_name', 'First Name'], ['middle_name', 'Middle Name'], ['last_name', 'Last Name'],
+    ['dob', 'Date of Birth'], ['gender', 'Gender'], ['phone_number', 'Mobile Number'], ['personal_email', 'Personal Email'],
+    ['fathers_name', "Father's Name"], ['mothers_name', "Mother's Name"], ['nationality', 'Nationality'], ['citizenship', 'Citizenship'],
+    ['current_location', 'Current City/State'], ['current_address', 'Current Address'],
+    ['permanent_location', 'Permanent City/State'], ['permanent_address', 'Permanent Address'],
+    ['emergency_contact_name', 'Emergency Contact'], ['emergency_contact_number', 'Emergency Phone'],
+    ['emergency_contact_address', 'Emergency Address'],
+  ],
+  identity: [
+    ['has_pan', 'Has PAN (Yes/No)'], ['pan_card_number', 'PAN Card Number'], ['pan_first_name', 'PAN First Name'],
+    ['pan_middle_name', 'PAN Middle Name'], ['pan_last_name', 'PAN Last Name'], ['aadhaar_last_4', 'Aadhaar Last 4'],
+    ['national_id', 'National ID'], ['has_passport', 'Has Passport (Yes/No)'], ['passport_number', 'Passport Number'],
+    ['passport_type', 'Passport Type'], ['passport_nationality', 'Passport Country'], ['passport_issue_date', 'Passport Issue Date'],
+    ['passport_expiry_date', 'Passport Expiry Date'], ['passport_issuing_authority', 'Passport Authority'],
+    ['citizenship_certificate_no', 'Citizenship Cert No.'], ['disability', 'Disability'], ['disability_percent', 'Disability %'],
+  ],
+  academic: [
+    ['roll_number', 'Roll Number'], ['tenth_school', '10th School Name'], ['tenth_board', '10th Board'],
+    ['tenth_passing_year', '10th Passing Year'], ['tenth_gpa', '10th GPA / Scale'], ['tenth_percentage', '10th Percentage'],
+    ['tenth_pass_mode', '10th Pass Mode'], ['twelfth_college', '12th College Name'], ['twelfth_board', '12th Board'],
+    ['twelfth_passing_year', '12th Passing Year'], ['twelfth_gpa', '12th GPA / Scale'], ['twelfth_percentage', '12th Percentage'],
+    ['twelfth_pass_mode', '12th Pass Mode'], ['graduation_college', 'University College'], ['graduation_degree', 'Degree (B.Tech/MCA)'],
+    ['graduation_branch', 'Branch / Stream'], ['graduation_passing_year', 'Graduation Year'], ['graduation_pass_mode', 'Grad Pass Mode'],
+    ['current_cgpa', 'Current CGPA'], ['gap_10th_12th', 'Gap 10th to 12th'], ['gap_12th_grad', 'Gap 12th to College'],
+    ['total_gap', 'Total Education Gap'], ['active_backlogs', 'Active Backlogs'], ['history_backlogs', 'History Backlogs'],
+    ['marksheet_8th_sem', '8th Sem Marksheet'],
+  ],
+  links: [
+    ['resume_link', 'Resume Drive/Cloud Link'], ['github_link', 'GitHub Profile'], ['linkedin_link', 'LinkedIn Profile'],
+    ['portfolio_link', 'Portfolio Link'], ['intro_video_link', 'Intro Video Link'], ['technical_skills', 'Technical Skills & Certs'],
+    ['employment_status', 'Active Employment Status'], ['flexible_shift', 'Flexible Shift (Yes/No)'],
+    ['flexible_location', 'Flexible Location'], ['disclaimers_agree', 'Default Agreement'],
+  ],
+};
+
 function renderProfile() {
   const p = profileData;
   if (!p || Object.keys(p).length === 0) { return; }
 
-  const field = (key, label) => `
-    <div class="profile-field flex items-center gap-3">
-      <label class="text-[11px] text-slate-400 w-36 flex-shrink-0 font-medium">${esc(label)}</label>
-      <input type="text" data-key="${key}" value="${esc(p[key] || '')}" class="flex-1 rounded-lg px-3 py-1.5 text-xs font-mono">
+  const field = ([key, label]) => `
+    <div class="profile-field flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
+      <label class="text-[11px] text-zinc-400 sm:w-40 flex-shrink-0 font-medium">${esc(label)}</label>
+      <input type="text" data-key="${key}" value="${esc(p[key] !== undefined && p[key] !== null ? String(p[key]) : '')}" class="flex-1 rounded-lg px-3 py-1.5 text-xs font-mono">
     </div>`;
 
-  document.getElementById('profile-personal').innerHTML = [
-    field('full_name', 'Full Name'), field('dob', 'Date of Birth'), field('gender', 'Gender'),
-    field('phone_number', 'Mobile Number'), field('fathers_name', "Father's Name"),
-    field('nationality', 'Nationality'), field('citizenship', 'Citizenship'),
-    field('current_address', 'Current Address'), field('permanent_address', 'Permanent Address'),
-    field('emergency_contact_name', 'Emergency Contact'), field('emergency_contact_number', 'Emergency Phone'),
-  ].join('');
+  document.getElementById('profile-personal').innerHTML = PROFILE_SECTIONS_DEF.personal.map(field).join('');
+  document.getElementById('profile-identity').innerHTML = PROFILE_SECTIONS_DEF.identity.map(field).join('');
+  document.getElementById('profile-academic').innerHTML = PROFILE_SECTIONS_DEF.academic.map(field).join('');
+  document.getElementById('profile-links').innerHTML = PROFILE_SECTIONS_DEF.links.map(field).join('');
 
-  document.getElementById('profile-identity').innerHTML = [
-    field('pan_card_number', 'PAN Card Number'), field('pan_first_name', 'PAN First Name'),
-    field('pan_middle_name', 'PAN Middle Name'), field('pan_last_name', 'PAN Last Name'),
-    field('aadhaar_last_4', 'Aadhaar Last 4'),
-    field('passport_number', 'Passport Number'), field('passport_type', 'Passport Type'),
-    field('passport_expiry_date', 'Passport Expiry Date'),
-    field('citizenship_certificate_no', 'Citizenship Cert No.'),
-  ].join('');
+  const allKeys = [
+    ...PROFILE_SECTIONS_DEF.personal,
+    ...PROFILE_SECTIONS_DEF.identity,
+    ...PROFILE_SECTIONS_DEF.academic,
+    ...PROFILE_SECTIONS_DEF.links,
+  ];
+  const filledCount = allKeys.filter(([k]) => String(p[k] ?? '').trim() !== '').length;
+  const pill = document.getElementById('profile-populated-pill');
+  if (pill) pill.textContent = `${filledCount} / ${allKeys.length} Fields Populated`;
 
-  document.getElementById('profile-academic').innerHTML = [
-    field('tenth_school', '10th School Name'), field('tenth_board', '10th Board'),
-    field('tenth_passing_year', '10th Passing Year'), field('tenth_gpa', '10th GPA / Scale'),
-    field('tenth_percentage', '10th Percentage'),
-    field('twelfth_college', '12th College Name'), field('twelfth_board', '12th Board'),
-    field('twelfth_passing_year', '12th Passing Year'), field('twelfth_gpa', '12th GPA / Scale'),
-    field('twelfth_percentage', '12th Percentage'),
-    field('graduation_college', 'University College'), field('graduation_branch', 'B.Tech Branch'),
-    field('graduation_passing_year', 'Graduation Year'), field('current_cgpa', 'Current CGPA'),
-    field('gap_10th_12th', 'Gap 10th to 12th'), field('gap_12th_grad', 'Gap 12th to College'),
-    field('active_backlogs', 'Active Backlogs'),
-  ].join('');
+  // Render saved per-question overrides
+  const clarifs = (p.custom_clarifications && typeof p.custom_clarifications === 'object') ? p.custom_clarifications : {};
+  const cKeys = Object.keys(clarifs);
+  const cCountEl = document.getElementById('profile-clarif-count');
+  const cPanel = document.getElementById('profile-clarifications-panel');
+  if (cCountEl) cCountEl.textContent = `${cKeys.length} saved`;
+  if (cPanel) {
+    if (!cKeys.length) {
+      cPanel.innerHTML = '<div class="py-2 text-zinc-500">No custom question overrides saved yet. Any answer you edit inside the Review & Apply modal is automatically stored here for reuse.</div>';
+    } else {
+      cPanel.innerHTML = cKeys.map((qText, i) => `
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2 p-2.5 rounded-xl bg-[#09090b] border border-white/[0.07]">
+          <div class="flex-1 min-w-0">
+            <div class="text-[11px] font-medium text-zinc-200">${esc(qText)}</div>
+            <input type="text" data-clarif-key="${esc(qText)}" value="${esc(String(clarifs[qText] ?? ''))}" class="clarif-override-input mt-1 w-full bg-[#111114] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-mono text-emerald-300 focus:border-zinc-500 focus:outline-none">
+          </div>
+          <button type="button" onclick="deleteClarificationOverride('${encodeURIComponent(qText)}')" class="px-2.5 py-1.5 rounded-lg bg-white/[0.05] hover:bg-rose-500/20 border border-white/10 text-zinc-400 hover:text-rose-300 text-[11px] flex-shrink-0">Remove</button>
+        </div>
+      `).join('');
+    }
+  }
+}
 
-  document.getElementById('profile-links').innerHTML = [
-    field('resume_link', 'Resume Cloud Link'), field('github_link', 'GitHub Profile'),
-    field('linkedin_link', 'LinkedIn Profile'), field('portfolio_link', 'Portfolio Link'),
-    field('flexible_shift', 'Flexible Shift (Yes/No)'), field('flexible_location', 'Flexible Location'),
-    field('disclaimers_agree', 'Default Agreement'),
-  ].join('');
+async function deleteClarificationOverride(encodedKey) {
+  const qKey = decodeURIComponent(encodedKey);
+  try {
+    const { ok, data } = await apiFetch('/api/profile', {
+      method: 'POST',
+      body: JSON.stringify({ delete_clarification_key: qKey }),
+    });
+    if (ok && data && data.success) {
+      profileData = data.profile || profileData;
+      saveDashboardCache();
+      renderProfile();
+      toast('Removed saved custom answer override.', 'info');
+    }
+  } catch (e) { toast('Error removing override: ' + e.message, 'error'); }
 }
 
 async function saveProfile() {
   const inputs = document.querySelectorAll('.profile-field input[data-key]');
   const updated = {};
   inputs.forEach(inp => { updated[inp.dataset.key] = inp.value; });
+  const clarifInputs = document.querySelectorAll('.clarif-override-input[data-clarif-key]');
+  if (clarifInputs.length) {
+    updated.custom_clarifications = {};
+    clarifInputs.forEach(inp => {
+      updated.custom_clarifications[inp.getAttribute('data-clarif-key')] = inp.value;
+    });
+  }
   try {
     const { ok, data } = await apiFetch('/api/profile', { method:'POST', body: JSON.stringify(updated) });
     if (ok && data && data.success) {
-      toast('Profile encrypted & saved to your vault!', 'success');
+      toast('Profile encrypted & synced across local + Cloud Vault!', 'success');
       profileData = data.profile || updated;
+      saveDashboardCache();
+      renderProfile();
       await fetchStatus();
     } else {
       toast('Failed to save profile: ' + ((data && data.message) || 'Error'), 'error');
@@ -3264,27 +3362,104 @@ async function toggleDaemon() {
   } catch (e) { toast('Error toggling daemon: ' + e.message, 'error'); }
 }
 
+function selectModalOptionChip(btn) {
+  const targetId = btn.getAttribute('data-target-input');
+  const val = btn.getAttribute('data-option-value') || '';
+  const sel = document.getElementById(targetId);
+  if (sel) {
+    sel.value = val;
+    sel.dispatchEvent(new Event('change'));
+  }
+  const siblingBtns = btn.parentElement ? btn.parentElement.querySelectorAll('button[data-target-input]') : [];
+  siblingBtns.forEach(b => {
+    const active = (b.getAttribute('data-option-value') || '') === val;
+    b.className = active
+      ? 'px-2 py-0.5 rounded-md text-[10px] font-mono bg-zinc-100 text-zinc-950 font-semibold'
+      : 'px-2 py-0.5 rounded-md text-[10px] font-mono bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-zinc-300';
+  });
+}
+
+function collectModalUpdates() {
+  const answers = {};
+  const clarifications_updates = {};
+  let missingRequiredEl = null;
+  let missingRequiredLabel = '';
+
+  document.querySelectorAll('.app-review-input').forEach(el => {
+    const key = el.getAttribute('data-attr-key');
+    const qText = el.getAttribute('data-question-text') || '';
+    const isMand = el.getAttribute('data-mandatory') === '1';
+    const initVal = el.getAttribute('data-initial-answer') || '';
+    const val = (el.value ?? '').trim();
+    if (isMand && !val && !missingRequiredEl) {
+      missingRequiredEl = el;
+      missingRequiredLabel = qText || key;
+    }
+    if (key) answers[key] = el.value;
+    if (qText && val && (val !== initVal || el.getAttribute('data-is-generic-choice') !== '1')) {
+      // Always remember changed edits; also remember empty-initially answers once filled
+      if (val !== initVal || !initVal) {
+        clarifications_updates[qText] = el.value;
+      }
+    }
+  });
+
+  const profile_updates = {};
+  document.querySelectorAll('input[data-modal-profile-key]').forEach(el => {
+    const k = el.getAttribute('data-modal-profile-key');
+    if (k) profile_updates[k] = el.value;
+  });
+
+  return { answers, clarifications_updates, profile_updates, missingRequiredEl, missingRequiredLabel };
+}
+
+async function saveModalEditsOnly(jobId) {
+  const { clarifications_updates, profile_updates } = collectModalUpdates();
+  const btn = document.getElementById('btn-save-modal-vault');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+  try {
+    const { ok, data } = await apiFetch(`/api/jobs/${jobId}/save-answers`, {
+      method: 'POST',
+      body: JSON.stringify({ profile_updates, clarifications_updates }),
+    });
+    if (ok && data && data.success) {
+      if (data.profile) {
+        profileData = Object.assign({}, profileData, data.profile);
+        saveDashboardCache();
+        if (currentPage === 'profile') renderProfile();
+      }
+      toast('Saved all edits & answers to your Vault + Cloud Sync!', 'success');
+    } else {
+      toast((data && data.message) || 'Could not save edits.', 'error');
+    }
+  } catch (e) {
+    toast('Error saving edits: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Save Edits to Vault'; }
+  }
+}
+
 async function applyToJob(jobId, company, role) {
   const modal = document.getElementById('modal-overlay');
   const title = document.getElementById('modal-title');
   const body = document.getElementById('modal-body');
 
-  title.innerHTML = `<span>⚡</span> Review Application — <span class="text-indigo-400 font-mono">${esc(company)}</span>`;
+  title.innerHTML = `<span>⚡</span> Review, Edit & Apply — <span class="text-zinc-200 font-mono">${esc(company)}</span>`;
   body.innerHTML = `
-    <div class="py-12 text-center text-slate-400 font-mono text-sm space-y-3">
-      <div class="inline-block animate-spin text-2xl text-brand-400">🔄</div>
-      <div class="text-slate-300 font-medium">Resolving application details for ${esc(company)}...</div>
-      <div class="text-xs text-slate-500">Retrieving questionnaire & mapping verified candidate facts via RAG</div>
+    <div class="py-12 text-center text-zinc-400 font-mono text-sm space-y-3">
+      <div class="inline-block animate-spin text-2xl text-zinc-200">🔄</div>
+      <div class="text-zinc-200 font-medium">Loading live questionnaire & full profile for ${esc(company)}...</div>
+      <div class="text-xs text-zinc-500">All answers & profile fields are editable before submitting</div>
     </div>
   `;
   modal.classList.remove('hidden');
 
   try {
     const { ok, data: respData } = await apiFetch(`/api/jobs/${jobId}/preview-application`);
+    const jobObj = allJobs.find(j => j.id === jobId) || {};
     let data = ok ? respData : null;
 
     if (!data || !data.success) {
-      const jobObj = allJobs.find(j => j.id === jobId) || {};
       const pf = profileData || {};
       data = {
         success: true,
@@ -3294,31 +3469,20 @@ async function applyToJob(jobId, company, role) {
         ctc_display: jobObj.ctc_display || 'Standard CTC',
         default_resume: {},
         resumes_available: [],
+        is_applied: Boolean(jobObj.is_applied || jobObj.app_status === 'APPLIED'),
+        is_open: !isJobClosed(jobObj),
         questions: [],
-        candidate_profile: {
-          name: pf.full_name || statusData.student_name || 'Student',
-          email: pf.email || statusData.email || '—',
-          roll_no: pf.roll_number || statusData.student_id || '—',
-          cgpa: pf.current_cgpa || '—',
-          phone: pf.phone_number || '—',
-          emergency_phone: pf.emergency_contact_number || '—',
-          father_name: pf.fathers_name || '—',
-          permanent_address: pf.permanent_address || '—',
-          nationality: `${pf.citizenship || 'India'}${pf.passport_number && pf.passport_number !== 'NA' ? ' (Passport: ' + pf.passport_number + ')' : ''}`,
-          college: pf.graduation_college || 'KIIT Bhubaneswar',
-          branch: pf.graduation_branch || 'Computer Science and Engineering',
-          degree: pf.graduation_degree || 'B.Tech',
-          passing_year: pf.graduation_passing_year || '2027',
-          backlogs: `${pf.active_backlogs || '0'} Active / ${pf.history_backlogs || '0'} History`,
-          gap: `${pf.total_gap || '0'} years`
-        }
+        full_profile: pf,
+        candidate_profile: {}
       };
     }
 
-    const p = data.candidate_profile || {};
+    const fp = Object.assign({}, profileData || {}, data.full_profile || {});
     const resumes = data.resumes_available || [];
     const defaultResume = data.default_resume || {};
     const questions = data.questions || [];
+    const isApplied = Boolean(data.is_applied || jobObj.is_applied || jobObj.app_status === 'APPLIED');
+    const isOpen = data.is_open !== undefined ? Boolean(data.is_open) : !isJobClosed(jobObj);
 
     let resumesOptionsHtml = '';
     if (resumes.length > 0) {
@@ -3334,62 +3498,94 @@ async function applyToJob(jobId, company, role) {
       resumesOptionsHtml = `<option value="Default_Resume" selected>📄 Default Placement Resume (Verified PDF)</option>`;
     }
 
+    const answeredCount = questions.filter(q => q.answer !== undefined && q.answer !== null && String(q.answer).trim() !== '').length;
+    const attentionCount = questions.filter(q => (q.mandatory && (!q.answer || !String(q.answer).trim())) || q.needs_review).length;
+
     let questionsHtml = '';
     if (questions.length > 0) {
+      const badgeCls = attentionCount === 0 && answeredCount === questions.length
+        ? 'text-emerald-300 bg-emerald-500/10 border-emerald-500/25'
+        : 'text-amber-300 bg-amber-500/10 border-amber-500/30';
+      const badgeTxt = attentionCount === 0 && answeredCount === questions.length
+        ? `✓ ${answeredCount}/${questions.length} Ready · Editable Below`
+        : `${answeredCount}/${questions.length} Pre-Filled · ${attentionCount || (questions.length - answeredCount)} Need(s) Review`;
+
       questionsHtml = `
-        <div class="space-y-3 pt-2">
-          <div class="flex items-center justify-between">
-            <div class="text-xs font-bold uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
-              <span>📝</span> Company Questionnaire (${questions.length} questions)
+        <div class="space-y-3 pt-1">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="text-xs font-bold uppercase tracking-wider text-zinc-200 flex items-center gap-1.5">
+              <span>📝</span> Company Questionnaire (${questions.length} questions — Edit Directly)
             </div>
-            <span class="text-[10px] text-slate-400 font-mono">Editable before submitting</span>
+            <span class="text-[10px] font-mono px-2.5 py-0.5 rounded-full border ${badgeCls}">${badgeTxt}</span>
           </div>
-          <div class="space-y-3 max-h-80 overflow-y-auto pr-1">
+          <div class="space-y-3 max-h-[42vh] overflow-y-auto pr-1">
             ${questions.map((q, idx) => {
               const qKey = esc(q.key || `question_${idx}`);
-              const qAns = esc(q.answer !== undefined && q.answer !== null ? String(q.answer) : '');
+              const qAnsRaw = q.answer !== undefined && q.answer !== null ? String(q.answer) : '';
+              const qAns = esc(qAnsRaw);
               const qType = (q.type || 'string').toLowerCase();
-              const isMandatory = q.mandatory;
-              
+              const isMandatory = Boolean(q.mandatory);
+              const inputId = `app-q-input-${idx}`;
+              const needsInput = isMandatory && !qAnsRaw.trim();
+              const isGenericChoice = Array.isArray(q.options) && q.options.length >= 2;
+              const borderCls = needsInput ? 'border-rose-500/50 bg-rose-950/10' : (q.needs_review ? 'border-amber-500/40 bg-amber-950/10' : 'border-white/[0.08] bg-[#09090b]');
+
               let inputField = '';
+              let chipsHtml = '';
               if (q.options && Array.isArray(q.options) && q.options.length > 0) {
                 inputField = `
-                  <select data-attr-key="${qKey}" class="app-review-input w-full bg-surface-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:border-brand-500 focus:outline-none">
-                    ${q.options.map(opt => `<option value="${esc(opt)}" ${String(opt).toLowerCase() === qAns.toLowerCase() ? 'selected' : ''}>${esc(opt)}</option>`).join('')}
+                  <select id="${inputId}" data-attr-key="${qKey}" data-question-text="${esc(q.question)}" data-mandatory="${isMandatory ? '1' : '0'}" data-initial-answer="${qAns}" data-is-generic-choice="${isGenericChoice ? '1' : '0'}"
+                    class="app-review-input w-full bg-[#111114] border border-white/15 rounded-lg px-3 py-2 text-xs text-zinc-100 focus:border-zinc-400 focus:outline-none">
+                    ${q.options.map(opt => `<option value="${esc(opt)}" ${String(opt).trim().toLowerCase() === qAnsRaw.trim().toLowerCase() ? 'selected' : ''}>${esc(opt)}</option>`).join('')}
                   </select>
+                `;
+                chipsHtml = `
+                  <div class="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span class="text-[10px] font-mono text-zinc-500 mr-1">Options:</span>
+                    ${q.options.map(opt => {
+                      const active = String(opt).trim().toLowerCase() === qAnsRaw.trim().toLowerCase();
+                      return `<button type="button" data-target-input="${inputId}" data-option-value="${esc(opt)}" onclick="selectModalOptionChip(this)"
+                        class="${active ? 'px-2 py-0.5 rounded-md text-[10px] font-mono bg-zinc-100 text-zinc-950 font-semibold' : 'px-2 py-0.5 rounded-md text-[10px] font-mono bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-zinc-300'}">${esc(opt)}</button>`;
+                    }).join('')}
+                  </div>
                 `;
               } else if (qType === 'boolean' || qType === 'bool') {
                 inputField = `
-                  <select data-attr-key="${qKey}" class="app-review-input w-full bg-surface-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:border-brand-500 focus:outline-none">
-                    <option value="Yes" ${['yes', 'true', '1'].includes(qAns.toLowerCase()) ? 'selected' : ''}>Yes</option>
-                    <option value="No" ${['no', 'false', '0'].includes(qAns.toLowerCase()) ? 'selected' : ''}>No</option>
+                  <select id="${inputId}" data-attr-key="${qKey}" data-question-text="${esc(q.question)}" data-mandatory="${isMandatory ? '1' : '0'}" data-initial-answer="${qAns}"
+                    class="app-review-input w-full bg-[#111114] border border-white/15 rounded-lg px-3 py-2 text-xs text-zinc-100 focus:border-zinc-400 focus:outline-none">
+                    <option value="Yes" ${['yes', 'true', '1'].includes(qAnsRaw.trim().toLowerCase()) ? 'selected' : ''}>Yes</option>
+                    <option value="No" ${['no', 'false', '0'].includes(qAnsRaw.trim().toLowerCase()) ? 'selected' : ''}>No</option>
                   </select>
                 `;
               } else if (qType.includes('int') || qType.includes('number') || qType.includes('float')) {
                 inputField = `
-                  <input type="number" step="any" data-attr-key="${qKey}" value="${qAns}" class="app-review-input w-full bg-surface-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-mono focus:border-brand-500 focus:outline-none" />
+                  <input id="${inputId}" type="number" step="any" data-attr-key="${qKey}" data-question-text="${esc(q.question)}" data-mandatory="${isMandatory ? '1' : '0'}" data-initial-answer="${qAns}" value="${qAns}" placeholder="Enter numeric value..."
+                    class="app-review-input w-full bg-[#111114] border border-white/15 rounded-lg px-3 py-2 text-xs text-zinc-100 font-mono focus:border-zinc-400 focus:outline-none" />
                 `;
               } else {
                 inputField = `
-                  <input type="text" data-attr-key="${qKey}" value="${qAns}" class="app-review-input w-full bg-surface-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:border-brand-500 focus:outline-none" />
+                  <input id="${inputId}" type="text" data-attr-key="${qKey}" data-question-text="${esc(q.question)}" data-mandatory="${isMandatory ? '1' : '0'}" data-initial-answer="${qAns}" value="${qAns}" placeholder="Type your answer here..."
+                    class="app-review-input w-full bg-[#111114] border border-white/15 rounded-lg px-3 py-2 text-xs text-zinc-100 focus:border-zinc-400 focus:outline-none" />
                 `;
               }
 
+              const hintColor = needsInput ? 'text-rose-300' : (q.needs_review ? 'text-amber-300' : 'text-emerald-400');
+              const hintIcon = needsInput ? '⚠️' : (q.needs_review ? '⚡' : '✓');
               return `
-                <div class="p-3 rounded-xl bg-surface-950/70 border border-slate-800 space-y-1.5">
+                <div class="p-3 rounded-xl border ${borderCls} space-y-1.5">
                   <div class="flex items-start justify-between gap-2">
-                    <label class="text-xs text-slate-200 font-medium leading-snug">
-                      <span class="text-slate-500 font-mono">#${idx+1}</span> ${esc(q.question)}
+                    <label for="${inputId}" class="text-xs text-zinc-100 font-medium leading-snug">
+                      <span class="text-zinc-500 font-mono">#${idx+1}</span> ${esc(q.question)}
                       ${isMandatory ? '<span class="text-rose-400 font-bold ml-1">*</span>' : ''}
                     </label>
-                    <span class="text-[9px] font-mono text-slate-400 uppercase px-1.5 py-0.5 rounded bg-surface-800">${esc(q.type || 'text')}</span>
+                    <span class="text-[9px] font-mono text-zinc-400 uppercase px-1.5 py-0.5 rounded bg-white/[0.05] flex-shrink-0">${isMandatory ? 'Required' : 'Optional'}</span>
                   </div>
                   <div>${inputField}</div>
+                  ${chipsHtml}
                   <div class="flex items-center justify-between text-[10px]">
-                    <span class="text-emerald-400 flex items-center gap-1 font-mono">
-                      <span>✓</span> Auto-filled: ${esc(q.clarity_reason || 'Verified Academic Fact')}
+                    <span class="${hintColor} flex items-center gap-1 font-mono">
+                      <span>${hintIcon}</span> ${esc(q.clarity_reason || 'Editable — verify before submitting')}
                     </span>
-                    <span class="text-purple-400 font-mono font-semibold">${Math.round((q.confidence || 0.95)*100)}% match</span>
                   </div>
                 </div>
               `;
@@ -3399,113 +3595,122 @@ async function applyToJob(jobId, company, role) {
       `;
     } else {
       questionsHtml = `
-        <div class="p-3.5 rounded-xl bg-surface-950/80 border border-slate-800/80 flex items-center gap-3">
+        <div class="p-3.5 rounded-xl bg-[#09090b] border border-white/[0.08] flex items-center gap-3">
           <span class="text-xl">📄</span>
-          <div class="text-xs text-slate-300">
-            <strong class="text-white">Standard Campus Application:</strong> This recruiter requires no custom questionnaires. Your verified academic records and selected resume will be submitted.
+          <div class="text-xs text-zinc-300">
+            <strong class="text-zinc-100">Standard Campus Application:</strong> No extra custom questions required. Review/edit your full profile & resume below before applying.
           </div>
         </div>
       `;
     }
 
+    const coreModalKeys = [
+      ['full_name', 'Full Name'], ['dob', 'Date of Birth'], ['phone_number', 'Mobile Number'],
+      ['fathers_name', "Father's Name"], ['emergency_contact_number', 'Emergency Phone'], ['current_cgpa', 'Current CGPA'],
+      ['tenth_percentage', '10th %'], ['twelfth_percentage', '12th %'], ['active_backlogs', 'Active Backlogs'],
+      ['pan_card_number', 'PAN Card No.'], ['resume_link', 'Resume Cloud Link'], ['permanent_address', 'Permanent Address'],
+    ];
+    const coreKeySet = new Set(coreModalKeys.map(x => x[0]));
+    const allRemainingKeys = [
+      ...PROFILE_SECTIONS_DEF.personal,
+      ...PROFILE_SECTIONS_DEF.identity,
+      ...PROFILE_SECTIONS_DEF.academic,
+      ...PROFILE_SECTIONS_DEF.links,
+    ].filter(([k]) => !coreKeySet.has(k));
+
+    const modalField = ([k, lbl]) => `
+      <div>
+        <label class="block text-[10px] text-zinc-500 font-mono mb-0.5">${esc(lbl)}</label>
+        <input type="text" data-modal-profile-key="${k}" value="${esc(fp[k] !== undefined && fp[k] !== null ? String(fp[k]) : '')}"
+          class="w-full bg-[#111114] border border-white/10 focus:border-zinc-400 rounded-lg px-2.5 py-1.5 text-xs font-mono text-zinc-100 focus:outline-none" />
+      </div>
+    `;
+
     body.innerHTML = `
       <div class="space-y-4">
         <!-- Drive Header Banner -->
-        <div class="p-3.5 rounded-xl bg-gradient-to-r from-brand-950/60 to-purple-950/40 border border-brand-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div class="p-3.5 rounded-xl bg-[#09090b] border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <div class="text-sm font-bold text-white">${esc(data.company_name)}</div>
-            <div class="text-xs text-brand-300">${esc(data.job_role)} • <span class="font-mono text-white font-semibold">${esc(data.ctc_display || 'Standard CTC')}</span></div>
+            <div class="text-sm font-bold text-zinc-50">${esc(data.company_name || jobObj.company_name || 'Company')}</div>
+            <div class="text-xs text-zinc-400">${esc(data.job_role || jobObj.job_role || 'Role')} • <span class="font-mono text-zinc-100 font-semibold">${esc(data.ctc_display || 'Standard CTC')}</span></div>
           </div>
-          <div class="text-[11px] text-emerald-400 font-mono bg-emerald-950/50 px-2.5 py-1 rounded-lg border border-emerald-800/40 self-start sm:self-auto">
-            ⚡ Ready for Confirmed Submission
+          <div class="text-[11px] font-mono px-2.5 py-1 rounded-full border self-start sm:self-auto ${isApplied ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25' : (isOpen ? 'bg-white/[0.06] text-zinc-200 border-white/15' : 'bg-white/[0.04] text-zinc-500 border-white/[0.08]')}">
+            ${isApplied ? '✓ Already Applied on Superset' : (isOpen ? '⚡ Open — Editable Review' : 'Closed (Vault Edits Allowed)')}
           </div>
         </div>
 
-        <!-- Section 1: Pre-Filled Candidate Profile Details -->
+        <!-- Section 1: Editable Company Custom Questions -->
+        ${questionsHtml}
+
+        <!-- Section 2: Editable Candidate Profile Data -->
         <div class="space-y-2">
           <div class="flex items-center justify-between">
-            <div class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-              <span>👤</span> Candidate Details Pre-Filled from Encrypted Profile
+            <div class="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-1.5">
+              <span>👤</span> Your Candidate Data (Editable Right Here)
             </div>
-            <span class="text-[10px] text-emerald-400 font-mono">✓ Verified Records</span>
+            <span class="text-[10px] text-zinc-400 font-mono">Updates Vault + Cloud Sync</span>
           </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 p-3 rounded-xl bg-surface-950/80 border border-slate-800 text-xs">
-            <div>
-              <div class="text-[10px] text-slate-500 font-mono">Full Name</div>
-              <div class="font-medium text-slate-200">${esc(p.name)}</div>
-            </div>
-            <div>
-              <div class="text-[10px] text-slate-500 font-mono">Roll Number & Email</div>
-              <div class="font-medium text-slate-200 font-mono">${esc(p.roll_no)} • ${esc(p.email)}</div>
-            </div>
-            <div>
-              <div class="text-[10px] text-slate-500 font-mono">Current CGPA & Backlogs</div>
-              <div class="font-semibold text-emerald-400 font-mono">${esc(p.cgpa)} <span class="text-slate-400 font-normal">(${esc(p.backlogs)})</span></div>
-            </div>
-            <div>
-              <div class="text-[10px] text-slate-500 font-mono">Father's Name</div>
-              <div class="font-medium text-slate-200">${esc(p.father_name)}</div>
-            </div>
-            <div>
-              <div class="text-[10px] text-slate-500 font-mono">Contact Phone</div>
-              <div class="font-medium text-slate-200 font-mono">${esc(p.phone)}</div>
-            </div>
-            <div>
-              <div class="text-[10px] text-slate-500 font-mono">Emergency Contact</div>
-              <div class="font-medium text-slate-200 font-mono">${esc(p.emergency_phone)}</div>
-            </div>
-            <div>
-              <div class="text-[10px] text-slate-500 font-mono">Nationality / Passport</div>
-              <div class="font-medium text-slate-200">${esc(p.nationality)}</div>
-            </div>
-            <div>
-              <div class="text-[10px] text-slate-500 font-mono">Permanent Address</div>
-              <div class="font-medium text-slate-200 truncate" title="${esc(p.permanent_address)}">${esc(p.permanent_address)}</div>
-            </div>
-            <div>
-              <div class="text-[10px] text-slate-500 font-mono">Branch & College</div>
-              <div class="font-medium text-slate-200 truncate">${esc(p.branch)} (${esc(p.passing_year)})</div>
-            </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 p-3 rounded-xl bg-[#09090b] border border-white/[0.08]">
+            ${coreModalKeys.map(modalField).join('')}
           </div>
+          <details class="rounded-xl bg-[#09090b] border border-white/[0.07] p-3">
+            <summary class="text-[11px] font-medium text-zinc-300 cursor-pointer select-none">
+              View & Edit All Remaining ${allRemainingKeys.length} Profile Fields (10th / 12th / Identity / Passport / Links)
+            </summary>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-3">
+              ${allRemainingKeys.map(modalField).join('')}
+            </div>
+          </details>
         </div>
 
-        <!-- Section 2: Attached Resume Selection -->
+        <!-- Section 3: Attached Resume Selection -->
         <div class="space-y-1.5">
-          <label class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-            <span>📎</span> Select Resume to Attach
+          <label class="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-1.5">
+            <span>📎</span> Resume Attached to Application
           </label>
-          <select id="review-resume-select" class="w-full bg-surface-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:border-brand-500 focus:outline-none">
+          <select id="review-resume-select" class="w-full bg-[#09090b] border border-white/15 rounded-lg px-3 py-2 text-xs text-zinc-100 focus:border-zinc-400 focus:outline-none">
             ${resumesOptionsHtml}
           </select>
         </div>
 
-        <!-- Section 3: Company Custom Questions -->
-        ${questionsHtml}
-
-        <!-- Section 4: Consent Checkbox -->
-        <label class="flex items-start gap-2.5 p-3 rounded-xl bg-surface-950 border border-slate-800/80 cursor-pointer hover:border-slate-700 transition-colors">
-          <input type="checkbox" id="review-consent-check" checked class="mt-0.5 rounded border-slate-700 text-brand-600 focus:ring-0">
-          <span class="text-xs text-slate-300 leading-relaxed">
-            I confirm that the above filled information, answers, and selected documents are verified and accurate. Authorize TNP Suite to register my formal application for <strong>${esc(data.company_name)}</strong>.
-          </span>
-        </label>
+        <!-- Section 4: Save Vault + Consent -->
+        <div class="space-y-2">
+          <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+            <input type="checkbox" id="review-save-vault" checked class="rounded border-zinc-600 accent-zinc-100">
+            <span>Save any edited answers & profile fields to my Vault for future drives</span>
+          </label>
+          <label class="flex items-start gap-2.5 p-3 rounded-xl bg-[#09090b] border border-white/[0.08] cursor-pointer">
+            <input type="checkbox" id="review-consent-check" checked class="mt-0.5 rounded border-zinc-600 accent-zinc-100">
+            <span class="text-xs text-zinc-300 leading-relaxed">
+              I confirm all answers and profile details above are accurate and authorize submitting my application for <strong>${esc(data.company_name || 'this company')}</strong>.
+            </span>
+          </label>
+        </div>
 
         <!-- Section 5: Modal Action Buttons -->
-        <div class="pt-2 flex flex-col sm:flex-row items-center gap-2 border-t border-slate-800">
-          <button type="button" onclick="closeModal()" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-surface-800 hover:bg-surface-700 text-slate-300 font-semibold text-xs transition-colors">
-            Cancel
+        <div class="pt-2 flex flex-col sm:flex-row items-center gap-2 border-t border-white/[0.08]">
+          <button type="button" onclick="closeModal()" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-zinc-300 font-semibold text-xs">
+            Close
           </button>
-          <button id="btn-submit-app-modal" type="button" onclick="confirmAndSubmitApplication('${jobId}', '${esc(data.company_name)}')" class="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-brand-900/40 flex items-center justify-center gap-2 transition-all">
-            <span>⚡</span> Confirm & Submit to Superset
+          <button id="btn-save-modal-vault" type="button" onclick="saveModalEditsOnly('${jobId}')" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-zinc-100 font-semibold text-xs">
+            💾 Save Edits to Vault
           </button>
+          ${(!isApplied && isOpen) ? `
+            <button id="btn-submit-app-modal" type="button" onclick="confirmAndSubmitApplication('${jobId}', '${esc(data.company_name || company)}')" class="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-bold text-xs flex items-center justify-center gap-2">
+              <span>⚡</span> Confirm & Submit to Superset
+            </button>
+          ` : `
+            <div class="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-white/[0.04] border border-white/[0.08] text-zinc-400 font-mono text-xs text-center">
+              ${isApplied ? '✓ Already Applied on Superset' : 'Drive Closed for New Applications'}
+            </div>
+          `}
         </div>
       </div>
     `;
   } catch (err) {
     body.innerHTML = `
-      <div class="p-4 rounded-xl bg-red-950/40 border border-red-800 text-red-200 text-xs font-mono space-y-2">
-        <div class="font-bold text-red-300">Application Preview Error:</div>
+      <div class="p-4 rounded-xl bg-rose-950/40 border border-rose-800 text-rose-200 text-xs font-mono space-y-2">
+        <div class="font-bold text-rose-300">Application Preview Error:</div>
         <div>${esc(err.message)}</div>
       </div>
     `;
@@ -3519,35 +3724,49 @@ async function confirmAndSubmitApplication(jobId, company) {
     return;
   }
 
+  const { answers, clarifications_updates, profile_updates, missingRequiredEl, missingRequiredLabel } = collectModalUpdates();
+  if (missingRequiredEl) {
+    toast(`Please fill required question: ${missingRequiredLabel}`, 'error');
+    missingRequiredEl.focus();
+    missingRequiredEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+
   const resumeSelect = document.getElementById('review-resume-select');
   const selectedResume = resumeSelect ? resumeSelect.value : '';
-
-  // Gather all custom question answers from input elements
-  const answers = {};
-  const inputs = document.querySelectorAll('.app-review-input');
-  inputs.forEach(el => {
-    const key = el.getAttribute('data-attr-key');
-    if (key) {
-      answers[key] = el.value;
-    }
-  });
+  const saveToVault = Boolean(document.getElementById('review-save-vault')?.checked);
 
   const submitBtn = document.getElementById('btn-submit-app-modal');
   if (submitBtn) {
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<div class="inline-block animate-spin w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full mr-2"></div> Submitting to Superset...';
+    submitBtn.innerHTML = '<div class="inline-block animate-spin w-3.5 h-3.5 border-2 border-zinc-900 border-t-transparent rounded-full mr-2"></div> Submitting to Superset...';
   }
 
   toast(`Submitting application to ${company}...`, 'info');
 
   try {
+    const payload = {
+      resume_id: selectedResume,
+      answers: answers,
+    };
+    if (saveToVault) {
+      payload.profile_updates = profile_updates;
+      payload.clarifications_updates = clarifications_updates;
+    }
+
     const { ok, data } = await apiFetch(`/api/apply/${jobId}`, {
       method: 'POST',
-      body: JSON.stringify({
-        resume_id: selectedResume,
-        answers: answers
-      })
+      body: JSON.stringify(payload)
     });
+
+    if (saveToVault && Object.keys(profile_updates).length) {
+      profileData = Object.assign({}, profileData, profile_updates);
+      if (Object.keys(clarifications_updates).length) {
+        profileData.custom_clarifications = Object.assign({}, profileData.custom_clarifications || {}, clarifications_updates);
+      }
+      saveDashboardCache();
+      if (currentPage === 'profile') renderProfile();
+    }
 
     if (ok && data && data.success) {
       closeModal();
@@ -3946,6 +4165,7 @@ async function fetchNotices(refresh = false) {
     if (status === 401) return;
     if (ok && data && data.success) {
       noticesPayload = data;
+      saveDashboardCache();
       updateNoticeBadgesAndBanners();
       if (currentPage === 'notices') renderNotices();
     }
@@ -3965,6 +4185,7 @@ async function scanNoticesLive() {
     const { ok, data } = await apiFetch('/api/notices/scan', { method: 'POST' });
     if (ok && data && data.success) {
       noticesPayload = data;
+      saveDashboardCache();
       updateNoticeBadgesAndBanners();
       renderNotices();
       const c = data.counts || {};
@@ -5031,6 +5252,13 @@ async function saveResumeMaster() {
   setDrivesSort('newest');
   setDrivesView('grid');
 
+  // Render cached dashboard & profile immediately if token exists (0ms initial paint)
+  if (authToken) {
+    if (hydrateDashboardCache()) {
+      hideAuthOverlay();
+    }
+  }
+
   const { ok, status, data } = await apiFetch('/api/auth/me');
   if (ok && data && data.authenticated) {
     currentUser = data.user;
@@ -5040,7 +5268,10 @@ async function saveResumeMaster() {
     }
     hideAuthOverlay();
     await Promise.all([fetchStatus(), fetchJobs(), fetchProfile(), fetchNotices()]);
-  } else {
+  } else if (status === 401 || !authToken) {
+    authToken = '';
+    localStorage.removeItem('sjp_token');
+    localStorage.removeItem('sjp_dashboard_cache_v1');
     showAuthOverlay();
   }
 
@@ -5733,7 +5964,23 @@ def handle_profile():
     resolver = AttributeResolver(user_id=user["user_id"], profile_data=user["profile"])
     if request.method == "POST":
         data = request.get_json(silent=True) or {}
-        resolver.save_profile(data)
+        if not isinstance(data, dict):
+            return jsonify({"success": False, "message": "Invalid JSON object"}), 400
+        cleaned = dict(data)
+        # Protect structured nested blobs from accidental flat-form overwrite
+        if "resume_master" in cleaned and not isinstance(cleaned["resume_master"], dict):
+            cleaned.pop("resume_master", None)
+        if "whatsapp_config" in cleaned and not isinstance(cleaned["whatsapp_config"], dict):
+            cleaned.pop("whatsapp_config", None)
+        delete_clarif = cleaned.pop("delete_clarification_key", None)
+        if delete_clarif is not None or isinstance(cleaned.get("custom_clarifications"), dict):
+            curr_clarifs = dict((resolver.profile or {}).get("custom_clarifications") or {})
+            if isinstance(cleaned.get("custom_clarifications"), dict):
+                curr_clarifs.update(cleaned["custom_clarifications"])
+            if delete_clarif and delete_clarif in curr_clarifs:
+                curr_clarifs.pop(delete_clarif, None)
+            cleaned["custom_clarifications"] = curr_clarifs
+        resolver.save_profile(cleaned)
         log_event(f"Updated encrypted student profile for {user['full_name']}.", "SUCCESS")
         return jsonify({"success": True, "profile": resolver.profile})
     return jsonify(resolver.profile)
@@ -5818,6 +6065,14 @@ def get_job_application_preview(job_id):
             "backlogs": f"{p.get('active_backlogs', '0')} Active / {p.get('history_backlogs', '0')} History",
             "gap": f"{p.get('total_gap', '0')} years",
         }
+        full_profile_safe = {
+            k: v for k, v in p.items() if k not in ("resume_master", "whatsapp_config")
+        }
+        jp_obj = job_data.get("jobProfile") or {}
+        jp_status = str(jp_obj.get("jobProfileStatus") or "")
+        app_status = str(job_data.get("jobApplicationStatus") or job_data.get("studentJobProfileApplicationStatus") or "")
+        is_applied = app_status in ("APPLIED", "SHORTLISTED", "SELECTED") or bool(job_data.get("applied"))
+        is_open = jp_status not in ("CLOSED_FOR_APPLICATIONS", "COMPLETED")
 
         return jsonify({
             "success": True,
@@ -5829,12 +6084,46 @@ def get_job_application_preview(job_id):
             "resumes_available": resumes_available,
             "consent_required": consent_required,
             "consent_type": consent_type,
+            "is_applied": is_applied,
+            "is_open": is_open,
             "questions": questions,
             "candidate_profile": profile_summary,
+            "full_profile": full_profile_safe,
         })
     except Exception as e:
         logger.error(f"Error previewing application for {job_id}: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/jobs/<job_id>/save-answers", methods=["POST"])
+def save_job_answers_to_vault(job_id):
+    """Saves user-edited profile fields & custom question answers to their encrypted vault before applying."""
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Authentication required"}), 401
+
+    data = request.get_json(silent=True) or {}
+    profile_updates = data.get("profile_updates")
+    clarif_updates = data.get("clarifications_updates")
+
+    patch_payload = {}
+    if isinstance(profile_updates, dict):
+        for k, v in profile_updates.items():
+            if k not in ("resume_master", "whatsapp_config", "custom_clarifications"):
+                patch_payload[k] = v
+
+    if isinstance(clarif_updates, dict) and clarif_updates:
+        merged_clarifs = dict((user.get("profile") or {}).get("custom_clarifications") or {})
+        for q_text, ans_val in clarif_updates.items():
+            q_clean = str(q_text or "").strip()
+            if q_clean:
+                merged_clarifs[q_clean] = ans_val
+        patch_payload["custom_clarifications"] = merged_clarifs
+
+    updated_prof = user_manager.update_user_profile(user["user_id"], patch_payload) if patch_payload else user["profile"]
+    safe_prof = {k: v for k, v in updated_prof.items() if k not in ("resume_master", "whatsapp_config")}
+    log_event(f"Saved pre-apply edits ({len(patch_payload)} update(s)) for {user['full_name']}.", "SUCCESS")
+    return jsonify({"success": True, "profile": safe_prof})
 
 
 @app.route("/api/apply/<job_id>", methods=["POST"])
@@ -5848,6 +6137,25 @@ def manual_apply(job_id):
         data = request.get_json(silent=True) or {}
         custom_answers = data.get("answers")
         selected_resume_id = data.get("resume_id") or Config.DEFAULT_RESUME_NAME
+
+        # Persist any user-edited profile fields or question overrides before submitting
+        profile_updates = data.get("profile_updates")
+        clarif_updates = data.get("clarifications_updates")
+        patch_payload = {}
+        if isinstance(profile_updates, dict):
+            for k, v in profile_updates.items():
+                if k not in ("resume_master", "whatsapp_config", "custom_clarifications"):
+                    patch_payload[k] = v
+        if isinstance(clarif_updates, dict) and clarif_updates:
+            merged_clarifs = dict((user.get("profile") or {}).get("custom_clarifications") or {})
+            for q_text, ans_val in clarif_updates.items():
+                q_clean = str(q_text or "").strip()
+                if q_clean:
+                    merged_clarifs[q_clean] = ans_val
+            patch_payload["custom_clarifications"] = merged_clarifs
+        if patch_payload:
+            user_manager.update_user_profile(user["user_id"], patch_payload)
+            user = user_manager.get_user_by_id(user["user_id"]) or user
 
         superset = _get_superset_for_user(user)
         if not superset.login():

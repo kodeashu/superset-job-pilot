@@ -1,0 +1,11 @@
+{
+  "name": "superset-job-pilot-edge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Netlify Edge & Scheduled Functions for Render keep-warm and zero-knowledge encrypted vault sync",
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0",
+    "@netlify/functions": "^3.0.0"
+  }
+}

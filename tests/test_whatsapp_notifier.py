@@ -361,7 +361,7 @@ class TestFlaskWhatsAppApi(unittest.TestCase):
                 self.assertFalse(r0.get_json()["config"]["configured"])
 
                 # 2. Save CallMeBot config
-                r1 = client.post("/api/whatsapp/config", json={
+                r1 = client.post("/api/whatsapp/config", headers={"X-Requested-With": "sjp"}, json={
                     "provider": "callmebot",
                     "phone": "9876543210",
                     "api_key": "SECRET999",
@@ -378,7 +378,7 @@ class TestFlaskWhatsAppApi(unittest.TestCase):
                 self.assertNotIn("api_key", cfg1)  # Secret is never echoed back!
 
                 # 3. Re-saving toggles with blank api_key preserves existing encrypted key
-                r2 = client.post("/api/whatsapp/config", json={
+                r2 = client.post("/api/whatsapp/config", headers={"X-Requested-With": "sjp"}, json={
                     "provider": "callmebot",
                     "phone": "919876543210",
                     "api_key": "",
@@ -394,14 +394,14 @@ class TestFlaskWhatsAppApi(unittest.TestCase):
                 # 4. POST /api/whatsapp/test dispatches via CallMeBot
                 mock_ok = MagicMock(status_code=200, text="Message queued")
                 with patch("whatsapp_notifier.requests.get", return_value=mock_ok) as m_get:
-                    rt = client.post("/api/whatsapp/test")
+                    rt = client.post("/api/whatsapp/test", headers={"X-Requested-With": "sjp"})
                     self.assertEqual(rt.status_code, 200)
                     self.assertTrue(rt.get_json()["success"])
                     self.assertIn("WhatsApp Connected", m_get.call_args[1]["params"]["text"])
 
                 # 5. POST /api/whatsapp/send-digest sends exact shortlist venue + open job profile!
                 with patch("whatsapp_notifier.requests.get", return_value=mock_ok) as m_get, patch("web_server.time.sleep"):
-                    rd = client.post("/api/whatsapp/send-digest")
+                    rd = client.post("/api/whatsapp/send-digest", headers={"X-Requested-With": "sjp"})
                     self.assertEqual(rd.status_code, 200)
                     dj = rd.get_json()
                     self.assertTrue(dj["success"])
@@ -422,7 +422,7 @@ class TestFlaskWhatsAppApi(unittest.TestCase):
                 }
                 with patch.object(web_server, "_ensure_whatsapp_bridge_running", return_value=(True, "Bridge online")), \
                      patch("web_server.requests.post", return_value=mock_qr_resp):
-                    rqr = client.post("/api/whatsapp/qr/start", json={})
+                    rqr = client.post("/api/whatsapp/qr/start", headers={"X-Requested-With": "sjp"}, json={})
                     self.assertEqual(rqr.status_code, 200)
                     dq = rqr.get_json()
                     self.assertTrue(dq["success"])
@@ -437,7 +437,7 @@ class TestFlaskWhatsAppApi(unittest.TestCase):
         with tempfile.TemporaryDirectory(**td_kwargs) as td:
             um, uid = _make_isolated_um_and_user(td, "session-test-u1")
             tok = um.create_session(uid, ttl_days=90)
-            self.assertTrue(tok.startswith("sjp1."))
+            self.assertTrue(tok.startswith(("sjp1.", "sjp2.")))
             self.assertIsNotNone(um.get_user_by_token(tok))
 
             # Wipe sessions table to simulate Render/Docker ephemeral restart

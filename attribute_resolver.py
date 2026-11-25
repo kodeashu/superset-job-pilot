@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, Optional
 from config import BASE_DIR
+from normalizers import detect_question_dependency, extract_question_required, normalize_profile
 
 logger = logging.getLogger(__name__)
 
@@ -15,9 +16,9 @@ class AttributeResolver:
         self.user_id = user_id
         self.profile_path = profile_path
         if profile_data is not None:
-            self.profile = dict(profile_data)
+            self.profile = normalize_profile(profile_data)
         else:
-            self.profile = self.load_profile()
+            self.profile = normalize_profile(self.load_profile())
 
     def load_profile(self) -> dict:
         """Loads student profile data from the encrypted UserManager vault."""
@@ -80,8 +81,10 @@ class AttributeResolver:
             return raw_ans
 
         if attr_type == "select:multiple":
-            if isinstance(raw_ans, list) and all(item in options for item in raw_ans) and raw_ans:
-                return raw_ans
+            if isinstance(raw_ans, list):
+                valid = [item for item in raw_ans if item in options]
+                if valid:
+                    return valid
             raw_str = str(raw_ans or "").strip().lower()
             matched = [opt for opt in options if str(opt).strip().lower() in raw_str]
             return matched if matched else [options[0]]
@@ -504,6 +507,7 @@ class AttributeResolver:
             return attr_list
 
         resolved = {}
+        ordered_items = []
         for attr in attr_list:
             if not isinstance(attr, dict):
                 continue
@@ -512,14 +516,37 @@ class AttributeResolver:
             if not attr_key:
                 continue
 
-            ans = self.resolve_attribute(attr)
+            name = str(attr.get("name") or "").strip()
+            attr_type = str(attr.get("attrType") or "string")
+            options_raw = attr.get("options")
+            options = []
+            if options_raw:
+                try:
+                    parsed = json.loads(options_raw) if isinstance(options_raw, str) else options_raw
+                    if isinstance(parsed, list):
+                        options = parsed
+                except Exception:
+                    options = []
+
+            dep = detect_question_dependency(name, ordered_items)
+            if dep and dep.get("parent_key") in resolved:
+                parent_ans = resolved[dep["parent_key"]]
+                p_str = ("yes" if parent_ans else "no") if isinstance(parent_ans, bool) else str(parent_ans or "").strip().lower()
+                if p_str != dep["when_value"].lower():
+                    ans = dep["fallback_value"]
+                else:
+                    ans = self.resolve_attribute(attr)
+            else:
+                ans = self.resolve_attribute(attr)
+
             resolved[attr_key] = ans
+            ordered_items.append({"key": attr_key, "type": attr_type, "options": options, "answer": ans})
             logger.debug(f"Resolved attribute '{attr.get('name')}' -> {ans}")
 
         return resolved
 
     def preview_answers_for_job(self, job_data: dict) -> list:
-        """Returns a list of { key, question, type, options, answer, mandatory, is_answered, needs_review } for UI display."""
+        """Returns a list of { key, question, label, type, options, answer, mandatory, required, depends_on, is_answered, needs_review } for UI display."""
         jp = job_data.get("jobProfile", {})
         attr_list = jp.get("attributeList") or job_data.get("attributes") or []
 
@@ -531,9 +558,9 @@ class AttributeResolver:
         for attr in attr_list:
             if not isinstance(attr, dict):
                 continue
-            name = attr.get("name", "")
-            attr_type = attr.get("attrType", "string")
-            mandatory = bool(attr.get("mandatory", False))
+            name = str(attr.get("name") or "").strip()
+            attr_type = str(attr.get("attrType") or "string")
+            mandatory = extract_question_required(attr)
             options_raw = attr.get("options")
             options = []
             if options_raw:
@@ -544,7 +571,26 @@ class AttributeResolver:
                 except Exception:
                     options = []
 
-            ans = self.resolve_attribute(attr)
+            attr_key = attr.get("attrKey") or attr.get("identifier") or name
+            depends_on = detect_question_dependency(name, preview)
+            dep_overridden_reason = None
+
+            if depends_on:
+                parent_item = next((x for x in preview if x.get("key") == depends_on["parent_key"]), None)
+                if parent_item is not None:
+                    p_raw = parent_item.get("answer")
+                    p_str = ("yes" if p_raw else "no") if isinstance(p_raw, bool) else str(p_raw or "").strip().lower()
+                    if p_str != depends_on["when_value"].lower():
+                        ans = depends_on["fallback_value"]
+                        parent_idx = preview.index(parent_item) + 1
+                        dep_overridden_reason = f"Auto-set to NA because #{parent_idx} is {parent_item.get('answer')}"
+                    else:
+                        ans = self.resolve_attribute(attr)
+                else:
+                    ans = self.resolve_attribute(attr)
+            else:
+                ans = self.resolve_attribute(attr)
+
             is_answered = not (
                 ans is None
                 or (isinstance(ans, str) and not ans.strip())
@@ -564,8 +610,16 @@ class AttributeResolver:
                 )
             )
             needs_review = bool((mandatory and not is_answered) or (is_choice_question and not is_saved_clarif))
+            if dep_overridden_reason:
+                needs_review = False
 
-            if not is_answered:
+            if dep_overridden_reason:
+                clarity_meta = {
+                    "is_unclear": False,
+                    "confidence": 1.0,
+                    "clarity_reason": dep_overridden_reason,
+                }
+            elif not is_answered:
                 clarity_meta = {
                     "is_unclear": True,
                     "confidence": 0.0,
@@ -600,14 +654,16 @@ class AttributeResolver:
                 except Exception:
                     pass
 
-            attr_key = attr.get("attrKey") or attr.get("identifier") or name
             preview.append(
                 {
                     "key": attr_key,
                     "question": name,
+                    "label": name,
                     "type": attr_type,
                     "mandatory": mandatory,
+                    "required": mandatory,
                     "options": options,
+                    "depends_on": depends_on,
                     "answer": ans,
                     "is_answered": is_answered,
                     "needs_review": needs_review,

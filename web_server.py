@@ -15,7 +15,21 @@ from datetime import datetime, timezone
 from typing import Tuple
 import pytz
 from flask import Flask, jsonify, request, render_template_string, Response
+import hashlib
 from config import Config, BASE_DIR
+from normalizers import normalize_job, normalize_profile, parse_ist_datetime
+from security import (
+    INVITE_CODE_RE,
+    api_error,
+    apply_security_headers,
+    check_request_isolation_and_csrf,
+    get_client_ip,
+    is_owner_user,
+    is_valid_identifier,
+    rate_limiter,
+    sanitize_profile_patch,
+    validate_photo_data_url,
+)
 from superset_client import SupersetClient
 from auto_applier import AutoApplier
 from telegram_notifier import TelegramNotifier
@@ -38,7 +52,27 @@ logger = logging.getLogger("superset_web")
 logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 6 * 1024 * 1024
 IST = pytz.timezone("Asia/Kolkata")
+
+
+@app.errorhandler(413)
+def _handle_payload_too_large(_err):
+    return api_error("Request payload exceeds maximum 6 MB limit.", 413, "payload_too_large")
+
+
+@app.before_request
+def _security_before_request():
+    blocked = check_request_isolation_and_csrf(request)
+    if blocked:
+        body, status = blocked
+        return jsonify(body), status
+
+
+@app.after_request
+def _security_after_request(resp):
+    is_https = bool(request.is_secure or request.headers.get("X-Forwarded-Proto") == "https")
+    return apply_security_headers(resp, is_https=is_https)
 
 # ─── Global Engine State ────────────────────────────────────────────────────
 applier = AutoApplier()
@@ -170,9 +204,10 @@ def background_monitor_worker():
             time.sleep(5)
 
 
-# Start background worker
-bg_thread = threading.Thread(target=background_monitor_worker, daemon=True)
-bg_thread.start()
+# Start background worker (skipped during static frontend build checks)
+if os.getenv("SJP_BUILD_ONLY") != "1":
+    bg_thread = threading.Thread(target=background_monitor_worker, daemon=True)
+    bg_thread.start()
 
 
 # ─── HTML TEMPLATE ──────────────────────────────────────────────────────────
@@ -298,6 +333,157 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       }
     }
 
+    /* Shimmer Skeleton Placeholders */
+    .skeleton {
+      background: linear-gradient(90deg, #18181b 25%, #27272a 50%, #18181b 75%);
+      background-size: 200% 100%;
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      .skeleton { animation: sjpShimmer 1.4s ease-in-out infinite; }
+    }
+    @keyframes sjpShimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* Native Top Network <progress> Bar (modern-web-guidance: progress) */
+    progress.sjp-top-progress {
+      appearance: none;
+      border: 0 solid;
+      overflow: clip;
+      container-type: inline-size;
+      background: rgba(255, 255, 255, 0.06);
+      --progress-bar-indeterminate-size: 32%;
+      --progress-bar-indeterminate-animation-duration: 1.4s;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      progress.sjp-top-progress { --progress-bar-indeterminate-animation-duration: 10s; }
+    }
+    progress.sjp-top-progress::-webkit-progress-bar { background: transparent; }
+    progress.sjp-top-progress::-webkit-progress-value {
+      background: #fafafa;
+      transition: inline-size 0.3s;
+    }
+    progress.sjp-top-progress::-moz-progress-bar {
+      background: #fafafa;
+      transition: inline-size 0.3s;
+    }
+    progress.sjp-top-progress:indeterminate::-webkit-progress-value {
+      animation: progress-bar-indeterminate var(--progress-bar-indeterminate-animation-duration) infinite linear;
+    }
+    progress.sjp-top-progress:indeterminate::-moz-progress-bar {
+      animation: progress-bar-indeterminate var(--progress-bar-indeterminate-animation-duration) infinite linear;
+    }
+    @keyframes progress-bar-indeterminate {
+      from, to {
+        inline-size: var(--progress-bar-indeterminate-size);
+        margin-right: auto;
+      }
+      from { translate: -100%; }
+      to { translate: 100cqi; }
+    }
+
+    /* Native Indeterminate <progress class="loading-spinner"> (modern-web-guidance: spinner) */
+    @property --arc-start { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+    @property --arc-end { syntax: "<angle>"; inherits: false; initial-value: 158deg; }
+    @property --progress-dash-animation { syntax: "*"; inherits: false; initial-value: , progress-dash 3s ease-in-out infinite; }
+    progress.loading-spinner:indeterminate::-webkit-progress-bar { display: none; background: none; }
+    progress.loading-spinner:indeterminate::-webkit-progress-value { display: none; background: none; }
+    progress.loading-spinner:indeterminate::-moz-progress-bar { display: none; background: none; }
+    progress.loading-spinner:indeterminate {
+      --_from: calc(90deg + var(--arc-start, 0deg));
+      --_to: calc(90deg + var(--arc-end, 158deg));
+      --size: 28px;
+      --thickness: 2.5px;
+      --spinner-color: #fafafa;
+      --track-color: rgba(255, 255, 255, 0.14);
+      --spinner-duration: 1.3s;
+      --_used-spinner-duration: var(--spinner-duration);
+      position: relative;
+      display: inline-block;
+      vertical-align: middle;
+      width: var(--size);
+      height: var(--size);
+      border-radius: 50%;
+      appearance: none;
+      background: conic-gradient(from var(--_from), var(--spinner-color) calc(var(--_to) - var(--_from)), transparent 0) var(--track-color);
+      animation: progress-spin var(--_used-spinner-duration) linear infinite var(--progress-dash-animation, );
+    }
+    progress.loading-spinner.spinner-xs:indeterminate { --size: 14px; --thickness: 2px; }
+    progress.loading-spinner.spinner-dark:indeterminate { --spinner-color: #09090b; --track-color: rgba(9, 9, 11, 0.22); }
+    @supports (background-clip: border-area) {
+      progress.loading-spinner:indeterminate {
+        background-clip: border-area;
+        border: var(--thickness) solid transparent;
+        background-origin: border-box;
+      }
+    }
+    @supports not (background-clip: border-area) {
+      progress.loading-spinner:indeterminate {
+        --clip-boundary: calc(100% - var(--thickness));
+        mask-image: radial-gradient(farthest-side, transparent var(--clip-boundary), black var(--clip-boundary));
+        border: 0;
+      }
+    }
+    @media (forced-colors: active) {
+      progress.loading-spinner:indeterminate {
+        forced-color-adjust: none;
+        --spinner-color: CanvasText;
+        --track-color: Canvas;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      progress.loading-spinner:indeterminate {
+        --_used-spinner-duration: 6s;
+        --progress-dash-animation: ;
+        --arc-end: 158deg;
+      }
+    }
+    @keyframes progress-spin { to { rotate: 1turn; } }
+    @keyframes progress-dash {
+      from { --arc-start: 0deg; --arc-end: 3deg; }
+      50% { --arc-start: 100deg; --arc-end: 358deg; }
+      to { --arc-start: 360deg; --arc-end: 363deg; }
+    }
+
+    /* Post-Interaction Form Validation (modern-web-guidance: validate-input-after-interaction) */
+    .visually-hidden:where(:not(:focus-within, :active)) {
+      position: absolute !important;
+      clip-path: inset(50%) !important;
+      overflow: hidden !important;
+      width: 1px !important;
+      height: 1px !important;
+      margin: -1px !important;
+      padding: 0 !important;
+      border: 0 !important;
+      white-space: nowrap !important;
+    }
+    .profile-field input, .profile-field select, .profile-field textarea {
+      background: #09090b;
+      border: 1px solid #27272a;
+      color: #f4f4f5;
+    }
+    .profile-field input:focus, .profile-field select:focus, .profile-field textarea:focus {
+      border-color: #a1a1aa;
+      outline: none;
+    }
+    .profile-field .error-msg {
+      display: none;
+      color: #fda4af;
+      font-size: 11px;
+      margin-top: 0.25rem;
+    }
+    .profile-field :is(:user-invalid, .user-invalid-fallback) {
+      border-color: #e11d48 !important;
+      background-color: rgba(136, 19, 55, 0.16) !important;
+    }
+    .profile-field:has(:is(:user-invalid, .user-invalid-fallback)) .error-msg {
+      display: block;
+    }
+    .profile-field :is(:user-valid, .user-valid-fallback) {
+      border-color: rgba(16, 185, 129, 0.45);
+    }
+
     /* Toast system responsive */
     .toast-container { position: fixed; top: calc(0.75rem + env(safe-area-inset-top, 0px)); right: 1rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.5rem; pointer-events: none; }
     .toast { pointer-events: auto; min-width: 280px; max-width: 420px; background: #141418; border-color: rgba(255,255,255,0.12); }
@@ -306,7 +492,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       .toast.removing { animation: slideUp 140ms var(--ease-out) reverse forwards; }
     }
     @media (max-width: 640px) {
-      .toast-container { left: 0.75rem; right: 0.75rem; }
+      .toast-container { top: calc(3.75rem + env(safe-area-inset-top, 0px)); left: 0.75rem; right: 0.75rem; }
       .toast { min-width: 0; width: 100%; max-width: 100%; }
     }
 
@@ -354,19 +540,15 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     /* Modal backdrop */
     .modal-backdrop { background: rgba(0, 0, 0, 0.78); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 
-    /* Profile form */
-    .profile-field input, .profile-field select { background: #09090b; border: 1px solid #27272a; color: #f4f4f5; }
-    .profile-field input:focus, .profile-field select:focus { border-color: #71717a; outline: none; }
-
     /* Quiet Semantic Badges (no colored glow shadows) */
     .badge-applied { background: rgba(16, 185, 129, 0.10); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.22); }
     .badge-open { background: rgba(255, 255, 255, 0.08); color: #fafafa; border: 1px solid rgba(255, 255, 255, 0.16); }
-    .badge-closed { background: rgba(255, 255, 255, 0.04); color: #71717a; border: 1px solid rgba(255, 255, 255, 0.07); }
+    .badge-closed { background: rgba(255, 255, 255, 0.04); color: #a1a1aa; border: 1px solid rgba(255, 255, 255, 0.08); }
     .badge-ineligible { background: rgba(244, 63, 94, 0.08); color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.18); }
     .badge-shortlisted { background: rgba(245, 158, 11, 0.12); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.28); }
-    .badge-passed { background: rgba(255, 255, 255, 0.04); color: #71717a; border: 1px solid rgba(255, 255, 255, 0.08); }
+    .badge-passed { background: rgba(255, 255, 255, 0.04); color: #a1a1aa; border: 1px solid rgba(255, 255, 255, 0.08); }
 
-    /* Native Modal <dialog> PDF Viewer (modern-web-guidance compliant) */
+    /* Native Modal <dialog> Review Modal + PDF Viewer (modern-web-guidance: dialog) */
     dialog:modal {
       overscroll-behavior: contain;
     }
@@ -376,6 +558,41 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       background: rgba(0, 0, 0, 0.80);
       backdrop-filter: blur(6px);
       -webkit-backdrop-filter: blur(6px);
+    }
+    dialog#modal-overlay {
+      margin: auto;
+      padding: 0;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 1rem;
+      background: #111114;
+      color: #e4e4e7;
+      width: min(96vw, 44rem);
+      max-width: 44rem;
+      max-height: 90dvh;
+      box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.85);
+    }
+    dialog#modal-overlay[open] {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    @media (max-width: 640px) {
+      dialog#modal-overlay {
+        width: 100vw;
+        max-width: 100vw;
+        height: 92dvh;
+        max-height: 92dvh;
+        margin-bottom: 0;
+        border-radius: 1.25rem 1.25rem 0 0;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+      }
+    }
+    .dirty-confirm-bar {
+      visibility: hidden;
+      min-height: 2.75rem;
+    }
+    .dirty-confirm-bar.is-visible {
+      visibility: visible;
     }
     dialog#pdfViewerDialog {
       margin: auto;
@@ -422,8 +639,19 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 </head>
 <body class="font-sans antialiased min-h-screen flex">
 
+  <!-- Top In-Flight Network Progress Bar -->
+  <progress id="top-network-progress" aria-label="Loading data" class="sjp-top-progress hidden fixed top-0 left-0 right-0 z-[100] w-full h-[2px]"></progress>
+
+  <!-- Initial Branded Boot Splash (prevents login modal flash while session restores) -->
+  <div id="boot-splash" class="fixed inset-0 z-[90] bg-[#09090b] flex flex-col items-center justify-center gap-3.5 p-6">
+    <div class="w-12 h-12 rounded-2xl bg-zinc-100 text-zinc-950 flex items-center justify-center font-bold text-base">SJ</div>
+    <div class="text-sm font-semibold text-zinc-100 tracking-tight">Superset Job Pilot</div>
+    <progress aria-label="Restoring workspace" class="loading-spinner"></progress>
+    <div id="boot-splash-status" class="text-xs font-mono text-zinc-400">Restoring encrypted workspace…</div>
+  </div>
+
   <!-- Toast Container -->
-  <div id="toast-container" class="toast-container"></div>
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
   <!-- ═══ DESKTOP SIDEBAR ═══ -->
   <aside id="sidebar" class="hidden lg:flex sidebar bg-surface-950 border-r border-white/[0.07] flex-col h-screen sticky top-0 z-40">
@@ -434,17 +662,17 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       </div>
       <div class="sidebar-header-text overflow-hidden">
         <div class="text-xs font-semibold text-zinc-100 tracking-wide truncate">SUPERSET PILOT</div>
-        <div class="text-[10px] text-zinc-500 font-mono truncate">Mission Control</div>
+        <div class="text-[10px] text-zinc-400 font-mono truncate">Mission Control</div>
       </div>
     </div>
 
     <!-- Student info -->
-    <div class="p-4 border-b border-slate-800/80 sidebar-label flex items-center justify-between gap-2">
+    <div class="p-4 border-b border-white/[0.07] sidebar-label flex items-center justify-between gap-2">
       <div class="min-w-0">
-        <div class="text-xs text-slate-200 font-semibold truncate" id="sidebar-student-name">Student Account</div>
-        <div class="text-[10px] text-slate-500 font-mono truncate" id="sidebar-student-id">KIIT Campus Portal</div>
+        <div class="text-xs text-zinc-200 font-semibold truncate" id="sidebar-student-name">Student Account</div>
+        <div class="text-[10px] text-zinc-400 font-mono truncate" id="sidebar-student-id">KIIT Campus Portal</div>
       </div>
-      <button onclick="logoutUser()" class="px-2 py-1 rounded-lg bg-surface-800 hover:bg-red-950/60 text-slate-400 hover:text-red-300 border border-white/10 text-[10px] font-mono flex-shrink-0" title="Sign Out">Exit</button>
+      <button type="button" onclick="logoutUser()" aria-label="Sign out" class="px-2 py-1 rounded-lg bg-surface-800 hover:bg-red-950/60 text-zinc-400 hover:text-red-300 border border-white/10 text-[10px] font-mono flex-shrink-0" title="Sign Out">Exit</button>
     </div>
 
     <!-- Navigation -->
@@ -591,37 +819,37 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   </div>
 
   <!-- ═══ MOBILE BOTTOM APP DOCK ═══ -->
-  <nav class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface-950/90 backdrop-blur-xl border-t border-white/[0.08] px-2 pt-1.5 flex items-center justify-around" style="padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));">
-    <button onclick="switchPage('dashboard')" class="mobile-nav-btn active flex-1 flex flex-col items-center py-1 rounded-xl text-zinc-400" data-page="dashboard">
+    <nav aria-label="Mobile sections" class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface-950/90 backdrop-blur-xl border-t border-white/[0.08] px-2 pt-1.5 flex items-center justify-around" style="padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));">
+    <button type="button" onclick="switchPage('dashboard')" aria-label="Overview" class="mobile-nav-btn active flex-1 flex flex-col items-center py-1 rounded-xl text-zinc-400" data-page="dashboard">
       <div class="mobile-nav-pill px-3.5 py-1 rounded-full border border-transparent flex items-center justify-center">
-        <span class="text-base leading-none">📊</span>
+        <span class="text-base leading-none" aria-hidden="true">📊</span>
       </div>
       <span class="text-[10px] font-medium tracking-tight mt-1">Overview</span>
     </button>
-    <button onclick="switchPage('drives')" class="mobile-nav-btn flex-1 flex flex-col items-center py-1 rounded-xl text-zinc-400 relative" data-page="drives">
+    <button type="button" onclick="switchPage('drives')" aria-label="Placement Drives" class="mobile-nav-btn flex-1 flex flex-col items-center py-1 rounded-xl text-zinc-400 relative" data-page="drives">
       <div class="mobile-nav-pill px-3.5 py-1 rounded-full border border-transparent flex items-center justify-center relative">
-        <span class="text-base leading-none">💼</span>
+        <span class="text-base leading-none" aria-hidden="true">💼</span>
         <span id="mobile-badge-drives" class="absolute -top-1 -right-1.5 px-1.5 py-0.2 rounded-full bg-zinc-800 border border-white/15 text-zinc-200 font-mono text-[8px] font-semibold">0</span>
       </div>
       <span class="text-[10px] font-medium tracking-tight mt-1">Drives</span>
     </button>
-    <button onclick="switchPage('notices')" class="mobile-nav-btn flex-1 flex flex-col items-center py-1 rounded-xl text-zinc-400 relative" data-page="notices">
+    <button type="button" onclick="switchPage('notices')" aria-label="Notices and Shortlists" class="mobile-nav-btn flex-1 flex flex-col items-center py-1 rounded-xl text-zinc-400 relative" data-page="notices">
       <div class="mobile-nav-pill px-3.5 py-1 rounded-full border border-transparent flex items-center justify-center relative">
-        <span class="text-base leading-none">📢</span>
+        <span class="text-base leading-none" aria-hidden="true">📢</span>
         <span id="mobile-badge-notices" class="hidden absolute -top-1 -right-1.5 px-1.5 py-0.2 rounded-full bg-amber-400 text-zinc-950 font-mono text-[8px] font-bold">0</span>
       </div>
       <span class="text-[10px] font-medium tracking-tight mt-1">Notices</span>
     </button>
-    <button onclick="switchPage('applied')" class="mobile-nav-btn flex-1 flex flex-col items-center py-1 rounded-xl text-zinc-400 relative" data-page="applied">
+    <button type="button" onclick="switchPage('applied')" aria-label="Applied Jobs" class="mobile-nav-btn flex-1 flex flex-col items-center py-1 rounded-xl text-zinc-400 relative" data-page="applied">
       <div class="mobile-nav-pill px-3.5 py-1 rounded-full border border-transparent flex items-center justify-center relative">
-        <span class="text-base leading-none">✅</span>
+        <span class="text-base leading-none" aria-hidden="true">✅</span>
         <span id="mobile-badge-applied" class="absolute -top-1 -right-1.5 px-1.5 py-0.2 rounded-full bg-zinc-800 border border-white/15 text-zinc-200 font-mono text-[8px] font-semibold">0</span>
       </div>
       <span class="text-[10px] font-medium tracking-tight mt-1">Applied</span>
     </button>
-    <button onclick="openMobileDrawer()" class="mobile-nav-btn flex-1 flex flex-col items-center py-1 rounded-xl text-zinc-400">
+    <button type="button" onclick="openMobileDrawer()" aria-label="Open menu drawer" class="mobile-nav-btn flex-1 flex flex-col items-center py-1 rounded-xl text-zinc-400">
       <div class="mobile-nav-pill px-3.5 py-1 rounded-full border border-transparent flex items-center justify-center">
-        <span class="text-base leading-none">☰</span>
+        <span class="text-base leading-none" aria-hidden="true">☰</span>
       </div>
       <span class="text-[10px] font-medium tracking-tight mt-1">Menu</span>
     </button>
@@ -633,35 +861,48 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     <!-- Top Bar -->
     <header class="h-14 border-b border-white/[0.07] bg-surface-950/85 backdrop-blur-xl flex items-center justify-between px-3.5 sm:px-6 sticky top-0 z-30">
       <div class="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
-        <button onclick="openMobileDrawer()" class="lg:hidden w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-950 font-bold text-xs flex-shrink-0" title="Open Menu">SJ</button>
-        <button onclick="toggleSidebar()" class="hidden lg:block text-zinc-400 hover:text-zinc-100">☰</button>
+        <button type="button" onclick="openMobileDrawer()" aria-label="Open navigation drawer" class="lg:hidden w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-950 font-bold text-xs flex-shrink-0" title="Open Menu">SJ</button>
+        <button type="button" onclick="toggleSidebar()" aria-label="Toggle sidebar" class="hidden lg:block text-zinc-400 hover:text-zinc-100">☰</button>
         <div class="min-w-0">
           <h1 id="page-title" class="text-xs sm:text-sm font-semibold text-zinc-100 truncate">Dashboard</h1>
-          <div class="lg:hidden text-[10px] font-mono text-zinc-500 truncate" id="topbar-student-sub">Signed In • KIIT</div>
+          <div class="lg:hidden text-[10px] font-mono text-zinc-400 truncate" id="topbar-student-sub">Signed In • KIIT</div>
         </div>
-        <span class="hidden sm:inline-block text-[10px] font-mono text-zinc-500 bg-white/[0.04] border border-white/[0.07] px-2.5 py-0.5 rounded-full" id="last-sync-badge">—</span>
+        <span class="hidden sm:inline-block text-[10px] font-mono text-zinc-400 bg-white/[0.04] border border-white/[0.07] px-2.5 py-0.5 rounded-full" id="last-sync-badge">—</span>
       </div>
       <div class="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-        <button id="topbar-clarif-btn" onclick="switchPage('ai')" class="hidden items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white/[0.06] border border-amber-400/30 text-amber-300 text-xs font-medium">
-          <span>⚠️</span> <span id="topbar-clarif-count" class="hidden sm:inline">0 Clarifications</span>
+        <button type="button" id="topbar-clarif-btn" onclick="switchPage('ai')" aria-label="Review clarifications" class="hidden items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg bg-white/[0.06] border border-amber-400/30 text-amber-300 text-xs font-medium">
+          <span aria-hidden="true">⚠️</span> <span id="topbar-clarif-count" class="hidden sm:inline">0 Clarifications</span>
         </button>
-        <button onclick="toggleUserAutoApply()" id="user-autoapply-btn" class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-surface-900 border border-white/[0.08] text-zinc-300 text-xs font-medium" title="Toggle Auto-Apply for your account">
+        <button type="button" onclick="toggleUserAutoApply()" id="user-autoapply-btn" class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-surface-900 border border-white/[0.08] text-zinc-300 text-xs font-medium" title="Toggle Auto-Apply for your account">
           <span id="user-autoapply-dot" class="w-1.5 h-1.5 rounded-full bg-zinc-500"></span>
           <span id="user-autoapply-label" class="text-[11px]">Auto: OFF</span>
         </button>
-        <button onclick="triggerSync()" id="sync-btn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold">
-          <span id="sync-icon">🔄</span> <span class="hidden sm:inline">Sync</span>
+        <button type="button" onclick="triggerSync()" id="sync-btn" aria-label="Sync placement drives" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold">
+          <span id="sync-icon" aria-hidden="true">🔄</span> <span class="hidden sm:inline">Sync</span>
         </button>
-        <button onclick="toggleDaemon()" id="daemon-toggle-btn" class="hidden sm:flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-surface-900 border border-white/[0.08] text-zinc-300 text-xs font-medium">
+        <button type="button" onclick="toggleDaemon()" id="daemon-toggle-btn" class="hidden items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-surface-900 border border-white/[0.08] text-zinc-300 text-xs font-medium">
           <span id="daemon-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-400 live-dot"></span>
           <span id="daemon-label" class="hidden sm:inline">Engine ON</span>
         </button>
-        <button onclick="logoutUser()" class="p-1.5 rounded-lg bg-surface-900 border border-white/[0.08] text-zinc-400 hover:text-zinc-100 text-xs" title="Sign Out">🚪</button>
+        <button type="button" onclick="logoutUser()" aria-label="Sign out" class="p-1.5 rounded-lg bg-surface-900 border border-white/[0.08] text-zinc-400 hover:text-zinc-100 text-xs" title="Sign Out">🚪</button>
       </div>
     </header>
 
     <!-- Page Content (Natural Window Scroll) -->
     <div class="flex-1">
+
+      <!-- Offline Banner -->
+      <div id="offline-banner" role="status" class="hidden mx-3.5 sm:mx-6 mt-3 px-4 py-2.5 rounded-xl bg-rose-950/50 border border-rose-500/35 text-xs text-rose-200 flex items-center justify-between gap-2 max-w-6xl lg:mx-auto">
+        <span>You are offline — showing cached placement data until your connection returns.</span>
+      </div>
+
+      <!-- Render Cold-Start Wake Banner -->
+      <div id="cold-start-banner" role="status" class="hidden mx-3.5 sm:mx-6 mt-3 px-4 py-2.5 rounded-xl bg-amber-950/35 border border-amber-500/30 text-xs text-amber-200 flex items-center justify-between gap-3 max-w-6xl lg:mx-auto">
+        <div class="flex items-center gap-2.5">
+          <progress aria-label="Waking backend" class="loading-spinner spinner-xs"></progress>
+          <span>Server waking up (Render free tier) — showing cached data… <strong id="cold-start-seconds" class="font-mono">0s</strong></span>
+        </div>
+      </div>
 
       <!-- ═══ GLOBAL PENDING OFFER WATCHDOG BANNER (Visible across all tabs when active) ═══ -->
       <div id="pending-offer-banner" class="hidden mx-3.5 sm:mx-6 mt-4"></div>
@@ -852,7 +1093,8 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         <div class="space-y-2.5">
           <div class="flex items-center gap-2">
             <div class="relative flex-1">
-              <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500 text-xs pointer-events-none">🔍</span>
+              <label for="notices-search" class="sr-only">Search notices</label>
+              <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 text-xs pointer-events-none" aria-hidden="true">🔍</span>
               <input id="notices-search" type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false"
                 placeholder="Search company, venue, test date, PDF name..."
                 class="w-full bg-surface-900 border border-white/[0.08] rounded-xl pl-9 pr-4 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-zinc-500 focus:outline-none"
@@ -894,21 +1136,23 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
           <!-- Search Bar + Quick Actions -->
           <div class="flex items-center gap-2">
             <div class="relative flex-1">
-              <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none">🔍</span>
+              <label for="drives-search" class="sr-only">Search placement drives</label>
+              <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 text-xs pointer-events-none" aria-hidden="true">🔍</span>
               <input id="drives-search" type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false"
                 placeholder="Search company, role, city, CTC..."
-                class="w-full bg-surface-900/90 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25 transition-all shadow-inner"
-                oninput="renderDrives()">
+                class="w-full bg-surface-900/90 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:border-zinc-400 focus:outline-none transition-all"
+                oninput="debouncedRenderDrives()">
             </div>
             <!-- Sorting -->
             <div class="flex items-center gap-1 bg-surface-900/90 rounded-xl border border-white/10 p-1">
-              <button onclick="setDrivesSort('newest')" class="drives-sort active px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all" data-sort="newest" title="Newest first">🕐</button>
-              <button onclick="setDrivesSort('ctc-high')" class="drives-sort px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all" data-sort="ctc-high" title="Highest CTC">💰</button>
-              <button onclick="setDrivesSort('company')" class="drives-sort px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all" data-sort="company" title="A→Z Company">🔤</button>
+              <button type="button" onclick="setDrivesSort('newest')" class="drives-sort active px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all" data-sort="newest" aria-label="Sort by newest" title="Newest first">🕐</button>
+              <button type="button" onclick="setDrivesSort('deadline')" class="drives-sort px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-zinc-400" data-sort="deadline" aria-label="Sort by soonest deadline" title="Deadline soonest">⏰</button>
+              <button type="button" onclick="setDrivesSort('ctc-high')" class="drives-sort px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-zinc-400" data-sort="ctc-high" aria-label="Sort by highest CTC" title="Highest CTC">💰</button>
+              <button type="button" onclick="setDrivesSort('company')" class="drives-sort px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-zinc-400" data-sort="company" aria-label="Sort A to Z by company" title="A→Z Company">🔤</button>
             </div>
             <!-- Export CSV -->
-            <button onclick="exportDrivesCsv()" class="hidden sm:flex px-3 py-2 rounded-xl bg-surface-900/90 border border-white/10 text-slate-300 text-xs font-semibold items-center gap-1.5 transition-all" title="Export drives to CSV">
-              <span>📥</span> <span>CSV</span>
+            <button type="button" onclick="exportDrivesCsv()" aria-label="Export drives to CSV" class="hidden sm:flex px-3 py-2 rounded-xl bg-surface-900/90 border border-white/10 text-zinc-300 text-xs font-semibold items-center gap-1.5 transition-all" title="Export drives to CSV">
+              <span aria-hidden="true">📥</span> <span>CSV</span>
             </button>
           </div>
 
@@ -916,38 +1160,41 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <!-- Status Filters Carousel -->
             <div class="pill-carousel flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-              <button onclick="setDrivesFilter('all')" class="drives-filter active px-3.5 py-1.5 rounded-full text-xs font-semibold bg-brand-600 text-white shadow-sm" data-filter="all">All Drives</button>
-              <button onclick="setDrivesFilter('open')" class="drives-filter px-3.5 py-1.5 rounded-full text-xs font-semibold bg-surface-900/90 border border-white/10 text-slate-300" data-filter="open">⚡ Open</button>
-              <button onclick="setDrivesFilter('applied')" class="drives-filter px-3.5 py-1.5 rounded-full text-xs font-semibold bg-surface-900/90 border border-white/10 text-slate-300" data-filter="applied">✓ Applied</button>
-              <button onclick="setDrivesFilter('eligible')" class="drives-filter px-3.5 py-1.5 rounded-full text-xs font-semibold bg-surface-900/90 border border-white/10 text-slate-300" data-filter="eligible">🎯 Eligible</button>
-              <button onclick="setDrivesFilter('closed')" class="drives-filter px-3.5 py-1.5 rounded-full text-xs font-semibold bg-surface-900/90 border border-white/10 text-slate-300" data-filter="closed">Closed</button>
+              <button type="button" onclick="setDrivesFilter('all')" class="drives-filter active px-3.5 py-1.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-950" data-filter="all">All Drives</button>
+              <button type="button" onclick="setDrivesFilter('open')" class="drives-filter px-3.5 py-1.5 rounded-full text-xs font-medium bg-surface-900 border border-white/[0.08] text-zinc-300" data-filter="open">⚡ Open</button>
+              <button type="button" onclick="setDrivesFilter('applied')" class="drives-filter px-3.5 py-1.5 rounded-full text-xs font-medium bg-surface-900 border border-white/[0.08] text-zinc-300" data-filter="applied">✓ Applied</button>
+              <button type="button" onclick="setDrivesFilter('eligible')" class="drives-filter px-3.5 py-1.5 rounded-full text-xs font-medium bg-surface-900 border border-white/[0.08] text-zinc-300" data-filter="eligible">🎯 Eligible</button>
+              <button type="button" onclick="setDrivesFilter('closed')" class="drives-filter px-3.5 py-1.5 rounded-full text-xs font-medium bg-surface-900 border border-white/[0.08] text-zinc-300" data-filter="closed">Closed</button>
             </div>
 
             <!-- CTC Filter Pills Carousel -->
             <div class="pill-carousel flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-              <button onclick="setCtcFilter('all')" class="ctc-filter active px-3 py-1.5 rounded-full text-[11px] font-semibold bg-brand-600 text-white" data-ctc="all">All CTC</button>
-              <button onclick="setCtcFilter('tier1')" class="ctc-filter px-3 py-1.5 rounded-full text-[11px] font-semibold bg-surface-900/90 border border-white/10 text-slate-300" data-ctc="tier1">🔥 &gt;14 LPA</button>
-              <button onclick="setCtcFilter('tier2')" class="ctc-filter px-3 py-1.5 rounded-full text-[11px] font-semibold bg-surface-900/90 border border-white/10 text-slate-300" data-ctc="tier2">💎 7-14 LPA</button>
-              <button onclick="setCtcFilter('tier3')" class="ctc-filter px-3 py-1.5 rounded-full text-[11px] font-semibold bg-surface-900/90 border border-white/10 text-slate-300" data-ctc="tier3">3-7 LPA</button>
+              <button type="button" onclick="setCtcFilter('all')" class="ctc-filter active px-3 py-1.5 rounded-full text-[11px] font-medium bg-zinc-100 text-zinc-950" data-ctc="all">All CTC</button>
+              <button type="button" onclick="setCtcFilter('tier1')" class="ctc-filter px-3 py-1.5 rounded-full text-[11px] font-medium bg-surface-900 border border-white/[0.08] text-zinc-300" data-ctc="tier1">🔥 &gt;14 LPA</button>
+              <button type="button" onclick="setCtcFilter('tier2')" class="ctc-filter px-3 py-1.5 rounded-full text-[11px] font-medium bg-surface-900 border border-white/[0.08] text-zinc-300" data-ctc="tier2">💎 7-14 LPA</button>
+              <button type="button" onclick="setCtcFilter('tier3')" class="ctc-filter px-3 py-1.5 rounded-full text-[11px] font-medium bg-surface-900 border border-white/[0.08] text-zinc-300" data-ctc="tier3">3-7 LPA</button>
               <!-- Desktop Grid/Table View -->
               <div class="hidden md:flex items-center gap-1 bg-surface-900/90 rounded-full border border-white/10 p-0.5 ml-1">
-                <button onclick="setDrivesView('grid')" class="drives-view active px-2.5 py-1 rounded-full text-[11px] font-medium" data-view="grid">Grid</button>
-                <button onclick="setDrivesView('table')" class="drives-view px-2.5 py-1 rounded-full text-[11px] font-medium" data-view="table">Table</button>
+                <button type="button" onclick="setDrivesView('grid')" class="drives-view active px-2.5 py-1 rounded-full text-[11px] font-medium" data-view="grid">Grid</button>
+                <button type="button" onclick="setDrivesView('table')" class="drives-view px-2.5 py-1 rounded-full text-[11px] font-medium" data-view="table">Table</button>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="text-[11px] text-slate-400 font-mono flex items-center justify-between" id="drives-count-label">Loading drives...</div>
+        <div class="text-[11px] text-zinc-400 font-mono flex flex-wrap items-center justify-between gap-2">
+          <span id="drives-count-label">Loading drives...</span>
+          <span id="drives-freshness" class="text-[10px] text-zinc-400"></span>
+        </div>
 
         <!-- Grid View -->
         <div id="drives-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5 sm:gap-4"></div>
 
         <!-- Table View -->
-        <div id="drives-table" class="hidden overflow-x-auto rounded-xl border border-slate-800/60">
+        <div id="drives-table" class="hidden overflow-x-auto rounded-xl border border-white/[0.08]">
           <table class="w-full text-sm">
             <thead class="bg-surface-900/80">
-              <tr class="text-[10px] text-slate-500 uppercase font-mono tracking-wider">
+              <tr class="text-[10px] text-zinc-400 uppercase font-mono tracking-wider">
                 <th class="text-left p-3">Company</th>
                 <th class="text-left p-3">Role</th>
                 <th class="text-left p-3">CTC</th>
@@ -957,8 +1204,12 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
                 <th class="text-center p-3">Actions</th>
               </tr>
             </thead>
-            <tbody id="drives-table-body" class="divide-y divide-slate-800/50"></tbody>
+            <tbody id="drives-table-body" class="divide-y divide-white/[0.06]"></tbody>
           </table>
+        </div>
+
+        <div id="drives-load-more-wrap" class="hidden pt-2 text-center">
+          <button type="button" data-action="show-more-drives" class="px-4 py-2 rounded-xl bg-surface-900 hover:bg-surface-800 border border-white/10 text-zinc-200 text-xs font-medium">Show More Drives</button>
         </div>
       </div>
 
@@ -1039,11 +1290,23 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
           <div class="flex items-center justify-between">
             <div>
               <h3 class="text-xs font-semibold text-zinc-200 uppercase tracking-wider">Saved Custom Question Overrides</h3>
-              <p class="text-[11px] text-zinc-500 mt-0.5">Answers you edited or confirmed in any company application are saved here for automatic reuse.</p>
+              <p class="text-[11px] text-zinc-400 mt-0.5">Answers you edited or confirmed in any company application are saved here for automatic reuse.</p>
             </div>
             <span id="profile-clarif-count" class="text-[11px] font-mono text-zinc-400">0 saved</span>
           </div>
           <div id="profile-clarifications-panel" class="space-y-2 text-xs text-zinc-400"></div>
+        </div>
+
+        <!-- Sticky Unsaved Profile Changes Bar -->
+        <div id="profile-dirty-bar" class="hidden sticky bottom-20 lg:bottom-4 z-30 rounded-xl bg-[#18181b]/95 backdrop-blur-xl border border-amber-400/35 px-4 py-3 flex flex-wrap items-center justify-between gap-3 shadow-2xl">
+          <div class="text-xs text-zinc-200 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+            <span id="profile-dirty-label">You have unsaved profile changes</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="discardProfileEdits()" class="px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-zinc-300 text-xs font-medium">Discard</button>
+            <button type="button" id="profile-save-sticky-btn" onclick="saveProfile(this)" class="px-3.5 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold">Save Changes</button>
+          </div>
         </div>
       </div>
 
@@ -1355,9 +1618,10 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
           </div>
 
           <div class="flex flex-col sm:flex-row gap-2.5">
+            <label for="tg-custom-text" class="sr-only">Custom Telegram alert text</label>
             <input type="text" id="tg-custom-text" placeholder="Send a quick custom message to your Telegram..."
-              class="flex-1 bg-[#09090b] border border-white/10 focus:border-zinc-500 rounded-lg px-3.5 py-2 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none font-mono">
-            <button onclick="sendCustomTelegram()" class="px-4 py-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-zinc-100 text-xs font-medium whitespace-nowrap">
+              class="flex-1 bg-[#09090b] border border-white/10 focus:border-zinc-500 rounded-lg px-3.5 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none font-mono">
+            <button type="button" onclick="sendCustomTelegram()" class="px-4 py-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-zinc-100 text-xs font-medium whitespace-nowrap">
               Send Telegram
             </button>
           </div>
@@ -1451,8 +1715,10 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             </div>
             <!-- Input Bar -->
             <form onsubmit="submitCopilotChat(event)" class="flex gap-2">
-              <input id="copilot-input" type="text" placeholder="Ask Copilot about drives, error fixes, or profile..." class="flex-1 bg-surface-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-sans">
-              <button id="copilot-btn" type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold">Send</button>
+              <label for="copilot-input" class="sr-only">Ask AI Copilot</label>
+              <input id="copilot-input" type="text" placeholder="Ask Copilot about drives, error fixes, or profile..." class="flex-1 bg-surface-950 border border-white/15 rounded-lg px-3 py-2 text-xs text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-zinc-400 font-sans">
+              <button id="copilot-cancel-btn" type="button" onclick="cancelCopilotChat()" class="hidden px-3 py-2 rounded-lg bg-rose-500/15 border border-rose-500/35 text-rose-300 text-xs font-medium">Cancel</button>
+              <button id="copilot-btn" type="submit" class="px-4 py-2 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold">Send</button>
             </form>
           </div>
         </div>
@@ -1465,9 +1731,14 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             <h2 class="text-lg font-bold text-white">Account, Auto-Apply & Friend Invites</h2>
             <p class="text-xs text-slate-400">Encrypted per-user workspace settings and invite codes for college friends</p>
           </div>
-          <button onclick="logoutUser()" class="px-3.5 py-2 rounded-xl bg-rose-950/60 border border-rose-500/30 text-rose-300 text-xs font-bold flex items-center gap-1.5">
-            <span>🚪</span> <span>Sign Out</span>
-          </button>
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="button" onclick="logoutUser(true)" class="px-3.5 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-zinc-300 text-xs font-semibold">
+              Sign Out All Devices
+            </button>
+            <button type="button" onclick="logoutUser(false)" class="px-3.5 py-2 rounded-xl bg-rose-950/60 border border-rose-500/30 text-rose-300 text-xs font-bold flex items-center gap-1.5">
+              <span>🚪</span> <span>Sign Out</span>
+            </button>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
@@ -1520,8 +1791,8 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
             </div>
           </div>
 
-          <!-- Invite Codes for College Friends -->
-          <div class="metric-card rounded-2xl p-5 lg:col-span-2 space-y-4">
+          <!-- Invite Codes for College Friends (Owner-only) -->
+          <div id="settings-admin-invites" class="hidden metric-card rounded-2xl p-5 lg:col-span-2 space-y-4">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h3 class="text-xs font-bold text-emerald-400 uppercase tracking-wider">🎓 Share with College Friends (Invite & Add-On Codes)</h3>
@@ -1615,17 +1886,22 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
           <!-- Optional Custom Company / JD Input -->
           <div id="resume-custom-jd-box" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-white/[0.06]">
             <div>
-              <label class="block text-[10px] font-mono uppercase text-zinc-500 mb-1">Company Name</label>
+              <label for="resume-custom-company" class="block text-[10px] font-mono uppercase text-zinc-400 mb-1">Company Name</label>
               <input id="resume-custom-company" type="text" placeholder="e.g. Empulz, Swiggy, DeltaX" class="w-full bg-surface-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-zinc-100 focus:border-zinc-500 focus:outline-none">
             </div>
             <div>
-              <label class="block text-[10px] font-mono uppercase text-zinc-500 mb-1">Target Role</label>
+              <label for="resume-custom-role" class="block text-[10px] font-mono uppercase text-zinc-400 mb-1">Target Role</label>
               <input id="resume-custom-role" type="text" placeholder="e.g. Full Stack Developer, Backend Engineer" class="w-full bg-surface-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-zinc-100 focus:border-zinc-500 focus:outline-none">
             </div>
             <div class="sm:col-span-2">
-              <label class="block text-[10px] font-mono uppercase text-zinc-500 mb-1">Extra JD / Tech Stack Notes (Optional — Superset JD is fetched automatically when a drive is selected)</label>
+              <label for="resume-custom-jd" class="block text-[10px] font-mono uppercase text-zinc-400 mb-1">Extra JD / Tech Stack Notes (Optional — Superset JD is fetched automatically when a drive is selected)</label>
               <textarea id="resume-custom-jd" rows="3" placeholder="Paste job description or skills required..." class="w-full bg-surface-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-zinc-100 focus:border-zinc-500 focus:outline-none"></textarea>
             </div>
+          </div>
+
+          <div id="rt-step-indicator" class="hidden rounded-lg bg-[#09090b] border border-white/[0.08] px-3.5 py-2 text-xs font-mono text-zinc-300 flex items-center gap-2.5">
+            <progress aria-label="Tailoring resume" class="loading-spinner spinner-xs"></progress>
+            <span id="rt-step-text">Ranking projects → Building A4 preview…</span>
           </div>
         </div>
 
@@ -1802,35 +2078,35 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
         </button>
       </div>
 
-      <div id="auth-error-box" class="hidden p-3 rounded-xl bg-rose-950/70 border border-rose-500/40 text-rose-200 text-xs font-medium"></div>
+      <div id="auth-error-box" role="alert" class="hidden p-3 rounded-xl bg-rose-950/70 border border-rose-500/40 text-rose-200 text-xs font-medium"></div>
 
       <form id="auth-form" onsubmit="submitAuthForm(event)" class="space-y-3.5">
         <div>
-          <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-300 mb-1">Superset College Email</label>
+          <label for="auth-email" class="block text-[11px] font-bold uppercase tracking-wider text-zinc-300 mb-1">Superset College Email</label>
           <input id="auth-email" type="email" required autocomplete="email" placeholder="rollno@kiit.ac.in"
-            class="w-full bg-surface-950 border border-white/15 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none">
+            class="w-full bg-surface-950 border border-white/15 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:border-zinc-400 focus:outline-none">
         </div>
         <div>
-          <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-300 mb-1">Superset Password</label>
+          <label for="auth-password" class="block text-[11px] font-bold uppercase tracking-wider text-zinc-300 mb-1">Superset Password</label>
           <div class="relative">
             <input id="auth-password" type="password" required autocomplete="current-password" placeholder="Your joinsuperset.com password"
-              class="w-full bg-surface-950 border border-white/15 rounded-xl pl-3.5 pr-10 py-2.5 text-sm text-white placeholder-slate-500 focus:border-brand-500 focus:outline-none">
-            <button type="button" onclick="togglePasswordVisibility()" id="auth-pw-toggle" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-sm" title="Show/Hide Password">👁️</button>
+              class="w-full bg-surface-950 border border-white/15 rounded-xl pl-3.5 pr-10 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:border-zinc-400 focus:outline-none">
+            <button type="button" onclick="togglePasswordVisibility()" id="auth-pw-toggle" aria-label="Toggle password visibility" class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-100 text-sm" title="Show/Hide Password">👁️</button>
           </div>
         </div>
 
         <div id="auth-register-fields" class="hidden space-y-3.5 pt-1">
           <div>
-            <label class="block text-[11px] font-bold uppercase tracking-wider text-emerald-300 mb-1">Friend Invite / Add-On Code</label>
+            <label for="auth-invite-code" class="block text-[11px] font-bold uppercase tracking-wider text-emerald-300 mb-1">Friend Invite / Add-On Code</label>
             <input id="auth-invite-code" type="text" value="KIIT2027" placeholder="e.g. KIIT2027"
-              class="w-full bg-surface-950 border border-emerald-500/40 rounded-xl px-3.5 py-2.5 text-sm text-emerald-300 font-mono placeholder-slate-500 focus:border-emerald-400 focus:outline-none">
+              class="w-full bg-surface-950 border border-emerald-500/40 rounded-xl px-3.5 py-2.5 text-sm text-emerald-300 font-mono placeholder-zinc-500 focus:border-emerald-400 focus:outline-none">
           </div>
           <label class="flex items-center justify-between p-3 rounded-xl bg-surface-950/80 border border-white/10 cursor-pointer">
             <div>
-              <div class="text-xs font-semibold text-white">Enable Auto-Apply for my account</div>
-              <div class="text-[10px] text-slate-400">Can be toggled anytime from the top bar</div>
+              <div class="text-xs font-semibold text-zinc-100">Enable Auto-Apply for my account</div>
+              <div class="text-[10px] text-zinc-400">Can be toggled anytime from the top bar</div>
             </div>
-            <input id="auth-auto-apply" type="checkbox" class="rounded border-slate-700 text-brand-600 focus:ring-0 w-4 h-4">
+            <input id="auth-auto-apply" type="checkbox" class="rounded border-zinc-700 accent-zinc-100 w-4 h-4">
           </label>
         </div>
 
@@ -1841,18 +2117,23 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     </div>
   </div>
 
-  <!-- ═══ NATIVE BOTTOM-SHEET / MODAL ═══ -->
-  <div id="modal-overlay" class="fixed inset-0 z-50 hidden modal-backdrop flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="bg-surface-900/95 backdrop-blur-2xl border-t border-x sm:border border-white/15 rounded-t-3xl sm:rounded-2xl shadow-[0_-12px_40px_rgba(0,0,0,0.75)] max-w-2xl w-full max-h-[92dvh] sm:max-h-[88dvh] overflow-hidden animate-slide-up flex flex-col" style="padding-bottom: env(safe-area-inset-bottom, 0px);">
-      <!-- Native mobile bottom-sheet drag pill -->
-      <div class="w-10 h-1.5 bg-slate-700/80 rounded-full mx-auto mt-2.5 mb-0.5 sm:hidden flex-shrink-0"></div>
-      <div class="flex items-center justify-between px-4 py-3.5 sm:p-5 border-b border-white/10 sticky top-0 bg-surface-900/95 backdrop-blur-xl z-10">
-        <h3 class="text-xs sm:text-sm font-bold text-white flex items-center gap-2 truncate" id="modal-title">Details</h3>
-        <button onclick="closeModal()" class="w-8 h-8 rounded-full bg-surface-800/80 border border-white/10 text-slate-300 flex items-center justify-center text-sm">✕</button>
-      </div>
-      <div class="p-4 sm:p-5 flex-1 overflow-y-auto sheet-scroll" id="modal-body"></div>
+  <!-- ═══ NATIVE <dialog> REVIEW, EDIT & APPLY MODAL (modern-web-guidance: dialog) ═══ -->
+  <dialog id="modal-overlay" closedby="closerequest" aria-labelledby="modal-title">
+    <div class="w-10 h-1.5 bg-zinc-700/80 rounded-full mx-auto mt-2.5 mb-0.5 sm:hidden flex-shrink-0"></div>
+    <div class="flex items-center justify-between px-4 py-3.5 sm:px-5 sm:py-4 border-b border-white/10 bg-[#111114] flex-shrink-0">
+      <h1 class="text-xs sm:text-sm font-bold text-zinc-100 flex items-center gap-2 truncate" id="modal-title">Details</h1>
+      <button type="button" id="modal-close-btn" onclick="requestCloseModal()" aria-label="Close modal" class="w-8 h-8 rounded-full bg-white/[0.06] border border-white/10 text-zinc-300 hover:text-white flex items-center justify-center text-sm">✕</button>
     </div>
-  </div>
+    <!-- Reserved space for unsaved-changes confirmation so buttons never shift under the cursor -->
+    <div id="modal-dirty-bar" class="dirty-confirm-bar px-4 py-2 bg-amber-950/40 border-b border-amber-500/25 flex items-center justify-between gap-2 text-xs flex-shrink-0">
+      <span id="modal-dirty-msg" class="text-amber-200 font-medium">Unsaved edits in this review — discard changes?</span>
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <button type="button" id="modal-discard-btn" onclick="forceCloseModal()" aria-describedby="modal-dirty-msg" class="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-200 font-semibold">Discard &amp; Close</button>
+        <button type="button" id="modal-keep-btn" onclick="hideModalDirtyPrompt()" class="px-2.5 py-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-zinc-100 font-medium">Keep Editing</button>
+      </div>
+    </div>
+    <div class="p-4 sm:p-5 flex-1 overflow-y-auto sheet-scroll" id="modal-body"></div>
+  </dialog>
 
   <!-- ═══ 1-CLICK NATIVE <dialog> PDF VIEWER (modern-web-guidance compliant) ═══ -->
   <dialog id="pdfViewerDialog" closedby="any" aria-labelledby="pdfViewerTitle">
@@ -1860,7 +2141,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       <div class="min-w-0 flex items-center gap-2.5">
         <span class="w-8 h-8 rounded-lg bg-white/[0.06] border border-white/10 text-zinc-200 flex items-center justify-center text-sm flex-shrink-0">📄</span>
         <div class="min-w-0">
-          <h2 id="pdfViewerTitle" class="text-xs sm:text-sm font-semibold text-zinc-100 truncate">Attachment Preview</h2>
+          <h1 id="pdfViewerTitle" class="text-xs sm:text-sm font-semibold text-zinc-100 truncate">Attachment Preview</h1>
           <div id="pdfViewerSubtitle" class="text-[10px] font-mono text-zinc-500 truncate">Loading pre-signed PDF...</div>
         </div>
       </div>
@@ -1880,30 +2161,215 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 
 <script>
 // ═══════════════════════════════════════════════════════════════════
-// STATE & SAFE API CLIENT
+// STATE & SAFE API CLIENT (Cookie Auth — Zero Token in localStorage)
 // ═══════════════════════════════════════════════════════════════════
+try { localStorage.removeItem('sjp_token'); } catch (e) {}
 let allJobs = [];
+let jobsFetchedAtIso = '';
+let jobsStale = false;
 let statusData = {};
 let profileData = {};
 let noticesPayload = { notices: [], shortlisted_notices: [], pending_actions: [], counts: {} };
 let noticesFilter = 'all';
 let expandedNoticeIds = new Set();
 let activePdfBlobUrl = null;
+let lastPdfContext = null;
 let resumeMaster = null;
 let lastTailoredResume = null;
 let currentUser = null;
-let authToken = localStorage.getItem('sjp_token') || '';
 let authMode = 'login';
 let currentPage = 'dashboard';
 let drivesFilter = 'all';
 let ctcFilter = 'all';
 let drivesSort = 'newest';
 let drivesView = 'grid';
+let drivesVisibleLimit = 60;
+let profileIsDirty = false;
+let modalIsDirty = false;
+let copilotAbortController = null;
+let inFlightRequests = 0;
+let coldStartTimer = null;
+let coldStartInterval = null;
+let coldStartSince = 0;
 
 // ═══════════════════════════════════════════════════════════════════
-// UTILITIES
+// UTILITIES, ESCAPING & UI PRIMITIVES
 // ═══════════════════════════════════════════════════════════════════
-const esc = s => { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; };
+const esc = s => String(s ?? '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;')
+  .replace(/`/g, '&#96;');
+
+function safeUrl(u) {
+  const s = String(u || '').trim();
+  return /^https?:\/\//i.test(s) ? s : '#';
+}
+
+function safeDataImageUrl(u) {
+  const s = String(u || '').trim();
+  if (/^data:image\/(png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=\s]+$/i.test(s)) return s;
+  if (/^[A-Za-z0-9+/=\s]{64,}$/.test(s)) return `data:image/jpeg;base64,${s.replace(/\s+/g, '')}`;
+  return '';
+}
+
+function formatIstDateTime(isoOrVal) {
+  if (!isoOrVal) return '';
+  try {
+    const d = new Date(isoOrVal);
+    if (isNaN(d.getTime())) return String(isoOrVal);
+    return new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(d);
+  } catch (e) {
+    return String(isoOrVal);
+  }
+}
+
+function getRelativeMinutesLabel(isoStr) {
+  if (!isoStr) return '';
+  const t = new Date(isoStr).getTime();
+  if (isNaN(t)) return '';
+  const mins = Math.max(0, Math.round((Date.now() - t) / 60000));
+  if (mins < 1) return 'Updated just now';
+  if (mins === 1) return 'Updated 1 min ago';
+  return `Updated ${mins} mins ago`;
+}
+
+function skeleton(type = 'card', count = 3) {
+  const n = Math.max(1, Number(count) || 1);
+  if (type === 'card') {
+    return Array.from({ length: n }, () => `
+      <div class="job-card rounded-xl p-4 sm:p-5 space-y-3" aria-hidden="true">
+        <div class="flex items-center gap-3">
+          <div class="skeleton w-10 h-10 rounded-lg"></div>
+          <div class="flex-1 space-y-2">
+            <div class="skeleton h-3.5 rounded w-2/3"></div>
+            <div class="skeleton h-3 rounded w-1/2"></div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div class="skeleton h-11 rounded-lg"></div>
+          <div class="skeleton h-11 rounded-lg"></div>
+        </div>
+        <div class="skeleton h-9 rounded-lg"></div>
+      </div>`).join('');
+  }
+  if (type === 'row') {
+    return Array.from({ length: n }, () => `
+      <tr aria-hidden="true"><td colspan="7" class="p-3"><div class="skeleton h-6 rounded"></div></td></tr>`).join('');
+  }
+  if (type === 'form') {
+    return Array.from({ length: n }, () => `
+      <div class="p-3 rounded-xl border border-white/[0.08] bg-[#09090b] space-y-2" aria-hidden="true">
+        <div class="skeleton h-3 rounded w-3/4"></div>
+        <div class="skeleton h-9 rounded-lg"></div>
+      </div>`).join('');
+  }
+  return Array.from({ length: n }, () => `<div class="skeleton h-4 rounded w-full" aria-hidden="true"></div>`).join('');
+}
+
+async function withLoading(btn, busyLabel, asyncFn) {
+  if (!btn) return asyncFn();
+  if (btn.dataset.busy === '1') return;
+  const origHtml = btn.innerHTML;
+  const origDisabled = btn.disabled;
+  btn.dataset.busy = '1';
+  btn.disabled = true;
+  const isLightBtn = btn.className.includes('bg-zinc-100');
+  btn.innerHTML = `<progress aria-label="Loading" class="loading-spinner spinner-xs ${isLightBtn ? 'spinner-dark' : ''}"></progress> <span>${esc(busyLabel || 'Working…')}</span>`;
+  try {
+    return await asyncFn();
+  } finally {
+    btn.dataset.busy = '0';
+    btn.disabled = origDisabled;
+    btn.innerHTML = origHtml;
+  }
+}
+
+function emptyState({ icon = '📭', title = 'Nothing here yet', hint = '', actionLabel = '', actionPage = '' }) {
+  const btnHtml = actionLabel && actionPage
+    ? `<button type="button" onclick="switchPage('${esc(actionPage)}')" class="mt-2 px-3.5 py-2 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold">${esc(actionLabel)}</button>`
+    : '';
+  return `
+    <div class="col-span-full metric-card rounded-xl p-8 text-center space-y-2">
+      <div class="text-3xl">${esc(icon)}</div>
+      <div class="text-sm font-medium text-zinc-200">${esc(title)}</div>
+      ${hint ? `<div class="text-xs text-zinc-400 max-w-md mx-auto">${esc(hint)}</div>` : ''}
+      ${btnHtml}
+    </div>`;
+}
+
+function errorState({ message = 'Could not load data.', retryFn = '' }) {
+  const retryBtn = retryFn
+    ? `<button type="button" data-action="retry-fn" data-retry-fn="${esc(retryFn)}" class="px-3.5 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold">Retry</button>`
+    : '';
+  return `
+    <div class="col-span-full rounded-xl p-5 bg-rose-950/35 border border-rose-500/35 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div class="text-xs text-rose-200 font-mono">${esc(message)}</div>
+      ${retryBtn}
+    </div>`;
+}
+
+function showColdStartBanner() {
+  const banner = document.getElementById('cold-start-banner');
+  const secEl = document.getElementById('cold-start-seconds');
+  if (!banner) return;
+  if (!coldStartSince) coldStartSince = Date.now();
+  banner.classList.remove('hidden');
+  if (secEl) secEl.textContent = `${Math.max(1, Math.round((Date.now() - coldStartSince) / 1000))}s`;
+  if (!coldStartInterval) {
+    coldStartInterval = setInterval(() => {
+      const sEl = document.getElementById('cold-start-seconds');
+      if (sEl && coldStartSince) {
+        sEl.textContent = `${Math.max(1, Math.round((Date.now() - coldStartSince) / 1000))}s`;
+      }
+    }, 1000);
+  }
+}
+
+function hideColdStartBanner() {
+  const banner = document.getElementById('cold-start-banner');
+  if (banner) banner.classList.add('hidden');
+  coldStartSince = 0;
+  if (coldStartTimer) { clearTimeout(coldStartTimer); coldStartTimer = null; }
+  if (coldStartInterval) { clearInterval(coldStartInterval); coldStartInterval = null; }
+}
+
+function setInFlightDelta(delta) {
+  inFlightRequests = Math.max(0, inFlightRequests + delta);
+  const bar = document.getElementById('top-network-progress');
+  if (bar) bar.classList.toggle('hidden', inFlightRequests === 0);
+  if (inFlightRequests > 0) {
+    if (!coldStartTimer) {
+      coldStartTimer = setTimeout(() => {
+        if (inFlightRequests > 0) showColdStartBanner();
+      }, 4000);
+    }
+  } else if (coldStartTimer) {
+    clearTimeout(coldStartTimer);
+    coldStartTimer = null;
+  }
+}
+
+function hideBootSplash() {
+  const splash = document.getElementById('boot-splash');
+  if (splash) splash.classList.add('hidden');
+}
+
+function updateOfflineBanner() {
+  const b = document.getElementById('offline-banner');
+  if (b) b.classList.toggle('hidden', navigator.onLine !== false);
+}
+window.addEventListener('online', updateOfflineBanner);
+window.addEventListener('offline', updateOfflineBanner);
 
 function getCompanyAvatarStyle(name) {
   return 'bg-zinc-900 border-white/10 text-zinc-200';
@@ -1917,6 +2383,10 @@ function getCompanyInitials(name) {
 
 function toast(msg, type = 'info') {
   const container = document.getElementById('toast-container');
+  if (!container) return;
+  while (container.children.length >= 3) {
+    container.firstElementChild.remove();
+  }
   const colors = {
     success: 'bg-[#121614] border-emerald-500/30 text-zinc-100',
     error: 'bg-[#181214] border-rose-500/30 text-zinc-100',
@@ -1926,23 +2396,22 @@ function toast(msg, type = 'info') {
   const icons = { success: '✓', error: '✕', warn: '⚠', info: 'ℹ' };
   const el = document.createElement('div');
   el.className = `toast rounded-xl px-4 py-3 border text-xs font-medium shadow-xl flex items-start gap-3 ${colors[type] || colors.info}`;
-  el.innerHTML = `<span class="text-sm mt-0.5 font-bold">${icons[type] || icons.info}</span><div class="flex-1 break-words leading-relaxed">${esc(msg)}</div><button onclick="this.parentElement.remove()" class="text-current opacity-60 hover:opacity-100 ml-2">✕</button>`;
+  el.innerHTML = `<span class="text-sm mt-0.5 font-bold">${icons[type] || icons.info}</span><div class="flex-1 break-words leading-relaxed">${esc(msg)}</div><button type="button" aria-label="Dismiss notification" onclick="this.parentElement.remove()" class="text-current opacity-60 hover:opacity-100 ml-2">✕</button>`;
   container.appendChild(el);
   setTimeout(() => { if (el.parentElement) { el.classList.add('removing'); setTimeout(() => el.remove(), 200); } }, 6000);
 }
 
 function isJobClosed(j) {
   if (j.is_closed !== undefined) return j.is_closed;
-  const s = (j.raw?.jobProfileStatus || '').toUpperCase();
-  if (['CLOSED_FOR_APPLICATIONS','COMPLETED','IN_PROCESS','ARCHIVED','CLOSED'].includes(s)) return true;
   if (j.is_expired) return true;
   if (j.hours_left !== null && j.hours_left !== undefined && j.hours_left <= 0) return true;
-  if (j.deadline_dt) { const dl = new Date(j.deadline_dt); if (!isNaN(dl.getTime()) && dl.getTime() < Date.now()) return true; }
+  if (j.deadline_iso) { const dl = new Date(j.deadline_iso); if (!isNaN(dl.getTime()) && dl.getTime() < Date.now()) return true; }
   return false;
 }
 
 function getCtcLevel(j) {
-  const cat = (j.raw?.placementCategoryName || j.ctc_display || '').toLowerCase();
+  if (typeof j.ctc_tier === 'number') return j.ctc_tier;
+  const cat = (j.ctc_display || '').toLowerCase();
   if (cat.includes('> 14') || cat.includes('14 lpa')) return 3;
   if (cat.includes('> 7') || cat.includes('7 lpa') || cat.includes('14')) return 2;
   if (cat.includes('3 lpa') || cat.includes('7')) return 1;
@@ -1961,17 +2430,14 @@ function getJobBadge(j) {
 function getJobActions(j) {
   const isApplied = j.is_applied || j.app_status === 'APPLIED';
   const isClosed = isJobClosed(j);
-  let html = '';
-  if (!isApplied && !isClosed && j.is_eligible) {
-    html += `<button onclick="applyToJob('${j.id}','${esc(j.company_name)}','${esc(j.job_role)}')" class="flex-1 min-h-[40px] py-2 px-3.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold flex items-center justify-center gap-1.5"><span>Apply Now</span></button>`;
-  } else if (isApplied) {
-    html += `<button disabled class="flex-1 min-h-[40px] py-2 px-3.5 rounded-lg bg-white/[0.04] text-emerald-300/90 text-xs font-medium cursor-default border border-white/[0.08] flex items-center justify-center gap-1.5"><span>✓</span> <span>Applied</span></button>`;
-  } else {
-    html += `<button disabled class="flex-1 min-h-[40px] py-2 px-3.5 rounded-lg bg-white/[0.03] text-zinc-500 text-xs font-medium cursor-not-allowed border border-white/[0.05]">${isClosed ? 'Deadline Passed' : 'Not Eligible'}</button>`;
-  }
-  html += `<button onclick="openResumeTailorForJob('${j.id}')" class="min-w-[40px] min-h-[40px] p-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.08] text-xs flex items-center justify-center" title="Tailor 1-Page Resume for ${esc(j.company_name)}">📄</button>`;
-  html += `<button onclick="showJobQuestions('${j.id}', '${esc(j.company_name)}')" class="min-w-[40px] min-h-[40px] p-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.08] text-xs flex items-center justify-center" title="Inspect Custom Questions & Answers">📝</button>`;
-  html += `<a href="${j.profile_url || '#'}" target="_blank" class="min-w-[40px] min-h-[40px] p-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.08] text-xs flex items-center justify-center" title="Open on Superset Portal">↗</a>`;
+  const canApply = !isApplied && !isClosed && j.is_eligible;
+  const ctaLabel = canApply ? 'Review & Apply' : (isApplied ? '✓ Applied · View' : 'View Answers');
+  const ctaClass = canApply
+    ? 'flex-1 min-h-[40px] py-2 px-3.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold flex items-center justify-center gap-1.5'
+    : 'flex-1 min-h-[40px] py-2 px-3.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-200 border border-white/[0.08] text-xs font-medium flex items-center justify-center gap-1.5';
+  let html = `<button type="button" data-action="review-apply" data-job-id="${esc(j.id)}" class="${ctaClass}"><span>${ctaLabel}</span></button>`;
+  html += `<button type="button" data-action="tailor-job" data-job-id="${esc(j.id)}" aria-label="Tailor 1-page resume for ${esc(j.company_name)}" class="min-w-[40px] min-h-[40px] p-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.08] text-xs flex items-center justify-center" title="Tailor 1-Page Resume">📄</button>`;
+  html += `<a href="${esc(safeUrl(j.profile_url))}" target="_blank" rel="noopener noreferrer" aria-label="Open ${esc(j.company_name)} on Superset Portal" class="min-w-[40px] min-h-[40px] p-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 border border-white/[0.08] text-xs flex items-center justify-center" title="Open on Superset Portal">↗</a>`;
   return html;
 }
 
@@ -2050,53 +2516,64 @@ function closeMobileDrawer() {
 // SAFE API CLIENT & MULTI-USER AUTHENTICATION
 // ═══════════════════════════════════════════════════════════════════
 async function apiFetch(url, options = {}) {
-  const headers = Object.assign({}, options.headers || {});
-  if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
-  if (options.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+  const headers = Object.assign({ 'X-Requested-With': 'sjp' }, options.headers || {});
+  if (options.body && !headers['Content-Type'] && !(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   const method = String(options.method || 'GET').toUpperCase();
   const maxAttempts = method === 'GET' ? 3 : 1;
   let res = null;
 
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    res = await fetch(url, Object.assign({ credentials: 'same-origin' }, options, { headers }));
-    if (method === 'GET' && [502, 503, 504].includes(res.status) && attempt < maxAttempts - 1) {
-      await new Promise(r => setTimeout(r, 2000));
-      continue;
+  setInFlightDelta(1);
+  try {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      res = await fetch(url, Object.assign({ credentials: 'include' }, options, { headers }));
+      if ([502, 503, 504, 530].includes(res.status)) {
+        showColdStartBanner();
+        if (method === 'GET' && attempt < maxAttempts - 1) {
+          await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+          continue;
+        }
+      }
+      break;
     }
-    break;
-  }
+    if (res && res.ok) hideColdStartBanner();
 
-  const rawText = await res.text();
-  let data = null;
-  if (rawText && rawText.trim()) {
-    try {
-      data = JSON.parse(rawText);
-    } catch (parseErr) {
+    const rawText = await res.text();
+    let data = null;
+    if (rawText && rawText.trim()) {
+      try {
+        data = JSON.parse(rawText);
+      } catch (parseErr) {
+        data = {
+          success: false,
+          error_code: 'non_json_response',
+          error: `Server returned non-JSON response (HTTP ${res.status})`,
+          message: `Server waking up or busy (HTTP ${res.status}). Please retry in a moment.`
+        };
+      }
+    } else {
       data = {
         success: false,
-        error: `Server returned non-JSON response (HTTP ${res.status})`,
-        message: `Server waking up or busy (HTTP ${res.status}). Please retry in a moment.`
+        error_code: 'empty_response',
+        error: `Empty response from server (HTTP ${res.status})`,
+        message: `Empty response from server (HTTP ${res.status}).`
       };
     }
-  } else {
-    data = {
-      success: false,
-      error: `Empty response from server (HTTP ${res.status})`,
-      message: `Empty response from server (HTTP ${res.status}).`
-    };
-  }
 
-  if (res.status === 401 && !url.includes('/api/auth/')) {
-    authToken = '';
-    currentUser = null;
-    try {
-      localStorage.removeItem('sjp_token');
-      localStorage.removeItem('sjp_dashboard_cache_v1');
-    } catch (e) {}
-    showAuthOverlay();
+    if (res.status === 401 && !url.includes('/api/auth/')) {
+      currentUser = null;
+      try {
+        localStorage.removeItem('sjp_token');
+        localStorage.removeItem('sjp_dashboard_cache_v1');
+      } catch (e) {}
+      showAuthOverlay();
+    }
+    return { ok: res.ok, status: res.status, data };
+  } finally {
+    setInFlightDelta(-1);
   }
-  return { ok: res.ok, status: res.status, data };
 }
 
 function saveDashboardCache() {
@@ -2108,6 +2585,7 @@ function saveDashboardCache() {
       savedAt: Date.now(),
       statusData,
       allJobs,
+      jobsFetchedAtIso,
       profileData,
       noticesPayload,
     }));
@@ -2122,6 +2600,7 @@ function hydrateDashboardCache() {
     if (!c || typeof c !== 'object') return false;
     if (c.statusData) statusData = c.statusData;
     if (Array.isArray(c.allJobs) && c.allJobs.length) allJobs = c.allJobs;
+    if (c.jobsFetchedAtIso) jobsFetchedAtIso = c.jobsFetchedAtIso;
     if (c.profileData && Object.keys(c.profileData).length) profileData = c.profileData;
     if (c.noticesPayload && c.noticesPayload.success) noticesPayload = c.noticesPayload;
     updateStatusUI();
@@ -2132,7 +2611,7 @@ function hydrateDashboardCache() {
     if (currentPage === 'profile') renderProfile();
     if (currentPage === 'applied') renderApplied();
     if (currentPage === 'notices') renderNotices();
-    return true;
+    return Boolean(c.email && (allJobs.length || Object.keys(profileData).length));
   } catch (e) {
     return false;
   }
@@ -2191,52 +2670,68 @@ async function submitAuthForm(e) {
   const errBox = document.getElementById('auth-error-box');
 
   if (errBox) errBox.classList.add('hidden');
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = '<span class="animate-spin inline-block">🔄</span> <span>Signing in...</span>';
-  }
+  const retryDelays = [2000, 4000, 8000, 15000, 30000];
+  const endpoint = authMode === 'register' ? '/api/auth/register' : '/api/auth/login';
 
-  try {
-    const endpoint = authMode === 'register' ? '/api/auth/register' : '/api/auth/login';
-    const { ok, data } = await apiFetch(endpoint, {
-      method: 'POST',
-      body: JSON.stringify({ email, password, invite_code: inviteCode, auto_apply_enabled: autoApply })
-    });
+  await withLoading(btn, authMode === 'register' ? 'Registering…' : 'Signing in…', async () => {
+    for (let attempt = 0; attempt <= retryDelays.length; attempt++) {
+      try {
+        const { ok, status, data } = await apiFetch(endpoint, {
+          method: 'POST',
+          body: JSON.stringify({ email, password, invite_code: inviteCode, auto_apply_enabled: autoApply })
+        });
 
-    if (ok && data && data.success) {
-      authToken = data.token || '';
-      localStorage.setItem('sjp_token', authToken);
-      currentUser = data.user || null;
-      hideAuthOverlay();
-      toast(data.message || 'Signed in successfully!', 'success');
-      await Promise.all([fetchStatus(), fetchJobs(), fetchProfile(), fetchNotices()]);
-    } else {
-      if (errBox) {
-        errBox.textContent = (data && (data.message || data.error)) || 'Authentication failed. Check your Superset credentials.';
-        errBox.classList.remove('hidden');
+        if (ok && data && data.success) {
+          currentUser = data.user || null;
+          hideColdStartBanner();
+          hideAuthOverlay();
+          toast(data.message || 'Signed in successfully!', 'success');
+          await Promise.all([fetchStatus(), fetchJobs(), fetchProfile(), fetchNotices()]);
+          return;
+        }
+
+        if ([502, 503, 504, 530].includes(status) && attempt < retryDelays.length) {
+          showColdStartBanner();
+          if (errBox) {
+            errBox.textContent = `Server is starting, retrying automatically (attempt ${attempt + 1}/${retryDelays.length})…`;
+            errBox.classList.remove('hidden');
+          }
+          await new Promise(r => setTimeout(r, retryDelays[attempt]));
+          continue;
+        }
+
+        if (errBox) {
+          errBox.textContent = (data && (data.message || data.error)) || 'Authentication failed. Check your Superset credentials.';
+          errBox.classList.remove('hidden');
+        }
+        return;
+      } catch (err) {
+        if (attempt < retryDelays.length) {
+          showColdStartBanner();
+          if (errBox) {
+            errBox.textContent = `Server is starting, retrying automatically (attempt ${attempt + 1}/${retryDelays.length})…`;
+            errBox.classList.remove('hidden');
+          }
+          await new Promise(r => setTimeout(r, retryDelays[attempt]));
+          continue;
+        }
+        if (errBox) {
+          errBox.textContent = 'Connection error: ' + err.message;
+          errBox.classList.remove('hidden');
+        }
       }
     }
-  } catch (err) {
-    if (errBox) {
-      errBox.textContent = 'Connection error: ' + err.message;
-      errBox.classList.remove('hidden');
-    }
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = `<span>⚡</span> <span id="auth-submit-label">${authMode === 'register' ? 'Register & Connect Superset' : 'Sign In'}</span>`;
-    }
-  }
+  });
 }
 
-async function logoutUser() {
+async function logoutUser(logoutAll = false) {
   try {
-    await apiFetch('/api/auth/logout', { method: 'POST' });
+    await apiFetch('/api/auth/logout', { method: 'POST', body: JSON.stringify({ logout_all: Boolean(logoutAll) }) });
   } catch (e) {}
-  authToken = '';
   currentUser = null;
   allJobs = [];
   profileData = {};
+  profileIsDirty = false;
   noticesPayload = { notices: [], shortlisted_notices: [], pending_actions: [], counts: {} };
   expandedNoticeIds.clear();
   resumeMaster = null;
@@ -2247,9 +2742,11 @@ async function logoutUser() {
   if (offerBanner) { offerBanner.classList.add('hidden'); offerBanner.innerHTML = ''; }
   const dashStrip = document.getElementById('dashboard-shortlist-strip');
   if (dashStrip) { dashStrip.classList.add('hidden'); dashStrip.innerHTML = ''; }
-  localStorage.removeItem('sjp_token');
-  localStorage.removeItem('sjp_dashboard_cache_v1');
-  toast('Signed out and locked encrypted vault.', 'info');
+  try {
+    localStorage.removeItem('sjp_token');
+    localStorage.removeItem('sjp_dashboard_cache_v1');
+  } catch (e) {}
+  toast(logoutAll ? 'Signed out of all devices and rotated session key.' : 'Signed out and locked encrypted vault.', 'info');
   showAuthOverlay();
 }
 
@@ -2281,15 +2778,36 @@ async function fetchStatus() {
 }
 
 async function fetchJobs() {
+  const grid = document.getElementById('drives-grid');
+  const tbody = document.getElementById('drives-table-body');
+  if (!allJobs.length && currentPage === 'drives') {
+    if (grid) grid.innerHTML = skeleton('card', 6);
+    if (tbody) tbody.innerHTML = skeleton('row', 6);
+  }
   try {
     const { ok, status, data } = await apiFetch('/api/jobs');
     if (status === 401) return;
-    if (ok && Array.isArray(data)) {
-      allJobs = data;
+    const jobsArr = Array.isArray(data) ? data : (Array.isArray(data?.jobs) ? data.jobs : null);
+    if (ok && jobsArr) {
+      allJobs = jobsArr;
+      if (data && !Array.isArray(data)) {
+        jobsFetchedAtIso = data.fetched_at || '';
+        jobsStale = Boolean(data.stale);
+      } else {
+        jobsFetchedAtIso = new Date().toISOString();
+        jobsStale = false;
+      }
       saveDashboardCache();
+    } else if (!allJobs.length && currentPage === 'drives' && grid) {
+      grid.innerHTML = errorState({ message: (data && data.message) || 'Could not load drives.', retryFn: 'fetchJobs' });
+      return;
     }
   } catch (e) {
     console.warn('Jobs fetch warning:', e);
+    if (!allJobs.length && currentPage === 'drives' && grid) {
+      grid.innerHTML = errorState({ message: 'Failed to load placement drives: ' + e.message, retryFn: 'fetchJobs' });
+      return;
+    }
   }
   updateDashboardMetrics();
   populateSimulatorDropdown();
@@ -2298,14 +2816,27 @@ async function fetchJobs() {
 }
 
 async function fetchProfile() {
+  const pEl = document.getElementById('profile-personal');
+  if ((!profileData || !Object.keys(profileData).length) && pEl && !pEl.children.length) {
+    pEl.innerHTML = skeleton('form', 3);
+  }
   try {
     const { ok, status, data } = await apiFetch('/api/profile');
     if (status === 401) return;
     if (ok && data && !data.error) {
       profileData = data;
       saveDashboardCache();
+    } else if (pEl && (!profileData || !Object.keys(profileData).length)) {
+      pEl.innerHTML = errorState({ message: (data && data.message) || 'Could not load profile.', retryFn: 'fetchProfile' });
+      return;
     }
-  } catch (e) { console.warn('Profile fetch warning:', e); }
+  } catch (e) {
+    console.warn('Profile fetch warning:', e);
+    if (pEl && (!profileData || !Object.keys(profileData).length)) {
+      pEl.innerHTML = errorState({ message: 'Profile load failed: ' + e.message, retryFn: 'fetchProfile' });
+      return;
+    }
+  }
   if (currentPage === 'profile') renderProfile();
 }
 
@@ -2355,11 +2886,19 @@ function updateStatusUI() {
     dashAa.className = `font-mono font-semibold ${autoOn ? 'text-emerald-400' : 'text-brand-400'}`;
   }
 
-  // Daemon state
+  // Daemon state & owner-only controls
   const da = d.daemon_active !== false;
-  document.getElementById('daemon-indicator').className = `w-2 h-2 rounded-full ${da ? 'bg-emerald-400 live-dot' : 'bg-slate-500'}`;
+  const isOwner = Boolean(currentUser?.is_admin || d.is_admin);
+  const dBtn = document.getElementById('daemon-toggle-btn');
+  if (dBtn) {
+    dBtn.classList.toggle('hidden', !isOwner);
+    dBtn.classList.toggle('sm:flex', isOwner);
+  }
+  const invPanel = document.getElementById('settings-admin-invites');
+  if (invPanel) invPanel.classList.toggle('hidden', !isOwner);
+  document.getElementById('daemon-indicator').className = `w-2 h-2 rounded-full ${da ? 'bg-emerald-400 live-dot' : 'bg-zinc-500'}`;
   document.getElementById('daemon-status-text').textContent = da ? 'Daemon Active' : 'Daemon Paused';
-  document.getElementById('daemon-dot').className = `w-2 h-2 rounded-full ${da ? 'bg-emerald-400 live-dot' : 'bg-red-400'}`;
+  document.getElementById('daemon-dot').className = `w-2 h-2 rounded-full ${da ? 'bg-emerald-400 live-dot' : 'bg-rose-400'}`;
   document.getElementById('daemon-label').textContent = da ? 'Engine ON' : 'Engine OFF';
 
   // Dashboard engine box
@@ -2435,12 +2974,18 @@ function updateDashboardMetrics() {
   }
 
   // CTC breakdown
+  const ctcEl = document.getElementById('ctc-breakdown');
+  const locEl = document.getElementById('location-breakdown');
+  if (!allJobs.length) {
+    if (ctcEl) ctcEl.innerHTML = skeleton('line', 3);
+    if (locEl) locEl.innerHTML = skeleton('line', 3);
+    return;
+  }
   const ctcGroups = {};
   allJobs.forEach(j => {
-    const cat = j.ctc_display || j.raw?.placementCategoryName || 'Unknown';
+    const cat = j.ctc_display || 'Unknown';
     ctcGroups[cat] = (ctcGroups[cat] || 0) + 1;
   });
-  const ctcEl = document.getElementById('ctc-breakdown');
   const sortedCtc = Object.entries(ctcGroups).sort((a,b) => b[1] - a[1]);
   const maxCtc = sortedCtc[0]?.[1] || 1;
   ctcEl.innerHTML = sortedCtc.map(([cat, count]) => {
@@ -2457,7 +3002,6 @@ function updateDashboardMetrics() {
     const loc = j.location || 'Unknown';
     locGroups[loc] = (locGroups[loc] || 0) + 1;
   });
-  const locEl = document.getElementById('location-breakdown');
   const sortedLoc = Object.entries(locGroups).sort((a,b) => b[1] - a[1]).slice(0, 8);
   const maxLoc = sortedLoc[0]?.[1] || 1;
   locEl.innerHTML = sortedLoc.map(([loc, count]) => {
@@ -2470,10 +3014,41 @@ function updateDashboardMetrics() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// DRIVES PAGE
+// DRIVES PAGE (Debounced, Persisted Filters, Deadline Urgency, Paginated)
 // ═══════════════════════════════════════════════════════════════════
-function setDrivesFilter(f) {
+function saveDrivesPrefs() {
+  try {
+    localStorage.setItem('sjp_drives_prefs_v1', JSON.stringify({
+      drivesFilter,
+      ctcFilter,
+      drivesSort,
+      drivesView,
+    }));
+  } catch (e) {}
+}
+
+function loadDrivesPrefs() {
+  try {
+    const raw = localStorage.getItem('sjp_drives_prefs_v1');
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) {
+    return null;
+  }
+}
+
+let _drivesSearchTimer = null;
+function debouncedRenderDrives() {
+  clearTimeout(_drivesSearchTimer);
+  _drivesSearchTimer = setTimeout(() => {
+    drivesVisibleLimit = 60;
+    renderDrives();
+  }, 200);
+}
+
+function setDrivesFilter(f, persist = true) {
   drivesFilter = f;
+  drivesVisibleLimit = 60;
   document.querySelectorAll('.drives-filter').forEach(b => {
     if (b.dataset.filter === f) {
       b.className = 'drives-filter active px-3.5 py-1.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-950';
@@ -2481,11 +3056,13 @@ function setDrivesFilter(f) {
       b.className = 'drives-filter px-3.5 py-1.5 rounded-full text-xs font-medium bg-surface-900 border border-white/[0.08] text-zinc-300';
     }
   });
+  if (persist) saveDrivesPrefs();
   renderDrives();
 }
 
-function setCtcFilter(tier) {
+function setCtcFilter(tier, persist = true) {
   ctcFilter = tier;
+  drivesVisibleLimit = 60;
   document.querySelectorAll('.ctc-filter').forEach(b => {
     if (b.dataset.ctc === tier) {
       b.className = 'ctc-filter active px-3 py-1.5 rounded-full text-[11px] font-medium bg-zinc-100 text-zinc-950';
@@ -2493,33 +3070,47 @@ function setCtcFilter(tier) {
       b.className = 'ctc-filter px-3 py-1.5 rounded-full text-[11px] font-medium bg-surface-900 border border-white/[0.08] text-zinc-300';
     }
   });
+  if (persist) saveDrivesPrefs();
   renderDrives();
 }
 
-function setDrivesSort(s) {
+function setDrivesSort(s, persist = true) {
   drivesSort = s;
+  drivesVisibleLimit = 60;
   document.querySelectorAll('.drives-sort').forEach(b => {
-    if (b.dataset.sort === s) { b.classList.add('bg-brand-600', 'text-white'); b.classList.remove('text-slate-400'); }
-    else { b.classList.remove('bg-brand-600', 'text-white'); b.classList.add('text-slate-400'); }
+    if (b.dataset.sort === s) {
+      b.classList.add('bg-zinc-100', 'text-zinc-950');
+      b.classList.remove('text-zinc-400');
+    } else {
+      b.classList.remove('bg-zinc-100', 'text-zinc-950');
+      b.classList.add('text-zinc-400');
+    }
   });
+  if (persist) saveDrivesPrefs();
   renderDrives();
 }
 
-function setDrivesView(v) {
+function setDrivesView(v, persist = true) {
   drivesView = v;
   document.querySelectorAll('.drives-view').forEach(b => {
-    if (b.dataset.view === v) { b.classList.add('bg-brand-600', 'text-white'); b.classList.remove('text-slate-400'); }
-    else { b.classList.remove('bg-brand-600', 'text-white'); b.classList.add('text-slate-400'); }
+    if (b.dataset.view === v) {
+      b.classList.add('bg-zinc-100', 'text-zinc-950');
+      b.classList.remove('text-zinc-400');
+    } else {
+      b.classList.remove('bg-zinc-100', 'text-zinc-950');
+      b.classList.add('text-zinc-400');
+    }
   });
   document.getElementById('drives-grid').classList.toggle('hidden', v !== 'grid');
   document.getElementById('drives-table').classList.toggle('hidden', v !== 'table');
+  if (persist) saveDrivesPrefs();
   renderDrives();
 }
 
 function renderDrives() {
   const q = (document.getElementById('drives-search')?.value || '').toLowerCase();
   let jobs = allJobs.filter(j => {
-    const text = `${j.company_name} ${j.job_role} ${j.location} ${j.ctc_display}`.toLowerCase();
+    const text = `${j.company_name || ''} ${j.job_role || ''} ${j.location || ''} ${j.ctc_display || ''} ${j.sector || ''}`.toLowerCase();
     if (q && !text.includes(q)) return false;
 
     const isApplied = j.is_applied || j.app_status === 'APPLIED';
@@ -2530,7 +3121,7 @@ function renderDrives() {
     else if (drivesFilter === 'eligible') { if (!j.is_eligible) return false; }
     else if (drivesFilter === 'closed') { if (!isClosed) return false; }
 
-    if (ctcFilter === 'tier1') { if (getCtcLevel(j) !== 3) return false; }
+    if (ctcFilter === 'tier1') { if (getCtcLevel(j) < 3) return false; }
     else if (ctcFilter === 'tier2') { if (getCtcLevel(j) !== 2) return false; }
     else if (ctcFilter === 'tier3') { if (getCtcLevel(j) !== 1) return false; }
 
@@ -2538,28 +3129,62 @@ function renderDrives() {
   });
 
   // Sort
-  if (drivesSort === 'newest') jobs.sort((a,b) => (b.raw?.createdAt || 0) - (a.raw?.createdAt || 0));
-  else if (drivesSort === 'ctc-high') jobs.sort((a,b) => getCtcLevel(b) - getCtcLevel(a));
+  if (drivesSort === 'newest') jobs.sort((a,b) => (b.created_at_ms || 0) - (a.created_at_ms || 0));
+  else if (drivesSort === 'deadline') jobs.sort((a,b) => {
+    const ha = (a.hours_left !== null && a.hours_left !== undefined && !isJobClosed(a)) ? Number(a.hours_left) : 1e9;
+    const hb = (b.hours_left !== null && b.hours_left !== undefined && !isJobClosed(b)) ? Number(b.hours_left) : 1e9;
+    return ha - hb;
+  });
+  else if (drivesSort === 'ctc-high') jobs.sort((a,b) => ((b.ctc_max_lpa ?? getCtcLevel(b) * 10) - (a.ctc_max_lpa ?? getCtcLevel(a) * 10)));
   else if (drivesSort === 'company') jobs.sort((a,b) => (a.company_name || '').localeCompare(b.company_name || ''));
 
-  document.getElementById('drives-count-label').textContent = `Showing ${jobs.length} of ${allJobs.length} campus placement drives`;
+  const visibleJobs = jobs.slice(0, drivesVisibleLimit);
+  document.getElementById('drives-count-label').textContent = `Showing ${visibleJobs.length} of ${jobs.length} filtered (${allJobs.length} total drives)`;
+  const freshEl = document.getElementById('drives-freshness');
+  if (freshEl) {
+    const rel = getRelativeMinutesLabel(jobsFetchedAtIso);
+    freshEl.textContent = rel ? `${rel}${jobsStale ? ' · cached' : ''}` : '';
+  }
+
+  const loadMoreWrap = document.getElementById('drives-load-more-wrap');
+  if (loadMoreWrap) loadMoreWrap.classList.toggle('hidden', jobs.length <= drivesVisibleLimit);
 
   // Grid
   const grid = document.getElementById('drives-grid');
   if (jobs.length === 0) {
-    grid.innerHTML = '<div class="col-span-full text-center py-16 text-zinc-500"><div class="text-3xl mb-2">📭</div><div class="text-sm font-medium">No drives match your current filters</div></div>';
+    grid.innerHTML = emptyState({
+      icon: '📭',
+      title: 'No drives match your current filters',
+      hint: 'Try switching status or CTC filters or clearing the search box.',
+    });
   } else {
-    grid.innerHTML = jobs.map((j, idx) => {
+    grid.innerHTML = visibleJobs.map((j, idx) => {
       const initials = getCompanyInitials(j.company_name);
       const avatarStyle = getCompanyAvatarStyle(j.company_name);
-      const sector = j.raw?.sectorName || '';
-      const posType = j.raw?.positionTypeLabel || '';
+      const sector = j.sector || '';
+      const posType = j.position_type || '';
       const deferClass = idx >= 6 ? 'deferred-card' : '';
+      const isClosed = isJobClosed(j);
+      const isApplied = j.is_applied || j.app_status === 'APPLIED';
+      const hrs = (!isClosed && !isApplied && j.hours_left !== null && j.hours_left !== undefined) ? Number(j.hours_left) : null;
+      let urgencyBadge = '';
+      if (hrs !== null && hrs > 0 && hrs <= 24) {
+        urgencyBadge = `<span class="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/30">⏰ ${Math.max(1, Math.round(hrs))}h left</span>`;
+      } else if (hrs !== null && hrs > 24 && hrs <= 72) {
+        urgencyBadge = `<span class="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">⏳ ${Math.ceil(hrs / 24)}d left</span>`;
+      }
+      const qBadge = j.questions_count > 0
+        ? `<span class="text-[10px] font-mono px-2 py-0.5 rounded bg-white/[0.05] text-zinc-300 border border-white/[0.08]">Has ${Number(j.questions_count)} question${Number(j.questions_count) === 1 ? '' : 's'}</span>`
+        : '';
+      const eligBadge = !j.is_eligible && j.eligibility_reason
+        ? `<span class="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-500/10 text-rose-300 border border-rose-500/20">${esc(j.eligibility_reason)}</span>`
+        : '';
+      const dlFormatted = j.deadline_iso ? `${formatIstDateTime(j.deadline_iso)} IST` : (j.deadline_display || 'Open Window');
       return `
         <div class="job-card ${deferClass} rounded-xl p-4 sm:p-5 flex flex-col gap-3">
           <div class="flex items-start justify-between gap-3">
             <div class="flex items-center gap-3 min-w-0">
-              <div class="w-10 h-10 rounded-lg ${avatarStyle} border flex items-center justify-center font-semibold text-xs tracking-wide flex-shrink-0">${initials}</div>
+              <div class="w-10 h-10 rounded-lg ${avatarStyle} border flex items-center justify-center font-semibold text-xs tracking-wide flex-shrink-0">${esc(initials)}</div>
               <div class="min-w-0">
                 <h3 class="font-semibold text-sm text-zinc-100 truncate leading-snug">${esc(j.company_name)}</h3>
                 <div class="text-xs text-zinc-400 truncate mt-0.5">${esc(j.job_role)}</div>
@@ -2569,20 +3194,23 @@ function renderDrives() {
           </div>
           <div class="grid grid-cols-2 gap-2 text-[11px]">
             <div class="p-2.5 rounded-lg bg-surface-950 border border-white/[0.06]">
-              <div class="text-[9px] text-zinc-500 uppercase font-mono mb-0.5">CTC Package</div>
+              <div class="text-[9px] text-zinc-400 uppercase font-mono mb-0.5">CTC Package</div>
               <div class="font-semibold text-zinc-100 truncate font-mono text-[11px]">${esc(j.ctc_display || 'As per Policy')}</div>
             </div>
             <div class="p-2.5 rounded-lg bg-surface-950 border border-white/[0.06]">
-              <div class="text-[9px] text-zinc-500 uppercase font-mono mb-0.5">Location</div>
+              <div class="text-[9px] text-zinc-400 uppercase font-mono mb-0.5">Location</div>
               <div class="font-medium text-zinc-300 truncate text-[11px]">${esc(j.location || 'Pan India')}</div>
             </div>
           </div>
-          ${sector || posType ? `<div class="flex flex-wrap gap-1.5">
+          ${(sector || posType || urgencyBadge || qBadge || eligBadge) ? `<div class="flex flex-wrap gap-1.5">
+            ${urgencyBadge}
+            ${qBadge}
+            ${eligBadge}
             ${sector ? `<span class="text-[10px] font-mono px-2 py-0.5 rounded bg-white/[0.04] text-zinc-400 border border-white/[0.06]">${esc(sector)}</span>` : ''}
             ${posType ? `<span class="text-[10px] font-mono px-2 py-0.5 rounded bg-white/[0.04] text-zinc-400 border border-white/[0.06]">${esc(posType)}</span>` : ''}
           </div>` : ''}
-          <div class="text-[11px] text-zinc-500 font-mono flex items-center justify-between">
-            <span>${esc(j.deadline_display || 'Open Window')}</span>
+          <div class="text-[11px] text-zinc-400 font-mono flex items-center justify-between">
+            <span>${esc(dlFormatted)}</span>
           </div>
           <div class="flex items-center gap-2 pt-2.5 border-t border-white/[0.06] mt-auto">
             ${getJobActions(j)}
@@ -2594,27 +3222,24 @@ function renderDrives() {
   // Table
   const tbody = document.getElementById('drives-table-body');
   if (jobs.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-500">No drives match your filters</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-zinc-400">No drives match your filters</td></tr>';
   } else {
-    tbody.innerHTML = jobs.map(j => {
+    tbody.innerHTML = visibleJobs.map(j => {
       const isApplied = j.is_applied || j.app_status === 'APPLIED';
       const isClosed = isJobClosed(j);
+      const canApply = !isApplied && !isClosed && j.is_eligible;
       return `
         <tr class="hover:bg-surface-800/30 transition-colors">
-          <td class="p-3"><div class="font-semibold text-white text-xs">${esc(j.company_name)}</div></td>
-          <td class="p-3 text-xs text-slate-300">${esc(j.job_role)}</td>
-          <td class="p-3 text-xs text-slate-300 font-mono">${esc(j.ctc_display || '—')}</td>
-          <td class="p-3 text-xs text-slate-400">${esc(j.location || '—')}</td>
-          <td class="p-3 text-[10px] text-slate-400 font-mono">${esc(j.deadline_display || '—')}</td>
+          <td class="p-3"><div class="font-semibold text-zinc-100 text-xs">${esc(j.company_name)}</div></td>
+          <td class="p-3 text-xs text-zinc-300">${esc(j.job_role)}</td>
+          <td class="p-3 text-xs text-zinc-300 font-mono">${esc(j.ctc_display || '—')}</td>
+          <td class="p-3 text-xs text-zinc-400">${esc(j.location || '—')}</td>
+          <td class="p-3 text-[10px] text-zinc-400 font-mono">${esc(j.deadline_iso ? formatIstDateTime(j.deadline_iso) : (j.deadline_display || '—'))}</td>
           <td class="p-3">${getJobBadge(j)}</td>
           <td class="p-3 text-center">
             <div class="flex items-center justify-center gap-1.5">
-              ${!isApplied && !isClosed && j.is_eligible ?
-                `<button onclick="applyToJob('${j.id}','${esc(j.company_name)}','${esc(j.job_role)}')" class="px-2.5 py-1 rounded bg-brand-600 hover:bg-brand-500 text-white text-[10px] font-semibold transition-all">Apply</button>` :
-                `<span class="text-[10px] text-slate-500">${isApplied ? 'Applied' : isClosed ? 'Closed' : '—'}</span>`
-              }
-              <button onclick="showJobQuestions('${j.id}', '${esc(j.company_name)}')" class="p-1 rounded text-purple-400 hover:text-purple-300 text-xs" title="Questions">📝</button>
-              <a href="${j.profile_url || '#'}" target="_blank" class="text-slate-500 hover:text-white text-xs transition-colors">↗</a>
+              <button type="button" data-action="review-apply" data-job-id="${esc(j.id)}" class="px-2.5 py-1 rounded ${canApply ? 'bg-zinc-100 hover:bg-white text-zinc-950 font-semibold' : 'bg-white/[0.05] hover:bg-white/[0.1] text-zinc-200 border border-white/10'} text-[10px] transition-all">${canApply ? 'Review & Apply' : 'View Answers'}</button>
+              <a href="${esc(safeUrl(j.profile_url))}" target="_blank" rel="noopener noreferrer" aria-label="Open on Superset" class="text-zinc-400 hover:text-zinc-100 text-xs transition-colors">↗</a>
             </div>
           </td>
         </tr>`;
@@ -2632,7 +3257,7 @@ function exportDrivesCsv() {
     `"${(j.location||'').replace(/"/g, '""')}"`,
     `"${(j.deadline_display||'').replace(/"/g, '""')}"`,
     `"${(j.is_applied ? 'APPLIED' : isJobClosed(j) ? 'CLOSED' : 'OPEN')}"`,
-    `"${(j.profile_url||'')}"`
+    `"${safeUrl(j.profile_url)}"`
   ]);
   const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -2641,7 +3266,7 @@ function exportDrivesCsv() {
   a.href = url;
   a.download = `superset_campus_drives_${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
-  toast('Exported 107 campus placement drives to CSV', 'success');
+  toast(`Exported ${allJobs.length} campus placement drives to CSV`, 'success');
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -2731,39 +3356,38 @@ function renderApplied() {
 
   const el = document.getElementById('applied-list');
   if (applied.length === 0) {
-    el.innerHTML = '<div class="text-center py-16 text-slate-500"><div class="text-3xl mb-2">📄</div><div class="text-sm">No applications registered yet</div></div>';
+    el.innerHTML = emptyState({
+      icon: '📄',
+      title: 'No applications registered yet',
+      hint: 'Browse open campus drives and click Review & Apply to submit your first application.',
+      actionLabel: 'Browse Drives',
+      actionPage: 'drives',
+    });
     return;
   }
   el.innerHTML = applied.map(j => {
-    const stage = j.raw?.jobApplicationCurrentStage || j.raw?.jobProfileCurrentStage || 'YET_TO_PROCESS';
-    const appliedAt = j.raw?.jobApplicationLastAppliedAt;
-    let appliedStr = '—';
-    if (appliedAt) {
-      try {
-        const d = new Date(typeof appliedAt === 'number' ? (appliedAt > 1e11 ? appliedAt : appliedAt * 1000) : appliedAt);
-        appliedStr = d.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
-      } catch(e) {}
-    }
+    const stage = j.app_stage || 'YET_TO_PROCESS';
+    const appliedStr = j.applied_at_iso ? formatIstDateTime(j.applied_at_iso) : '—';
     return `
-      <div class="bg-surface-900/60 rounded-xl p-4 border border-slate-800/60 flex items-center gap-4 hover:border-emerald-800/40 transition-all">
-        <div class="w-10 h-10 rounded-xl bg-emerald-900/30 border border-emerald-800/30 flex items-center justify-center text-emerald-400 text-sm font-bold flex-shrink-0">${(j.company_name||'C')[0]}</div>
+      <div class="bg-surface-900/60 rounded-xl p-4 border border-white/[0.08] flex items-center gap-4 hover:border-emerald-800/40 transition-all">
+        <div class="w-10 h-10 rounded-xl bg-emerald-900/30 border border-emerald-800/30 flex items-center justify-center text-emerald-400 text-sm font-bold flex-shrink-0">${esc((j.company_name||'C')[0])}</div>
         <div class="flex-1 min-w-0">
-          <div class="font-semibold text-sm text-white truncate">${esc(j.company_name)}</div>
-          <div class="text-xs text-slate-400">${esc(j.job_role)}</div>
+          <div class="font-semibold text-sm text-zinc-100 truncate">${esc(j.company_name)}</div>
+          <div class="text-xs text-zinc-400">${esc(j.job_role)}</div>
         </div>
         <div class="text-right flex-shrink-0">
-          <div class="text-[10px] text-slate-400 font-mono">${esc(j.ctc_display || '—')}</div>
-          <div class="text-[10px] text-slate-500">Applied: ${appliedStr}</div>
+          <div class="text-[10px] text-zinc-400 font-mono">${esc(j.ctc_display || '—')}</div>
+          <div class="text-[10px] text-zinc-400">Applied: ${esc(appliedStr)}</div>
           <div class="text-[10px] text-emerald-400 font-mono mt-0.5">${esc(stage)}</div>
         </div>
-        <button onclick="showJobQuestions('${j.id}', '${esc(j.company_name)}')" class="p-2 rounded-lg text-purple-400 hover:text-purple-300 transition-colors" title="View Questions">📝</button>
-        <a href="${j.profile_url || '#'}" target="_blank" class="p-2 rounded-lg text-slate-500 hover:text-white transition-colors" title="Open in Portal">↗</a>
+        <button type="button" data-action="review-apply" data-job-id="${esc(j.id)}" aria-label="View application answers for ${esc(j.company_name)}" class="px-2.5 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-zinc-200 text-[11px] font-medium whitespace-nowrap">View Answers</button>
+        <a href="${esc(safeUrl(j.profile_url))}" target="_blank" rel="noopener noreferrer" aria-label="Open on Superset" class="p-2 rounded-lg text-zinc-400 hover:text-zinc-100 transition-colors" title="Open in Portal">↗</a>
       </div>`;
   }).join('');
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// PROFILE PAGE (ALL VAULT FIELDS + SAVED QUESTION OVERRIDES)
+// PROFILE PAGE (ALL VAULT FIELDS + VALIDATION + DIRTY TRACKING)
 // ═══════════════════════════════════════════════════════════════════
 const PROFILE_SECTIONS_DEF = {
   personal: [
@@ -2802,20 +3426,165 @@ const PROFILE_SECTIONS_DEF = {
   ],
 };
 
+const PROFILE_VALIDATION_RULES = {
+  personal_email: { type: 'email', err: 'Enter a valid email address (e.g. you@example.com).' },
+  phone_number: { type: 'tel', pattern: '(\\+?91[\\-\\s]?)?[6-9]\\d{9}', err: 'Enter a 10-digit Indian mobile number.' },
+  emergency_contact_number: { type: 'tel', pattern: '(\\+?91[\\-\\s]?)?[6-9]\\d{9}', err: 'Enter a 10-digit Indian mobile number.' },
+  pan_card_number: { type: 'text', pattern: '(NA|na|[A-Za-z]{5}[0-9]{4}[A-Za-z])', err: 'Enter NA or a 10-character PAN (e.g. ABCDE1234F).' },
+  resume_link: { type: 'url', pattern: 'https://.+', err: 'Enter a public https:// Drive or cloud URL.' },
+  github_link: { type: 'url', pattern: 'https://.+', err: 'Enter a valid https:// URL.' },
+  linkedin_link: { type: 'url', pattern: 'https://.+', err: 'Enter a valid https:// URL.' },
+  portfolio_link: { type: 'url', pattern: 'https://.+', err: 'Enter a valid https:// URL.' },
+  intro_video_link: { type: 'url', pattern: 'https://.+', err: 'Enter a valid https:// URL.' },
+  dob: { type: 'date', err: 'Select your date of birth (YYYY-MM-DD).' },
+  current_cgpa: { type: 'text', pattern: '(10(\\.0{1,2})?|[0-9](\\.[0-9]{1,2})?)', err: 'Enter CGPA between 0 and 10.' },
+};
+
+const MULTILINE_PROFILE_KEYS = new Set([
+  'current_address', 'permanent_address', 'emergency_contact_address', 'technical_skills',
+]);
+
+// Polite live region announcer for deferred field validation (modern-web-guidance: validate-input-after-interaction)
+const _validationAnnouncer = (() => {
+  const node = document.createElement('div');
+  node.setAttribute('aria-live', 'polite');
+  node.className = 'visually-hidden';
+  document.body.appendChild(node);
+  return node;
+})();
+let _announceTimer = null;
+const _flaggedFields = new WeakSet();
+const _announcedFields = new WeakSet();
+
+function syncFieldValidationAria(el, announce = false) {
+  if (!el || !el.matches?.('input, select, textarea')) return;
+  const errId = el.dataset.error;
+  const isInvalid = el.matches(':user-invalid') || (!el.checkValidity() && el.classList.contains('user-invalid-fallback'));
+  const linkErr = (shown) => {
+    if (!errId) return;
+    const ids = (el.getAttribute('aria-describedby') || '').split(/\s+/).filter(id => id && id !== errId);
+    if (shown) ids.push(errId);
+    if (ids.length) el.setAttribute('aria-describedby', ids.join(' '));
+    else el.removeAttribute('aria-describedby');
+  };
+  if (isInvalid) {
+    el.setAttribute('aria-invalid', 'true');
+    linkErr(true);
+    _flaggedFields.add(el);
+    if (announce && !_announcedFields.has(el) && errId) {
+      const errNode = document.getElementById(errId);
+      if (errNode) {
+        clearTimeout(_announceTimer);
+        _validationAnnouncer.textContent = '';
+        _announceTimer = setTimeout(() => { _validationAnnouncer.textContent = errNode.textContent.trim(); }, 450);
+      }
+      _announcedFields.add(el);
+    }
+  } else if (_flaggedFields.has(el) || el.getAttribute('aria-invalid') !== 'true') {
+    el.setAttribute('aria-invalid', 'false');
+    linkErr(false);
+    _flaggedFields.delete(el);
+    _announcedFields.delete(el);
+  }
+}
+
+function autoGrowTextarea(ta) {
+  if (!ta || ta.tagName !== 'TEXTAREA') return;
+  ta.style.height = 'auto';
+  ta.style.height = `${Math.min(180, Math.max(44, ta.scrollHeight))}px`;
+}
+
+function setProfileDirtyState(dirty, count = 0) {
+  profileIsDirty = Boolean(dirty);
+  const bar = document.getElementById('profile-dirty-bar');
+  const lbl = document.getElementById('profile-dirty-label');
+  if (bar) bar.classList.toggle('hidden', !profileIsDirty);
+  if (lbl) lbl.textContent = count > 0 ? `${count} unsaved change${count === 1 ? '' : 's'} in your profile` : 'You have unsaved profile changes';
+}
+
+function updateProfileDirtyCount() {
+  const inputs = document.querySelectorAll('.profile-field [data-key]');
+  let dirtyCount = 0;
+  inputs.forEach(inp => {
+    const orig = inp.getAttribute('data-orig-value') ?? '';
+    const changed = inp.value !== orig;
+    inp.classList.toggle('border-amber-400/50', changed);
+    if (changed) dirtyCount += 1;
+  });
+  setProfileDirtyState(dirtyCount > 0, dirtyCount);
+}
+
+function discardProfileEdits() {
+  renderProfile();
+  toast('Reverted unsaved profile edits.', 'info');
+}
+
+window.addEventListener('beforeunload', (e) => {
+  if (profileIsDirty) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
 function renderProfile() {
   const p = profileData;
-  if (!p || Object.keys(p).length === 0) { return; }
+  if (!p || Object.keys(p).length === 0) {
+    const pEl = document.getElementById('profile-personal');
+    if (pEl) pEl.innerHTML = skeleton('form', 3);
+    return;
+  }
 
-  const field = ([key, label]) => `
-    <div class="profile-field flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
-      <label class="text-[11px] text-zinc-400 sm:w-40 flex-shrink-0 font-medium">${esc(label)}</label>
-      <input type="text" data-key="${key}" value="${esc(p[key] !== undefined && p[key] !== null ? String(p[key]) : '')}" class="flex-1 rounded-lg px-3 py-1.5 text-xs font-mono">
-    </div>`;
+  const field = ([key, label]) => {
+    const rawVal = p[key] !== undefined && p[key] !== null ? String(p[key]) : '';
+    const val = esc(rawVal);
+    const inpId = `prof-input-${key}`;
+    const errId = `prof-err-${key}`;
+    const rule = PROFILE_VALIDATION_RULES[key] || {};
+    if (MULTILINE_PROFILE_KEYS.has(key)) {
+      return `
+        <div class="profile-field flex flex-col sm:flex-row sm:items-start gap-1.5 sm:gap-3">
+          <label for="${inpId}" class="text-[11px] text-zinc-400 sm:w-40 flex-shrink-0 font-medium sm:pt-2">${esc(label)}</label>
+          <div class="flex-1 min-w-0">
+            <textarea id="${inpId}" rows="2" data-key="${key}" data-orig-value="${val}" aria-invalid="false" class="w-full rounded-lg px-3 py-1.5 text-xs font-mono leading-relaxed">${val}</textarea>
+          </div>
+        </div>`;
+    }
+    const typeAttr = rule.type || 'text';
+    const patAttr = rule.pattern ? `pattern="${esc(rule.pattern)}"` : '';
+    const errHtml = rule.err
+      ? `<div id="${errId}" class="error-msg"><span role="img" aria-label="Error">❌</span> ${esc(rule.err)}</div>`
+      : '';
+    return `
+      <div class="profile-field flex flex-col sm:flex-row sm:items-start gap-1.5 sm:gap-3">
+        <label for="${inpId}" class="text-[11px] text-zinc-400 sm:w-40 flex-shrink-0 font-medium sm:pt-2">${esc(label)}</label>
+        <div class="flex-1 min-w-0">
+          <input id="${inpId}" type="${typeAttr}" ${patAttr} ${rule.err ? `data-error="${errId}"` : ''} aria-invalid="false" data-key="${key}" data-orig-value="${val}" value="${val}" class="w-full rounded-lg px-3 py-1.5 text-xs font-mono">
+          ${errHtml}
+        </div>
+      </div>`;
+  };
 
   document.getElementById('profile-personal').innerHTML = PROFILE_SECTIONS_DEF.personal.map(field).join('');
   document.getElementById('profile-identity').innerHTML = PROFILE_SECTIONS_DEF.identity.map(field).join('');
   document.getElementById('profile-academic').innerHTML = PROFILE_SECTIONS_DEF.academic.map(field).join('');
   document.getElementById('profile-links').innerHTML = PROFILE_SECTIONS_DEF.links.map(field).join('');
+
+  setProfileDirtyState(false, 0);
+  document.querySelectorAll('#page-profile textarea[data-key]').forEach(autoGrowTextarea);
+  document.querySelectorAll('.profile-field [data-key]').forEach(el => {
+    el.addEventListener('input', () => {
+      autoGrowTextarea(el);
+      updateProfileDirtyCount();
+      if (el.hasAttribute('aria-invalid')) syncFieldValidationAria(el, false);
+    });
+    el.addEventListener('blur', () => {
+      if (!CSS.supports('selector(:user-invalid)')) {
+        el.classList.toggle('user-invalid-fallback', !el.checkValidity());
+        el.classList.toggle('user-valid-fallback', el.checkValidity() && Boolean(el.value));
+      }
+      syncFieldValidationAria(el, true);
+    });
+  });
 
   const allKeys = [
     ...PROFILE_SECTIONS_DEF.personal,
@@ -2835,15 +3604,15 @@ function renderProfile() {
   if (cCountEl) cCountEl.textContent = `${cKeys.length} saved`;
   if (cPanel) {
     if (!cKeys.length) {
-      cPanel.innerHTML = '<div class="py-2 text-zinc-500">No custom question overrides saved yet. Any answer you edit inside the Review & Apply modal is automatically stored here for reuse.</div>';
+      cPanel.innerHTML = '<div class="py-2 text-zinc-400">No custom question overrides saved yet. Any answer you edit inside the Review & Apply modal is automatically stored here for reuse.</div>';
     } else {
       cPanel.innerHTML = cKeys.map((qText, i) => `
         <div class="flex flex-col sm:flex-row sm:items-center gap-2 p-2.5 rounded-xl bg-[#09090b] border border-white/[0.07]">
           <div class="flex-1 min-w-0">
-            <div class="text-[11px] font-medium text-zinc-200">${esc(qText)}</div>
-            <input type="text" data-clarif-key="${esc(qText)}" value="${esc(String(clarifs[qText] ?? ''))}" class="clarif-override-input mt-1 w-full bg-[#111114] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-mono text-emerald-300 focus:border-zinc-500 focus:outline-none">
+            <label for="clarif-ovr-${i}" class="block text-[11px] font-medium text-zinc-200">${esc(qText)}</label>
+            <input id="clarif-ovr-${i}" type="text" data-clarif-key="${esc(qText)}" value="${esc(String(clarifs[qText] ?? ''))}" class="clarif-override-input mt-1 w-full bg-[#111114] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-mono text-emerald-300 focus:border-zinc-500 focus:outline-none">
           </div>
-          <button type="button" onclick="deleteClarificationOverride('${encodeURIComponent(qText)}')" class="px-2.5 py-1.5 rounded-lg bg-white/[0.05] hover:bg-rose-500/20 border border-white/10 text-zinc-400 hover:text-rose-300 text-[11px] flex-shrink-0">Remove</button>
+          <button type="button" data-action="delete-clarif" data-clarif-key="${encodeURIComponent(qText)}" class="px-2.5 py-1.5 rounded-lg bg-white/[0.05] hover:bg-rose-500/20 border border-white/10 text-zinc-300 hover:text-rose-300 text-[11px] flex-shrink-0">Remove</button>
         </div>
       `).join('');
     }
@@ -2866,8 +3635,23 @@ async function deleteClarificationOverride(encodedKey) {
   } catch (e) { toast('Error removing override: ' + e.message, 'error'); }
 }
 
-async function saveProfile() {
-  const inputs = document.querySelectorAll('.profile-field input[data-key]');
+async function saveProfile(triggerBtn = null) {
+  const inputs = document.querySelectorAll('.profile-field [data-key]');
+  let firstInvalid = null;
+  inputs.forEach(inp => {
+    if (inp.value.trim() && !inp.checkValidity()) {
+      if (!CSS.supports('selector(:user-invalid)')) inp.classList.add('user-invalid-fallback');
+      syncFieldValidationAria(inp, true);
+      if (!firstInvalid) firstInvalid = inp;
+    }
+  });
+  if (firstInvalid) {
+    firstInvalid.focus();
+    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    toast('Fix the highlighted invalid profile field before saving.', 'error');
+    return;
+  }
+
   const updated = {};
   inputs.forEach(inp => { updated[inp.dataset.key] = inp.value; });
   const clarifInputs = document.querySelectorAll('.clarif-override-input[data-clarif-key]');
@@ -2877,18 +3661,21 @@ async function saveProfile() {
       updated.custom_clarifications[inp.getAttribute('data-clarif-key')] = inp.value;
     });
   }
-  try {
-    const { ok, data } = await apiFetch('/api/profile', { method:'POST', body: JSON.stringify(updated) });
-    if (ok && data && data.success) {
-      toast('Profile encrypted & synced across local + Cloud Vault!', 'success');
-      profileData = data.profile || updated;
-      saveDashboardCache();
-      renderProfile();
-      await fetchStatus();
-    } else {
-      toast('Failed to save profile: ' + ((data && data.message) || 'Error'), 'error');
-    }
-  } catch (e) { toast('Error saving profile: ' + e.message, 'error'); }
+
+  await withLoading(triggerBtn, 'Saving…', async () => {
+    try {
+      const { ok, data } = await apiFetch('/api/profile', { method:'POST', body: JSON.stringify(updated) });
+      if (ok && data && data.success) {
+        toast('Profile encrypted & synced across local + Cloud Vault!', 'success');
+        profileData = data.profile || updated;
+        saveDashboardCache();
+        renderProfile();
+        await fetchStatus();
+      } else {
+        toast('Failed to save profile: ' + ((data && data.message) || 'Error'), 'error');
+      }
+    } catch (e) { toast('Error saving profile: ' + e.message, 'error'); }
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -2934,11 +3721,17 @@ function renderEngine() {
 // ═══════════════════════════════════════════════════════════════════
 let whatsappConfigCache = null;
 let waQrPollTimer = null;
+let waQrCountdownTimer = null;
+let waQrNextCheckSec = 3;
 
 function stopWhatsappQrPolling() {
   if (waQrPollTimer) {
     clearInterval(waQrPollTimer);
     waQrPollTimer = null;
+  }
+  if (waQrCountdownTimer) {
+    clearInterval(waQrCountdownTimer);
+    waQrCountdownTimer = null;
   }
 }
 
@@ -2984,12 +3777,24 @@ function renderWhatsappQrState(st) {
   if (startBtn) startBtn.classList.remove('hidden');
 
   if (st.state === 'qr_ready' && st.qr_data_url) {
-    if (qrImg) qrImg.src = st.qr_data_url;
+    const qrSafe = safeDataImageUrl(st.qr_data_url);
+    if (qrImg && qrSafe) qrImg.src = qrSafe;
     if (qrBox) qrBox.classList.remove('hidden');
-    if (startBtn) startBtn.textContent = 'Refresh QR Code';
-    if (pollNote) pollNote.textContent = 'Live QR active — scan with WhatsApp Linked Devices...';
+    if (startBtn) startBtn.textContent = 'Regenerate QR Code';
+    waQrNextCheckSec = 3;
+    if (pollNote) pollNote.textContent = `Live QR active — checking scan in ${waQrNextCheckSec}s…`;
     if (!waQrPollTimer) {
-      waQrPollTimer = setInterval(pollWhatsappQrStatus, 2500);
+      waQrPollTimer = setInterval(() => {
+        waQrNextCheckSec = 3;
+        pollWhatsappQrStatus();
+      }, 3000);
+    }
+    if (!waQrCountdownTimer) {
+      waQrCountdownTimer = setInterval(() => {
+        waQrNextCheckSec = Math.max(1, waQrNextCheckSec - 1);
+        const pNote = document.getElementById('wa-qr-poll-note');
+        if (pNote) pNote.textContent = `Live QR active — checking scan in ${waQrNextCheckSec}s…`;
+      }, 1000);
     }
   } else {
     if (qrBox) qrBox.classList.add('hidden');
@@ -3287,17 +4092,22 @@ async function renderSettings() {
 
 async function loadInviteCodes() {
   const container = document.getElementById('invite-codes-list');
+  const section = document.getElementById('settings-admin-invites');
   if (!container) return;
   try {
-    const { ok, data } = await apiFetch('/api/invites');
+    const { ok, status, data } = await apiFetch('/api/invites');
+    if (status === 403) {
+      if (section) section.classList.add('hidden');
+      return;
+    }
     if (ok && data && Array.isArray(data.invites)) {
       container.innerHTML = data.invites.map(c => `
         <div class="p-3 rounded-xl bg-surface-950/90 border border-white/10 flex items-center justify-between gap-2">
           <div>
             <div class="font-mono font-bold text-emerald-400 text-sm">${esc(c.code)}</div>
-            <div class="text-[10px] text-slate-400">${esc(c.label || 'Friend Invite')} • Used ${c.uses_count || 0}/${c.max_uses || 100}</div>
+            <div class="text-[10px] text-zinc-400">${esc(c.label || 'Friend Invite')} • Used ${Number(c.uses_count || 0)}/${Number(c.max_uses || 100)}</div>
           </div>
-          <button onclick="navigator.clipboard.writeText('${esc(c.code)}'); toast('Copied invite code ${esc(c.code)}!', 'success');" class="px-2.5 py-1.5 rounded-lg bg-surface-800 text-slate-200 text-[11px] font-semibold border border-white/10">
+          <button type="button" data-action="copy-invite" data-invite-code="${esc(c.code)}" class="px-2.5 py-1.5 rounded-lg bg-surface-800 text-zinc-200 text-[11px] font-semibold border border-white/10">
             Copy
           </button>
         </div>
@@ -3326,30 +4136,23 @@ async function createNewInviteCode() {
 // ═══════════════════════════════════════════════════════════════════
 async function triggerSync() {
   const btn = document.getElementById('sync-btn');
-  const icon = document.getElementById('sync-icon');
-  btn.disabled = true;
-  icon.textContent = '⏳';
-  btn.classList.add('opacity-70');
-  toast('Syncing live drives with Superset API...', 'info');
-
-  try {
-    const { ok, data } = await apiFetch('/api/sync', { method: 'POST' });
-    if (ok && data && data.success) {
-      toast(`Sync complete: ${data.total_found} drives verified${data.auto_applied ? ', ' + data.auto_applied + ' auto-applied' : ''}!`, 'success');
-    } else if (data && data.total_found) {
-      const errors = data.errors || [];
-      toast(`Verified ${data.total_found} drives (${errors.length} note: ${errors[0] || ''})`, 'warn');
-    } else {
-      toast((data && (data.message || data.error)) || 'Could not reach Superset sync endpoint.', 'warn');
+  await withLoading(btn, 'Syncing…', async () => {
+    toast('Syncing live drives with Superset API...', 'info');
+    try {
+      const { ok, data } = await apiFetch('/api/sync', { method: 'POST' });
+      if (ok && data && data.success) {
+        toast(`Sync complete: ${data.total_found} drives verified${data.auto_applied ? ', ' + data.auto_applied + ' auto-applied' : ''}!`, 'success');
+      } else if (data && data.total_found) {
+        const errors = data.errors || [];
+        toast(`Verified ${data.total_found} drives (${errors.length} note: ${errors[0] || ''})`, 'warn');
+      } else {
+        toast((data && (data.message || data.error)) || 'Could not reach Superset sync endpoint.', 'warn');
+      }
+      await Promise.all([fetchStatus(), fetchJobs(), fetchNotices()]);
+    } catch (e) {
+      toast('Sync notice: ' + e.message, 'warn');
     }
-    await Promise.all([fetchStatus(), fetchJobs(), fetchNotices()]);
-  } catch (e) {
-    toast('Sync notice: ' + e.message, 'warn');
-  } finally {
-    btn.disabled = false;
-    icon.textContent = '🔄';
-    btn.classList.remove('opacity-70');
-  }
+  });
 }
 
 async function toggleDaemon() {
@@ -3368,7 +4171,7 @@ function selectModalOptionChip(btn) {
   const sel = document.getElementById(targetId);
   if (sel) {
     sel.value = val;
-    sel.dispatchEvent(new Event('change'));
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
   }
   const siblingBtns = btn.parentElement ? btn.parentElement.querySelectorAll('button[data-target-input]') : [];
   siblingBtns.forEach(b => {
@@ -3377,6 +4180,82 @@ function selectModalOptionChip(btn) {
       ? 'px-2 py-0.5 rounded-md text-[10px] font-mono bg-zinc-100 text-zinc-950 font-semibold'
       : 'px-2 py-0.5 rounded-md text-[10px] font-mono bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-zinc-300';
   });
+}
+
+function getReviewInputValue(el) {
+  if (!el) return '';
+  if (el.getAttribute('data-input-kind') === 'multiselect') {
+    const checked = [...el.querySelectorAll('input[type="checkbox"]:checked')].map(c => c.value);
+    return checked;
+  }
+  return el.value ?? '';
+}
+
+function updateDependentModalQuestions() {
+  const allInputs = [...document.querySelectorAll('.app-review-input')];
+  const byKey = {};
+  allInputs.forEach(el => {
+    const k = el.getAttribute('data-attr-key');
+    if (k) byKey[k] = getReviewInputValue(el);
+  });
+  allInputs.forEach(el => {
+    const parentKey = el.getAttribute('data-depends-on');
+    const whenVal = (el.getAttribute('data-depends-when') || '').toLowerCase();
+    const fallbackVal = el.getAttribute('data-depends-fallback') || 'NA';
+    if (!parentKey || !(parentKey in byKey)) return;
+    const pRaw = String(byKey[parentKey] || '').trim().toLowerCase();
+    const matchesParent = pRaw === whenVal || (whenVal === 'yes' && ['true', '1', 'y'].includes(pRaw)) || (whenVal === 'no' && ['false', '0', 'n'].includes(pRaw));
+    const depHintEl = document.getElementById(`${el.id}-dep-note`);
+    if (!matchesParent) {
+      if (el.getAttribute('data-user-before-na') === null) {
+        el.setAttribute('data-user-before-na', el.value || '');
+      }
+      el.value = fallbackVal;
+      if (depHintEl) depHintEl.textContent = `Auto-set to ${fallbackVal} because parent answer is not ${el.getAttribute('data-depends-when')}`;
+    } else {
+      const savedPrev = el.getAttribute('data-user-before-na');
+      if (savedPrev !== null && el.value === fallbackVal) {
+        el.value = savedPrev;
+        el.removeAttribute('data-user-before-na');
+      }
+      if (depHintEl) depHintEl.textContent = '';
+    }
+  });
+}
+
+function updateModalReviewSummary() {
+  const allInputs = [...document.querySelectorAll('.app-review-input')];
+  if (!allInputs.length) return;
+  let answered = 0;
+  let missingMand = 0;
+  let reviewCount = 0;
+  allInputs.forEach(el => {
+    const rawVal = getReviewInputValue(el);
+    const hasVal = Array.isArray(rawVal) ? rawVal.length > 0 : String(rawVal || '').trim() !== '';
+    const isMand = el.getAttribute('data-mandatory') === '1';
+    const needsRev = el.getAttribute('data-needs-review') === '1';
+    if (hasVal) answered += 1;
+    if (isMand && !hasVal) missingMand += 1;
+    if (needsRev && !hasVal) reviewCount += 1;
+    el.classList.toggle('border-rose-500/60', isMand && !hasVal);
+  });
+  const countEl = document.getElementById('modal-footer-status');
+  if (countEl) {
+    countEl.textContent = `${answered}/${allInputs.length} answered${missingMand ? ` · ${missingMand} required missing` : (reviewCount ? ` · ${reviewCount} need review` : ' · Ready')}`;
+    countEl.className = missingMand
+      ? 'text-[11px] font-mono text-rose-300'
+      : 'text-[11px] font-mono text-zinc-400';
+  }
+  const qBadge = document.getElementById('modal-q-badge');
+  if (qBadge) {
+    qBadge.textContent = missingMand ? `${answered}/${allInputs.length} Pre-Filled · ${missingMand} Required` : `✓ ${answered}/${allInputs.length} Ready · Editable Below`;
+  }
+  const subBtn = document.getElementById('btn-submit-app-modal');
+  if (subBtn) {
+    subBtn.disabled = missingMand > 0;
+    subBtn.classList.toggle('opacity-50', missingMand > 0);
+    subBtn.classList.toggle('cursor-not-allowed', missingMand > 0);
+  }
 }
 
 function collectModalUpdates() {
@@ -3390,22 +4269,23 @@ function collectModalUpdates() {
     const qText = el.getAttribute('data-question-text') || '';
     const isMand = el.getAttribute('data-mandatory') === '1';
     const initVal = el.getAttribute('data-initial-answer') || '';
-    const val = (el.value ?? '').trim();
-    if (isMand && !val && !missingRequiredEl) {
-      missingRequiredEl = el;
+    const rawVal = getReviewInputValue(el);
+    const hasVal = Array.isArray(rawVal) ? rawVal.length > 0 : String(rawVal || '').trim() !== '';
+    const normVal = Array.isArray(rawVal) ? JSON.stringify(rawVal) : String(rawVal || '').trim();
+    if (isMand && !hasVal && !missingRequiredEl) {
+      missingRequiredEl = el.getAttribute('data-input-kind') === 'multiselect' ? (el.querySelector('input[type="checkbox"]') || el) : el;
       missingRequiredLabel = qText || key;
     }
-    if (key) answers[key] = el.value;
-    if (qText && val && (val !== initVal || el.getAttribute('data-is-generic-choice') !== '1')) {
-      // Always remember changed edits; also remember empty-initially answers once filled
-      if (val !== initVal || !initVal) {
-        clarifications_updates[qText] = el.value;
+    if (key) answers[key] = rawVal;
+    if (qText && hasVal && (normVal !== initVal || el.getAttribute('data-is-generic-choice') !== '1')) {
+      if (normVal !== initVal || !initVal) {
+        clarifications_updates[qText] = rawVal;
       }
     }
   });
 
   const profile_updates = {};
-  document.querySelectorAll('input[data-modal-profile-key]').forEach(el => {
+  document.querySelectorAll('[data-modal-profile-key]').forEach(el => {
     const k = el.getAttribute('data-modal-profile-key');
     if (k) profile_updates[k] = el.value;
   });
@@ -3416,27 +4296,56 @@ function collectModalUpdates() {
 async function saveModalEditsOnly(jobId) {
   const { clarifications_updates, profile_updates } = collectModalUpdates();
   const btn = document.getElementById('btn-save-modal-vault');
-  if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
-  try {
-    const { ok, data } = await apiFetch(`/api/jobs/${jobId}/save-answers`, {
-      method: 'POST',
-      body: JSON.stringify({ profile_updates, clarifications_updates }),
-    });
-    if (ok && data && data.success) {
-      if (data.profile) {
-        profileData = Object.assign({}, profileData, data.profile);
-        saveDashboardCache();
-        if (currentPage === 'profile') renderProfile();
+  await withLoading(btn, 'Saving…', async () => {
+    try {
+      const { ok, data } = await apiFetch(`/api/jobs/${encodeURIComponent(jobId)}/save-answers`, {
+        method: 'POST',
+        body: JSON.stringify({ profile_updates, clarifications_updates }),
+      });
+      if (ok && data && data.success) {
+        modalIsDirty = false;
+        hideModalDirtyPrompt();
+        if (data.profile) {
+          profileData = Object.assign({}, profileData, data.profile);
+          saveDashboardCache();
+          if (currentPage === 'profile') renderProfile();
+        }
+        toast('Saved all edits & answers to your Vault + Cloud Sync!', 'success');
+      } else {
+        toast((data && data.message) || 'Could not save edits.', 'error');
       }
-      toast('Saved all edits & answers to your Vault + Cloud Sync!', 'success');
-    } else {
-      toast((data && data.message) || 'Could not save edits.', 'error');
+    } catch (e) {
+      toast('Error saving edits: ' + e.message, 'error');
     }
-  } catch (e) {
-    toast('Error saving edits: ' + e.message, 'error');
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '💾 Save Edits to Vault'; }
+  });
+}
+
+function hideModalDirtyPrompt() {
+  const bar = document.getElementById('modal-dirty-bar');
+  if (bar) bar.classList.remove('is-visible');
+}
+
+function forceCloseModal() {
+  modalIsDirty = false;
+  hideModalDirtyPrompt();
+  const modal = document.getElementById('modal-overlay');
+  if (modal && modal.open) modal.close();
+}
+
+function closeModal() {
+  forceCloseModal();
+}
+
+function requestCloseModal() {
+  if (modalIsDirty) {
+    const bar = document.getElementById('modal-dirty-bar');
+    if (bar) {
+      bar.classList.add('is-visible');
+      document.getElementById('modal-keep-btn')?.focus();
+      return;
+    }
   }
+  forceCloseModal();
 }
 
 async function applyToJob(jobId, company, role) {
@@ -3444,18 +4353,22 @@ async function applyToJob(jobId, company, role) {
   const title = document.getElementById('modal-title');
   const body = document.getElementById('modal-body');
 
-  title.innerHTML = `<span>⚡</span> Review, Edit & Apply — <span class="text-zinc-200 font-mono">${esc(company)}</span>`;
+  modalIsDirty = false;
+  hideModalDirtyPrompt();
+  title.innerHTML = `<span aria-hidden="true">⚡</span> Review, Edit & Apply — <span class="text-zinc-200 font-mono">${esc(company)}</span>`;
   body.innerHTML = `
-    <div class="py-12 text-center text-zinc-400 font-mono text-sm space-y-3">
-      <div class="inline-block animate-spin text-2xl text-zinc-200">🔄</div>
-      <div class="text-zinc-200 font-medium">Loading live questionnaire & full profile for ${esc(company)}...</div>
-      <div class="text-xs text-zinc-500">All answers & profile fields are editable before submitting</div>
+    <div class="space-y-3 py-2">
+      <div class="flex items-center gap-2.5 text-xs font-mono text-zinc-300">
+        <progress aria-label="Loading application" class="loading-spinner spinner-xs"></progress>
+        <span>Loading live questionnaire &amp; full profile for ${esc(company)}…</span>
+      </div>
+      ${skeleton('form', 4)}
     </div>
   `;
-  modal.classList.remove('hidden');
+  if (!modal.open) modal.showModal();
 
   try {
-    const { ok, data: respData } = await apiFetch(`/api/jobs/${jobId}/preview-application`);
+    const { ok, data: respData } = await apiFetch(`/api/jobs/${encodeURIComponent(jobId)}/preview-application`);
     const jobObj = allJobs.find(j => j.id === jobId) || {};
     let data = ok ? respData : null;
 
@@ -3498,8 +4411,11 @@ async function applyToJob(jobId, company, role) {
       resumesOptionsHtml = `<option value="Default_Resume" selected>📄 Default Placement Resume (Verified PDF)</option>`;
     }
 
-    const answeredCount = questions.filter(q => q.answer !== undefined && q.answer !== null && String(q.answer).trim() !== '').length;
-    const attentionCount = questions.filter(q => (q.mandatory && (!q.answer || !String(q.answer).trim())) || q.needs_review).length;
+    const answeredCount = questions.filter(q => {
+      if (Array.isArray(q.answer)) return q.answer.length > 0;
+      return q.answer !== undefined && q.answer !== null && String(q.answer).trim() !== '';
+    }).length;
+    const attentionCount = questions.filter(q => (Boolean(q.required ?? q.mandatory) && (!q.answer || (Array.isArray(q.answer) ? !q.answer.length : !String(q.answer).trim()))) || q.needs_review).length;
 
     let questionsHtml = '';
     if (questions.length > 0) {
@@ -3516,42 +4432,62 @@ async function applyToJob(jobId, company, role) {
             <div class="text-xs font-bold uppercase tracking-wider text-zinc-200 flex items-center gap-1.5">
               <span>📝</span> Company Questionnaire (${questions.length} questions — Edit Directly)
             </div>
-            <span class="text-[10px] font-mono px-2.5 py-0.5 rounded-full border ${badgeCls}">${badgeTxt}</span>
+            <span id="modal-q-badge" class="text-[10px] font-mono px-2.5 py-0.5 rounded-full border ${badgeCls}">${badgeTxt}</span>
           </div>
           <div class="space-y-3 max-h-[42vh] overflow-y-auto pr-1">
             ${questions.map((q, idx) => {
               const qKey = esc(q.key || `question_${idx}`);
-              const qAnsRaw = q.answer !== undefined && q.answer !== null ? String(q.answer) : '';
-              const qAns = esc(qAnsRaw);
+              const isMultiselect = (q.type || '').toLowerCase() === 'select:multiple';
+              const qAnsList = Array.isArray(q.answer) ? q.answer.map(x => String(x)) : [];
+              const qAnsRaw = Array.isArray(q.answer) ? qAnsList.join(', ') : (q.answer !== undefined && q.answer !== null ? String(q.answer) : '');
+              const qAns = esc(Array.isArray(q.answer) ? JSON.stringify(q.answer) : qAnsRaw);
               const qType = (q.type || 'string').toLowerCase();
-              const isMandatory = Boolean(q.mandatory);
+              const isMandatory = Boolean(q.required ?? q.mandatory);
               const inputId = `app-q-input-${idx}`;
-              const needsInput = isMandatory && !qAnsRaw.trim();
+              const needsInput = isMandatory && (Array.isArray(q.answer) ? qAnsList.length === 0 : !qAnsRaw.trim());
               const isGenericChoice = Array.isArray(q.options) && q.options.length >= 2;
               const borderCls = needsInput ? 'border-rose-500/50 bg-rose-950/10' : (q.needs_review ? 'border-amber-500/40 bg-amber-950/10' : 'border-white/[0.08] bg-[#09090b]');
+              const depAttrs = q.depends_on
+                ? `data-depends-on="${esc(q.depends_on.parent_key || '')}" data-depends-when="${esc(q.depends_on.when_value || 'Yes')}" data-depends-fallback="${esc(q.depends_on.fallback_value || 'NA')}"`
+                : '';
 
               let inputField = '';
               let chipsHtml = '';
-              if (q.options && Array.isArray(q.options) && q.options.length > 0) {
+              if (isMultiselect && Array.isArray(q.options) && q.options.length > 0) {
+                const lowSelected = new Set(qAnsList.map(v => v.trim().toLowerCase()));
                 inputField = `
-                  <select id="${inputId}" data-attr-key="${qKey}" data-question-text="${esc(q.question)}" data-mandatory="${isMandatory ? '1' : '0'}" data-initial-answer="${qAns}" data-is-generic-choice="${isGenericChoice ? '1' : '0'}"
+                  <div id="${inputId}" data-input-kind="multiselect" data-attr-key="${qKey}" data-question-text="${esc(q.question)}" data-mandatory="${isMandatory ? '1' : '0'}" data-needs-review="${q.needs_review ? '1' : '0'}" data-initial-answer="${qAns}" data-is-generic-choice="1" ${depAttrs}
+                    class="app-review-input grid grid-cols-1 sm:grid-cols-2 gap-1.5 p-2 rounded-lg bg-[#111114] border border-white/15">
+                    ${q.options.map((opt, oi) => {
+                      const chkId = `${inputId}-opt-${oi}`;
+                      const checked = lowSelected.has(String(opt).trim().toLowerCase());
+                      return `
+                        <label for="${chkId}" class="flex items-center gap-2 text-xs text-zinc-200 px-2 py-1 rounded hover:bg-white/[0.05] cursor-pointer">
+                          <input id="${chkId}" type="checkbox" value="${esc(opt)}" ${checked ? 'checked' : ''} class="rounded border-zinc-600 accent-zinc-100">
+                          <span>${esc(opt)}</span>
+                        </label>`;
+                    }).join('')}
+                  </div>`;
+              } else if (q.options && Array.isArray(q.options) && q.options.length > 0) {
+                inputField = `
+                  <select id="${inputId}" data-attr-key="${qKey}" data-question-text="${esc(q.question)}" data-mandatory="${isMandatory ? '1' : '0'}" data-needs-review="${q.needs_review ? '1' : '0'}" data-initial-answer="${qAns}" data-is-generic-choice="${isGenericChoice ? '1' : '0'}" ${depAttrs}
                     class="app-review-input w-full bg-[#111114] border border-white/15 rounded-lg px-3 py-2 text-xs text-zinc-100 focus:border-zinc-400 focus:outline-none">
                     ${q.options.map(opt => `<option value="${esc(opt)}" ${String(opt).trim().toLowerCase() === qAnsRaw.trim().toLowerCase() ? 'selected' : ''}>${esc(opt)}</option>`).join('')}
                   </select>
                 `;
                 chipsHtml = `
                   <div class="flex flex-wrap items-center gap-1.5 pt-1">
-                    <span class="text-[10px] font-mono text-zinc-500 mr-1">Options:</span>
+                    <span class="text-[10px] font-mono text-zinc-400 mr-1">Options:</span>
                     ${q.options.map(opt => {
                       const active = String(opt).trim().toLowerCase() === qAnsRaw.trim().toLowerCase();
-                      return `<button type="button" data-target-input="${inputId}" data-option-value="${esc(opt)}" onclick="selectModalOptionChip(this)"
+                      return `<button type="button" data-action="modal-option-chip" data-target-input="${inputId}" data-option-value="${esc(opt)}"
                         class="${active ? 'px-2 py-0.5 rounded-md text-[10px] font-mono bg-zinc-100 text-zinc-950 font-semibold' : 'px-2 py-0.5 rounded-md text-[10px] font-mono bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-zinc-300'}">${esc(opt)}</button>`;
                     }).join('')}
                   </div>
                 `;
               } else if (qType === 'boolean' || qType === 'bool') {
                 inputField = `
-                  <select id="${inputId}" data-attr-key="${qKey}" data-question-text="${esc(q.question)}" data-mandatory="${isMandatory ? '1' : '0'}" data-initial-answer="${qAns}"
+                  <select id="${inputId}" data-attr-key="${qKey}" data-question-text="${esc(q.question)}" data-mandatory="${isMandatory ? '1' : '0'}" data-needs-review="${q.needs_review ? '1' : '0'}" data-initial-answer="${qAns}" ${depAttrs}
                     class="app-review-input w-full bg-[#111114] border border-white/15 rounded-lg px-3 py-2 text-xs text-zinc-100 focus:border-zinc-400 focus:outline-none">
                     <option value="Yes" ${['yes', 'true', '1'].includes(qAnsRaw.trim().toLowerCase()) ? 'selected' : ''}>Yes</option>
                     <option value="No" ${['no', 'false', '0'].includes(qAnsRaw.trim().toLowerCase()) ? 'selected' : ''}>No</option>
@@ -3559,12 +4495,12 @@ async function applyToJob(jobId, company, role) {
                 `;
               } else if (qType.includes('int') || qType.includes('number') || qType.includes('float')) {
                 inputField = `
-                  <input id="${inputId}" type="number" step="any" data-attr-key="${qKey}" data-question-text="${esc(q.question)}" data-mandatory="${isMandatory ? '1' : '0'}" data-initial-answer="${qAns}" value="${qAns}" placeholder="Enter numeric value..."
+                  <input id="${inputId}" type="number" step="any" data-attr-key="${qKey}" data-question-text="${esc(q.question)}" data-mandatory="${isMandatory ? '1' : '0'}" data-needs-review="${q.needs_review ? '1' : '0'}" data-initial-answer="${qAns}" ${depAttrs} value="${esc(qAnsRaw)}" placeholder="Enter numeric value..."
                     class="app-review-input w-full bg-[#111114] border border-white/15 rounded-lg px-3 py-2 text-xs text-zinc-100 font-mono focus:border-zinc-400 focus:outline-none" />
                 `;
               } else {
                 inputField = `
-                  <input id="${inputId}" type="text" data-attr-key="${qKey}" data-question-text="${esc(q.question)}" data-mandatory="${isMandatory ? '1' : '0'}" data-initial-answer="${qAns}" value="${qAns}" placeholder="Type your answer here..."
+                  <input id="${inputId}" type="text" data-attr-key="${qKey}" data-question-text="${esc(q.question)}" data-mandatory="${isMandatory ? '1' : '0'}" data-needs-review="${q.needs_review ? '1' : '0'}" data-initial-answer="${qAns}" ${depAttrs} value="${esc(qAnsRaw)}" placeholder="Type your answer here..."
                     class="app-review-input w-full bg-[#111114] border border-white/15 rounded-lg px-3 py-2 text-xs text-zinc-100 focus:border-zinc-400 focus:outline-none" />
                 `;
               }
@@ -3575,13 +4511,14 @@ async function applyToJob(jobId, company, role) {
                 <div class="p-3 rounded-xl border ${borderCls} space-y-1.5">
                   <div class="flex items-start justify-between gap-2">
                     <label for="${inputId}" class="text-xs text-zinc-100 font-medium leading-snug">
-                      <span class="text-zinc-500 font-mono">#${idx+1}</span> ${esc(q.question)}
+                      <span class="text-zinc-400 font-mono">#${idx+1}</span> ${esc(q.question)}
                       ${isMandatory ? '<span class="text-rose-400 font-bold ml-1">*</span>' : ''}
                     </label>
-                    <span class="text-[9px] font-mono text-zinc-400 uppercase px-1.5 py-0.5 rounded bg-white/[0.05] flex-shrink-0">${isMandatory ? 'Required' : 'Optional'}</span>
+                    <span class="text-[9px] font-mono text-zinc-300 uppercase px-1.5 py-0.5 rounded bg-white/[0.05] flex-shrink-0">${isMandatory ? 'Required' : 'Optional'}</span>
                   </div>
                   <div>${inputField}</div>
                   ${chipsHtml}
+                  <div id="${inputId}-dep-note" class="text-[10px] font-mono text-amber-300"></div>
                   <div class="flex items-center justify-between text-[10px]">
                     <span class="${hintColor} flex items-center gap-1 font-mono">
                       <span>${hintIcon}</span> ${esc(q.clarity_reason || 'Editable — verify before submitting')}
@@ -3618,13 +4555,23 @@ async function applyToJob(jobId, company, role) {
       ...PROFILE_SECTIONS_DEF.links,
     ].filter(([k]) => !coreKeySet.has(k));
 
-    const modalField = ([k, lbl]) => `
-      <div>
-        <label class="block text-[10px] text-zinc-500 font-mono mb-0.5">${esc(lbl)}</label>
-        <input type="text" data-modal-profile-key="${k}" value="${esc(fp[k] !== undefined && fp[k] !== null ? String(fp[k]) : '')}"
-          class="w-full bg-[#111114] border border-white/10 focus:border-zinc-400 rounded-lg px-2.5 py-1.5 text-xs font-mono text-zinc-100 focus:outline-none" />
-      </div>
-    `;
+    const modalField = ([k, lbl]) => {
+      const mId = `modal-prof-${k}`;
+      const val = esc(fp[k] !== undefined && fp[k] !== null ? String(fp[k]) : '');
+      if (MULTILINE_PROFILE_KEYS.has(k)) {
+        return `
+          <div class="sm:col-span-2 md:col-span-3">
+            <label for="${mId}" class="block text-[10px] text-zinc-400 font-mono mb-0.5">${esc(lbl)}</label>
+            <textarea id="${mId}" rows="2" data-modal-profile-key="${k}" class="w-full bg-[#111114] border border-white/10 focus:border-zinc-400 rounded-lg px-2.5 py-1.5 text-xs font-mono text-zinc-100 focus:outline-none">${val}</textarea>
+          </div>`;
+      }
+      return `
+        <div>
+          <label for="${mId}" class="block text-[10px] text-zinc-400 font-mono mb-0.5">${esc(lbl)}</label>
+          <input id="${mId}" type="text" data-modal-profile-key="${k}" value="${val}"
+            class="w-full bg-[#111114] border border-white/10 focus:border-zinc-400 rounded-lg px-2.5 py-1.5 text-xs font-mono text-zinc-100 focus:outline-none" />
+        </div>`;
+    };
 
     body.innerHTML = `
       <div class="space-y-4">
@@ -3634,7 +4581,7 @@ async function applyToJob(jobId, company, role) {
             <div class="text-sm font-bold text-zinc-50">${esc(data.company_name || jobObj.company_name || 'Company')}</div>
             <div class="text-xs text-zinc-400">${esc(data.job_role || jobObj.job_role || 'Role')} • <span class="font-mono text-zinc-100 font-semibold">${esc(data.ctc_display || 'Standard CTC')}</span></div>
           </div>
-          <div class="text-[11px] font-mono px-2.5 py-1 rounded-full border self-start sm:self-auto ${isApplied ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25' : (isOpen ? 'bg-white/[0.06] text-zinc-200 border-white/15' : 'bg-white/[0.04] text-zinc-500 border-white/[0.08]')}">
+          <div class="text-[11px] font-mono px-2.5 py-1 rounded-full border self-start sm:self-auto ${isApplied ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25' : (isOpen ? 'bg-white/[0.06] text-zinc-200 border-white/15' : 'bg-white/[0.04] text-zinc-400 border-white/[0.08]')}">
             ${isApplied ? '✓ Already Applied on Superset' : (isOpen ? '⚡ Open — Editable Review' : 'Closed (Vault Edits Allowed)')}
           </div>
         </div>
@@ -3655,7 +4602,7 @@ async function applyToJob(jobId, company, role) {
           </div>
           <details class="rounded-xl bg-[#09090b] border border-white/[0.07] p-3">
             <summary class="text-[11px] font-medium text-zinc-300 cursor-pointer select-none">
-              View & Edit All Remaining ${allRemainingKeys.length} Profile Fields (10th / 12th / Identity / Passport / Links)
+              View &amp; Edit All Remaining ${allRemainingKeys.length} Profile Fields (10th / 12th / Identity / Passport / Links)
             </summary>
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-3">
               ${allRemainingKeys.map(modalField).join('')}
@@ -3665,7 +4612,7 @@ async function applyToJob(jobId, company, role) {
 
         <!-- Section 3: Attached Resume Selection -->
         <div class="space-y-1.5">
-          <label class="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-1.5">
+          <label for="review-resume-select" class="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-1.5">
             <span>📎</span> Resume Attached to Application
           </label>
           <select id="review-resume-select" class="w-full bg-[#09090b] border border-white/15 rounded-lg px-3 py-2 text-xs text-zinc-100 focus:border-zinc-400 focus:outline-none">
@@ -3677,7 +4624,7 @@ async function applyToJob(jobId, company, role) {
         <div class="space-y-2">
           <label class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
             <input type="checkbox" id="review-save-vault" checked class="rounded border-zinc-600 accent-zinc-100">
-            <span>Save any edited answers & profile fields to my Vault for future drives</span>
+            <span>Save any edited answers &amp; profile fields to my Vault for future drives</span>
           </label>
           <label class="flex items-start gap-2.5 p-3 rounded-xl bg-[#09090b] border border-white/[0.08] cursor-pointer">
             <input type="checkbox" id="review-consent-check" checked class="mt-0.5 rounded border-zinc-600 accent-zinc-100">
@@ -3687,33 +4634,50 @@ async function applyToJob(jobId, company, role) {
           </label>
         </div>
 
-        <!-- Section 5: Modal Action Buttons -->
-        <div class="pt-2 flex flex-col sm:flex-row items-center gap-2 border-t border-white/[0.08]">
-          <button type="button" onclick="closeModal()" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-zinc-300 font-semibold text-xs">
-            Close
-          </button>
-          <button id="btn-save-modal-vault" type="button" onclick="saveModalEditsOnly('${jobId}')" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-zinc-100 font-semibold text-xs">
-            💾 Save Edits to Vault
-          </button>
-          ${(!isApplied && isOpen) ? `
-            <button id="btn-submit-app-modal" type="button" onclick="confirmAndSubmitApplication('${jobId}', '${esc(data.company_name || company)}')" class="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-bold text-xs flex items-center justify-center gap-2">
-              <span>⚡</span> Confirm & Submit to Superset
+        <!-- Sticky Footer Status & Modal Action Buttons -->
+        <div class="sticky bottom-0 bg-[#111114]/95 backdrop-blur-md pt-2.5 pb-1 border-t border-white/[0.08] space-y-2">
+          <div class="flex items-center justify-between">
+            <span id="modal-footer-status" class="text-[11px] font-mono text-zinc-400"></span>
+          </div>
+          <div class="flex flex-col sm:flex-row items-center gap-2">
+            <button type="button" onclick="requestCloseModal()" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-zinc-300 font-semibold text-xs">
+              Close
             </button>
-          ` : `
-            <div class="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-white/[0.04] border border-white/[0.08] text-zinc-400 font-mono text-xs text-center">
-              ${isApplied ? '✓ Already Applied on Superset' : 'Drive Closed for New Applications'}
-            </div>
-          `}
+            <button id="btn-save-modal-vault" type="button" data-action="save-modal-vault" data-job-id="${esc(jobId)}" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-zinc-100 font-semibold text-xs">
+              💾 Save Edits to Vault
+            </button>
+            ${(!isApplied && isOpen) ? `
+              <button id="btn-submit-app-modal" type="button" data-action="submit-app-modal" data-job-id="${esc(jobId)}" data-company-name="${esc(data.company_name || company)}" class="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 font-bold text-xs flex items-center justify-center gap-2">
+                <span>⚡</span> Confirm &amp; Submit to Superset
+              </button>
+            ` : `
+              <div class="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-white/[0.04] border border-white/[0.08] text-zinc-300 font-mono text-xs text-center">
+                ${isApplied ? '✓ Already Applied on Superset' : 'Drive Closed for New Applications'}
+              </div>
+            `}
+          </div>
         </div>
       </div>
     `;
+
+    body.querySelectorAll('input, select, textarea').forEach(el => {
+      el.addEventListener('input', () => {
+        modalIsDirty = true;
+        autoGrowTextarea(el);
+        updateDependentModalQuestions();
+        updateModalReviewSummary();
+      });
+      el.addEventListener('change', () => {
+        modalIsDirty = true;
+        updateDependentModalQuestions();
+        updateModalReviewSummary();
+      });
+    });
+    body.querySelectorAll('textarea[data-modal-profile-key]').forEach(autoGrowTextarea);
+    updateDependentModalQuestions();
+    updateModalReviewSummary();
   } catch (err) {
-    body.innerHTML = `
-      <div class="p-4 rounded-xl bg-rose-950/40 border border-rose-800 text-rose-200 text-xs font-mono space-y-2">
-        <div class="font-bold text-rose-300">Application Preview Error:</div>
-        <div>${esc(err.message)}</div>
-      </div>
-    `;
+    body.innerHTML = errorState({ message: 'Application Preview Error: ' + err.message, retryFn: '' });
   }
 }
 
@@ -3721,12 +4685,14 @@ async function confirmAndSubmitApplication(jobId, company) {
   const consent = document.getElementById('review-consent-check');
   if (consent && !consent.checked) {
     toast('Please confirm application consent before submitting.', 'warn');
+    consent.focus();
     return;
   }
 
   const { answers, clarifications_updates, profile_updates, missingRequiredEl, missingRequiredLabel } = collectModalUpdates();
   if (missingRequiredEl) {
     toast(`Please fill required question: ${missingRequiredLabel}`, 'error');
+    missingRequiredEl.classList.add('border-rose-500');
     missingRequiredEl.focus();
     missingRequiredEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
@@ -3735,55 +4701,62 @@ async function confirmAndSubmitApplication(jobId, company) {
   const resumeSelect = document.getElementById('review-resume-select');
   const selectedResume = resumeSelect ? resumeSelect.value : '';
   const saveToVault = Boolean(document.getElementById('review-save-vault')?.checked);
-
   const submitBtn = document.getElementById('btn-submit-app-modal');
-  if (submitBtn) {
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<div class="inline-block animate-spin w-3.5 h-3.5 border-2 border-zinc-900 border-t-transparent rounded-full mr-2"></div> Submitting to Superset...';
-  }
 
-  toast(`Submitting application to ${company}...`, 'info');
-
-  try {
-    const payload = {
-      resume_id: selectedResume,
-      answers: answers,
-    };
-    if (saveToVault) {
-      payload.profile_updates = profile_updates;
-      payload.clarifications_updates = clarifications_updates;
-    }
-
-    const { ok, data } = await apiFetch(`/api/apply/${jobId}`, {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
-
-    if (saveToVault && Object.keys(profile_updates).length) {
-      profileData = Object.assign({}, profileData, profile_updates);
-      if (Object.keys(clarifications_updates).length) {
-        profileData.custom_clarifications = Object.assign({}, profileData.custom_clarifications || {}, clarifications_updates);
+  await withLoading(submitBtn, 'Submitting to Superset…', async () => {
+    toast(`Submitting application to ${company}...`, 'info');
+    try {
+      const payload = { resume_id: selectedResume, answers };
+      if (saveToVault) {
+        payload.profile_updates = profile_updates;
+        payload.clarifications_updates = clarifications_updates;
       }
-      saveDashboardCache();
-      if (currentPage === 'profile') renderProfile();
-    }
 
-    if (ok && data && data.success) {
-      closeModal();
-      toast(`🎉 Successfully applied to ${company}!`, 'success');
-      await fetchJobs();
-      await fetchStatus();
-    } else {
-      showRejectionModal(company, (data && data.message) || 'Application rejected by Superset server.', data && data.ai_diagnosis);
-      await fetchJobs();
+      const { ok, data } = await apiFetch(`/api/apply/${encodeURIComponent(jobId)}`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+
+      if (saveToVault && Object.keys(profile_updates).length) {
+        profileData = Object.assign({}, profileData, profile_updates);
+        if (Object.keys(clarifications_updates).length) {
+          profileData.custom_clarifications = Object.assign({}, profileData.custom_clarifications || {}, clarifications_updates);
+        }
+        saveDashboardCache();
+        if (currentPage === 'profile') renderProfile();
+      }
+
+      if (ok && data && data.success) {
+        modalIsDirty = false;
+        hideModalDirtyPrompt();
+        const jobObj = allJobs.find(j => j.id === jobId) || {};
+        const body = document.getElementById('modal-body');
+        if (body) {
+          body.innerHTML = `
+            <div class="py-8 px-4 text-center space-y-4">
+              <div class="w-12 h-12 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 flex items-center justify-center text-xl mx-auto">✓</div>
+              <div class="space-y-1">
+                <h2 class="text-base font-bold text-zinc-50">Application Submitted to ${esc(company)}</h2>
+                <p class="text-xs text-zinc-400">${esc(data.message || 'Confirmed and registered via Superset API.')}</p>
+              </div>
+              <div class="flex flex-wrap items-center justify-center gap-2 pt-2">
+                <a href="${esc(safeUrl(jobObj.profile_url || 'https://app.joinsuperset.com'))}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-zinc-200 text-xs font-medium">View on Superset ↗</a>
+                <button type="button" onclick="forceCloseModal()" class="px-4 py-2 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold">Done</button>
+              </div>
+            </div>`;
+        }
+        toast(`🎉 Successfully applied to ${company}!`, 'success');
+        await fetchJobs();
+        await fetchStatus();
+      } else {
+        modalIsDirty = false;
+        showRejectionModal(company, (data && data.message) || 'Application rejected by Superset server.', data && data.ai_diagnosis);
+        await fetchJobs();
+      }
+    } catch (e) {
+      toast(`Error applying to ${company}: ${e.message}`, 'error');
     }
-  } catch (e) {
-    if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = '<span>⚡</span> Confirm & Submit to Superset';
-    }
-    toast(`Error applying to ${company}: ${e.message}`, 'error');
-  }
+  });
 }
 
 function showRejectionModal(company, msg, aiDiag = null) {
@@ -3830,17 +4803,17 @@ function showRejectionModal(company, msg, aiDiag = null) {
           <li><strong>Already Registered:</strong> Application previously accepted.</li>
         </ul>
       </div>
-      <div class="pt-3 border-t border-slate-800 flex justify-end gap-2">
-        <button onclick="switchPage('ai'); closeModal();" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center gap-1.5">
-          <span>🤖</span> Open AI Copilot & Healer Console
+      <div class="pt-3 border-t border-white/[0.08] flex justify-end gap-2">
+        <button type="button" onclick="switchPage('ai'); forceCloseModal();" class="px-4 py-2 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold flex items-center gap-1.5">
+          <span>🤖</span> Open AI Copilot &amp; Healer Console
         </button>
-        <button onclick="closeModal()" class="px-4 py-2 rounded-lg bg-surface-800 hover:bg-surface-700 text-white text-xs font-semibold">
+        <button type="button" onclick="forceCloseModal()" class="px-4 py-2 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-zinc-100 text-xs font-semibold">
           Dismiss
         </button>
       </div>
     </div>
   `;
-  modal.classList.remove('hidden');
+  if (!modal.open) modal.showModal();
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -3925,13 +4898,14 @@ async function loadClarifications() {
 
         <div class="pt-2 border-t border-amber-900/40 flex flex-wrap items-center justify-between gap-3">
           <div class="flex items-center gap-2">
-            <button onclick="resolveClarifTicket('${t.ticket_id}', '${esc(t.suggested_answer)}')" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm">
+            <button type="button" data-action="resolve-clarif-suggested" data-ticket-id="${esc(t.ticket_id)}" data-answer="${esc(t.suggested_answer)}" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm">
               <span>✓</span> Confirm AI Suggestion: "${esc(t.suggested_answer)}"
             </button>
           </div>
           <div class="flex items-center gap-2 flex-1 max-w-sm">
-            <input id="input-ticket-${t.ticket_id}" type="text" placeholder="Or specify custom answer..." class="flex-1 bg-surface-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 font-mono focus:outline-none focus:border-amber-500">
-            <button onclick="resolveClarifCustom('${t.ticket_id}')" class="px-3 py-1.5 rounded-lg bg-surface-800 hover:bg-surface-700 text-slate-200 text-xs border border-slate-700 font-medium">Save</button>
+            <label for="input-ticket-${esc(t.ticket_id)}" class="sr-only">Custom answer for ${esc(t.question_text)}</label>
+            <input id="input-ticket-${esc(t.ticket_id)}" type="text" placeholder="Or specify custom answer..." class="flex-1 bg-surface-950 border border-white/15 rounded-lg px-2.5 py-1.5 text-xs text-zinc-100 placeholder-zinc-500 font-mono focus:outline-none focus:border-amber-500">
+            <button type="button" data-action="resolve-clarif-custom" data-ticket-id="${esc(t.ticket_id)}" class="px-3 py-1.5 rounded-lg bg-surface-800 hover:bg-surface-700 text-zinc-200 text-xs border border-white/10 font-medium">Save</button>
           </div>
         </div>
       </div>
@@ -4019,6 +4993,13 @@ function setCopilotQuery(q) {
   }
 }
 
+function cancelCopilotChat() {
+  if (copilotAbortController) {
+    copilotAbortController.abort();
+    copilotAbortController = null;
+  }
+}
+
 async function submitCopilotChat(e) {
   if (e) e.preventDefault();
   const input = document.getElementById('copilot-input');
@@ -4027,31 +5008,43 @@ async function submitCopilotChat(e) {
 
   const history = document.getElementById('copilot-history');
   const btn = document.getElementById('copilot-btn');
+  const cancelBtn = document.getElementById('copilot-cancel-btn');
   input.value = '';
 
   const userDiv = document.createElement('div');
-  userDiv.className = 'p-3 rounded-lg bg-indigo-950/40 border border-indigo-800/40 text-slate-200 ml-6';
-  userDiv.innerHTML = `<div class="font-bold text-xs text-indigo-400 mb-1">👤 You</div><div class="text-xs">${esc(query)}</div>`;
+  userDiv.className = 'p-3 rounded-lg bg-white/[0.05] border border-white/10 text-zinc-200 ml-6';
+  userDiv.innerHTML = `<div class="font-bold text-xs text-zinc-100 mb-1">👤 You</div><div class="text-xs">${esc(query)}</div>`;
   history.appendChild(userDiv);
 
   const typingDiv = document.createElement('div');
-  typingDiv.className = 'p-3 rounded-lg bg-surface-800/60 border border-slate-800 text-slate-400 mr-6 animate-pulse';
-  typingDiv.innerHTML = `<div class="text-xs font-mono">🤖 Copilot thinking (consulting RAG knowledge base)...</div>`;
+  typingDiv.className = 'p-3 rounded-lg bg-surface-800/60 border border-white/[0.08] text-zinc-300 mr-6 flex items-center gap-2.5';
+  typingDiv.innerHTML = `<progress aria-label="Copilot thinking" class="loading-spinner spinner-xs"></progress><span class="text-xs font-mono">Copilot thinking (consulting RAG knowledge base)…</span>`;
   history.appendChild(typingDiv);
   history.scrollTop = history.scrollHeight;
 
   if (btn) btn.disabled = true;
+  if (cancelBtn) cancelBtn.classList.remove('hidden');
+
+  if (copilotAbortController) copilotAbortController.abort();
+  copilotAbortController = new AbortController();
+  let timedOut = false;
+  const timeoutHandle = setTimeout(() => {
+    timedOut = true;
+    copilotAbortController?.abort();
+  }, 30000);
 
   try {
-    const { data } = await apiFetch('/api/ai/copilot', {
+    const { ok, data } = await apiFetch('/api/ai/copilot', {
       method: 'POST',
+      signal: copilotAbortController.signal,
       body: JSON.stringify({ query: query })
     });
+    if (!ok) throw new Error((data && (data.message || data.error)) || 'Copilot request failed');
     typingDiv.remove();
 
     const botDiv = document.createElement('div');
-    botDiv.className = 'p-3.5 rounded-lg bg-surface-800/70 border border-slate-800 text-slate-200 mr-6 space-y-2';
-    
+    botDiv.className = 'p-3.5 rounded-lg bg-surface-800/70 border border-white/[0.08] text-zinc-200 mr-6 space-y-2';
+
     let text = esc((data && data.reply) || 'No response.');
     text = text.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>');
     text = text.replace(/`([^`]+)`/g, '<code class="bg-surface-950 px-1 py-0.5 rounded text-indigo-300 font-mono text-[11px]">$1</code>');
@@ -4060,38 +5053,58 @@ async function submitCopilotChat(e) {
     let sourcesHtml = '';
     if (data && data.rag_sources && data.rag_sources.length) {
       sourcesHtml = `
-        <div class="pt-2 border-t border-slate-800 text-[10px] text-slate-400 font-mono flex flex-wrap gap-1.5 items-center">
-          <span class="text-slate-500">RAG Sources:</span>
-          ${data.rag_sources.map(s => `<span class="px-1.5 py-0.5 rounded bg-surface-950 border border-slate-800 text-indigo-300">${esc(s.title)} (${s.score})</span>`).join('')}
+        <div class="pt-2 border-t border-white/[0.08] text-[10px] text-zinc-400 font-mono flex flex-wrap gap-1.5 items-center">
+          <span class="text-zinc-400">RAG Sources:</span>
+          ${data.rag_sources.map(s => `<span class="px-1.5 py-0.5 rounded bg-surface-950 border border-white/10 text-zinc-200">${esc(s.title)} (${esc(String(s.score))})</span>`).join('')}
         </div>
       `;
     }
 
     botDiv.innerHTML = `
       <div class="flex items-center justify-between mb-1">
-        <div class="font-bold text-xs text-indigo-400 flex items-center gap-1.5">
+        <div class="font-bold text-xs text-zinc-100 flex items-center gap-1.5">
           <span>🤖</span> Mission Control Copilot
         </div>
-        <span class="text-[9px] font-mono text-slate-500">${esc(data?.provider?.name || 'RAG Engine')}</span>
+        <span class="text-[9px] font-mono text-zinc-400">${esc(data?.provider?.name || 'RAG Engine')}</span>
       </div>
-      <div class="text-xs text-slate-200 leading-relaxed font-sans">${text}</div>
+      <div class="text-xs text-zinc-200 leading-relaxed font-sans">${text}</div>
       ${sourcesHtml}
     `;
     history.appendChild(botDiv);
     history.scrollTop = history.scrollHeight;
   } catch (e) {
-    typingDiv.innerHTML = `<div class="text-xs text-rose-400 font-mono">Error querying Copilot: ${esc(e.message)}</div>`;
+    if (e.name === 'AbortError') {
+      typingDiv.innerHTML = `<div class="text-xs text-amber-300 font-mono">${timedOut ? 'Copilot timed out after 30s — please try a shorter question.' : 'Request cancelled.'}</div>`;
+    } else {
+      typingDiv.innerHTML = `<div class="text-xs text-rose-300 font-mono">Error querying Copilot: ${esc(e.message)}</div>`;
+    }
   } finally {
+    clearTimeout(timeoutHandle);
+    copilotAbortController = null;
     if (btn) btn.disabled = false;
+    if (cancelBtn) cancelBtn.classList.add('hidden');
   }
 }
 
 function clearLogs() {
-  document.getElementById('engine-logs').innerHTML = '<div class="text-slate-500">Logs cleared (server logs persist)</div>';
+  document.getElementById('engine-logs').innerHTML = '<div class="text-zinc-400">Logs cleared (server logs persist)</div>';
 }
 
-function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
-document.getElementById('modal-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+(function setupMainReviewDialog() {
+  const modal = document.getElementById('modal-overlay');
+  if (!modal) return;
+  modal.addEventListener('cancel', (e) => {
+    if (modalIsDirty) {
+      e.preventDefault();
+      requestCloseModal();
+    }
+  });
+  modal.addEventListener('close', () => {
+    modal.returnValue = '';
+    modalIsDirty = false;
+    hideModalDirtyPrompt();
+  });
+})();
 
 // ═══════════════════════════════════════════════════════════════════
 // SMART NOTICE FEED, AUTO SHORTLIST SCANNER, 1-CLICK PDF VIEWER & OFFER WATCHDOG
@@ -4340,10 +5353,10 @@ function renderShortlistCardHtml(n, compact = false) {
           ${m.matched_line ? `<div class="pt-1 text-[11px] font-mono text-zinc-500 truncate" title="${esc(m.matched_line)}">${esc(m.matched_line)}</div>` : ''}
         </div>
         <div class="flex sm:flex-col gap-2 flex-shrink-0">
-          ${matchPdf ? `<button onclick="openPdfByAttachment('${encodeURIComponent(n.id)}','${encodeURIComponent(matchPdf.id)}',${pageNum})" class="flex-1 sm:flex-none px-3.5 py-2 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs flex items-center justify-center gap-1.5 whitespace-nowrap"><span>View PDF (p.${pageNum})</span></button>` : ''}
-          <button onclick="openResumeTailorForNotice('${encodeURIComponent(n.id)}')" class="flex-1 sm:flex-none px-3 py-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-zinc-100 font-medium text-xs whitespace-nowrap">Tailor CV</button>
-          ${ev.meeting_link ? `<a href="${esc(ev.meeting_link)}" target="_blank" rel="noopener noreferrer" class="flex-1 sm:flex-none px-3.5 py-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-zinc-100 font-medium text-xs flex items-center justify-center gap-1.5 whitespace-nowrap"><span>Join Meet ↗</span></a>` : ''}
-          ${compact ? `<button onclick="switchPage('notices'); setNoticesFilter('shortlisted');" class="px-3 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-zinc-300 text-xs font-medium whitespace-nowrap">Notices →</button>` : ''}
+          ${matchPdf ? `<button type="button" data-action="open-pdf" data-notice-id="${encodeURIComponent(n.id)}" data-attachment-id="${encodeURIComponent(matchPdf.id)}" data-page="${Number(pageNum)}" class="flex-1 sm:flex-none px-3.5 py-2 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-semibold text-xs flex items-center justify-center gap-1.5 whitespace-nowrap"><span>View PDF (p.${Number(pageNum)})</span></button>` : ''}
+          <button type="button" data-action="tailor-notice" data-notice-id="${encodeURIComponent(n.id)}" class="flex-1 sm:flex-none px-3 py-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-zinc-100 font-medium text-xs whitespace-nowrap">Tailor CV</button>
+          ${ev.meeting_link ? `<a href="${esc(safeUrl(ev.meeting_link))}" target="_blank" rel="noopener noreferrer" class="flex-1 sm:flex-none px-3.5 py-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-zinc-100 font-medium text-xs flex items-center justify-center gap-1.5 whitespace-nowrap"><span>Join Meet ↗</span></a>` : ''}
+          ${compact ? `<button type="button" onclick="switchPage('notices'); setNoticesFilter('shortlisted');" class="px-3 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-zinc-300 text-xs font-medium whitespace-nowrap">Notices →</button>` : ''}
         </div>
       </div>
     </div>
@@ -4498,15 +5511,15 @@ function renderNotices() {
           const jumpPage = isMatchedAtt && m && m.page_number ? m.page_number : 1;
           return `
             <div class="inline-flex items-center rounded-lg overflow-hidden border ${isMatchedAtt && !n.is_past_event ? 'border-amber-400/40 bg-white/[0.05]' : 'border-white/[0.08] bg-surface-950'} max-w-full">
-              <button type="button" onclick="openPdfByAttachment('${encodeURIComponent(n.id)}','${encodeURIComponent(a.id)}',${jumpPage})"
+              <button type="button" data-action="open-pdf" data-notice-id="${encodeURIComponent(n.id)}" data-attachment-id="${encodeURIComponent(a.id)}" data-page="${Number(jumpPage)}"
                 class="px-3 py-1.5 text-xs font-medium text-zinc-200 hover:text-white flex items-center gap-1.5 min-w-0">
                 <span class="text-zinc-400">${a.is_pdf ? '📄' : '🖼️'}</span>
                 <span class="truncate max-w-[200px] sm:max-w-[320px]">${esc(a.name)}</span>
-                ${a.page_count ? `<span class="text-[10px] font-mono text-zinc-500">(${a.page_count}p)</span>` : ''}
-                ${isMatchedAtt ? `<span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-zinc-100">p.${jumpPage}</span>` : ''}
+                ${a.page_count ? `<span class="text-[10px] font-mono text-zinc-400">(${Number(a.page_count)}p)</span>` : ''}
+                ${isMatchedAtt ? `<span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-zinc-100">p.${Number(jumpPage)}</span>` : ''}
               </button>
-              <button type="button" onclick="downloadPdfByAttachment('${encodeURIComponent(n.id)}','${encodeURIComponent(a.id)}')" title="Download file"
-                class="px-2.5 py-1.5 border-l border-white/[0.08] text-zinc-500 hover:text-zinc-100 text-xs">⬇</button>
+              <button type="button" data-action="download-pdf" data-notice-id="${encodeURIComponent(n.id)}" data-attachment-id="${encodeURIComponent(a.id)}" aria-label="Download ${esc(a.name)}" title="Download file"
+                class="px-2.5 py-1.5 border-l border-white/[0.08] text-zinc-400 hover:text-zinc-100 text-xs">⬇</button>
             </div>
           `;
         }).join('')}
@@ -4542,10 +5555,10 @@ function renderNotices() {
       <div class="notice-body-slot"></div>
       ${attHtml}
       <div class="flex items-center justify-between pt-2 border-t border-white/[0.06]">
-        <button type="button" onclick="toggleNoticeBody('${esc(n.id)}')" class="text-xs font-medium text-zinc-400 hover:text-zinc-100">
+        <button type="button" data-action="toggle-notice" data-notice-id="${esc(n.id)}" class="text-xs font-medium text-zinc-300 hover:text-zinc-100">
           ${isExpanded ? 'Hide full notice' : 'Read full notice'}
         </button>
-        <span class="text-[10px] font-mono text-zinc-600">${(n.attachments || []).length} attachment${(n.attachments || []).length === 1 ? '' : 's'}</span>
+        <span class="text-[10px] font-mono text-zinc-400">${(n.attachments || []).length} attachment${(n.attachments || []).length === 1 ? '' : 's'}</span>
       </div>
     `;
 
@@ -4624,23 +5637,23 @@ async function openPdfViewer(noticeId, attachmentId, filename, pageNum = 1, isIm
   }
 
   bodyEl.innerHTML = `
-    <div class="text-center space-y-2.5 p-6">
-      <div class="inline-block animate-spin text-2xl text-brand-400">🔄</div>
-      <div class="text-xs font-mono text-slate-300">Streaming pre-signed document securely...</div>
+    <div class="text-center space-y-3 p-6">
+      <progress aria-label="Loading attachment" class="loading-spinner"></progress>
+      <div class="text-xs font-mono text-zinc-300">Streaming pre-signed document securely...</div>
     </div>
   `;
+  lastPdfContext = { noticeId, attachmentId, filename, pageNum, isImage };
 
   if (!dialog.open) dialog.showModal();
 
   try {
-    const headers = {};
-    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+    const headers = { 'X-Requested-With': 'sjp' };
     const res = await fetch(`/api/notices/${encodeURIComponent(noticeId)}/attachments/${encodeURIComponent(attachmentId)}/pdf`, {
       headers,
-      credentials: 'same-origin'
+      credentials: 'include'
     });
     if (!res.ok) {
-      throw new Error(`HTTP ${res.status} — Could not load attachment`);
+      throw new Error(`HTTP ${res.status} — Could not load attachment (link may have expired)`);
     }
     const blob = await res.blob();
     activePdfBlobUrl = URL.createObjectURL(blob);
@@ -4658,9 +5671,9 @@ async function openPdfViewer(noticeId, attachmentId, filename, pageNum = 1, isIm
     } else {
       bodyEl.innerHTML = `
         <div class="w-full h-full flex flex-col">
-          <div class="sm:hidden px-3 py-2 bg-surface-900 border-b border-white/10 flex items-center justify-between gap-2 text-[11px] text-slate-300">
+          <div class="sm:hidden px-3 py-2 bg-surface-900 border-b border-white/10 flex items-center justify-between gap-2 text-[11px] text-zinc-300">
             <span>Mobile tip: tap Open for full pinch-zoom</span>
-            <a href="${viewerUrl}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-lg bg-brand-600 text-white font-bold">Open Full PDF ↗</a>
+            <a href="${viewerUrl}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-lg bg-zinc-100 text-zinc-950 font-bold">Open Full PDF ↗</a>
           </div>
           <iframe src="${viewerUrl}" title="${esc(filename)}" class="w-full flex-1 border-0 bg-white"></iframe>
         </div>
@@ -4669,10 +5682,11 @@ async function openPdfViewer(noticeId, attachmentId, filename, pageNum = 1, isIm
   } catch (e) {
     subEl.textContent = 'Preview unavailable';
     bodyEl.innerHTML = `
-      <div class="p-6 text-center space-y-2 max-w-md">
+      <div class="p-6 text-center space-y-3 max-w-md">
         <div class="text-2xl">⚠️</div>
         <div class="text-sm font-bold text-rose-300">Failed to load PDF preview</div>
-        <div class="text-xs font-mono text-slate-400">${esc(e.message)}</div>
+        <div class="text-xs font-mono text-zinc-400">${esc(e.message)}</div>
+        <button type="button" data-action="retry-pdf" class="px-3.5 py-2 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold">Re-fetch Attachment</button>
       </div>
     `;
   }
@@ -4681,11 +5695,10 @@ async function openPdfViewer(noticeId, attachmentId, filename, pageNum = 1, isIm
 async function downloadNoticeAttachment(noticeId, attachmentId, filename) {
   toast(`Downloading ${filename}...`, 'info');
   try {
-    const headers = {};
-    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+    const headers = { 'X-Requested-With': 'sjp' };
     const res = await fetch(`/api/notices/${encodeURIComponent(noticeId)}/attachments/${encodeURIComponent(attachmentId)}/pdf?download=1`, {
       headers,
-      credentials: 'same-origin'
+      credentials: 'include'
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const blob = await res.blob();
@@ -4849,8 +5862,12 @@ async function generateTailoredResume(useCurrentCheckboxes = false) {
     if (boxes.length) selectedProjectIds = boxes.map(b => b.value);
   }
 
+  const stepBox = document.getElementById('rt-step-indicator');
+  const exportBtn = document.getElementById('resume-export-btn');
   if (btn) btn.disabled = true;
+  if (exportBtn) exportBtn.disabled = true;
   if (icon) icon.textContent = '⏳';
+  if (stepBox) stepBox.classList.remove('hidden');
 
   try {
     const { ok, data } = await apiFetch('/api/resume/tailor', {
@@ -4878,7 +5895,9 @@ async function generateTailoredResume(useCurrentCheckboxes = false) {
     toast('Resume tailor error: ' + e.message, 'error');
   } finally {
     if (btn) btn.disabled = false;
+    if (exportBtn) exportBtn.disabled = false;
     if (icon) icon.textContent = '⚡';
+    if (stepBox) stepBox.classList.add('hidden');
   }
 }
 
@@ -4972,12 +5991,11 @@ async function exportTailoredPdf() {
   toast('Generating crisp 1-page A4 PDF...', 'info');
 
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+    const headers = { 'Content-Type': 'application/json', 'X-Requested-With': 'sjp' };
     const res = await fetch('/api/resume/export-pdf', {
       method: 'POST',
       headers,
-      credentials: 'same-origin',
+      credentials: 'include',
       body: JSON.stringify({
         html: lastTailoredResume.preview_html,
         company_name: lastTailoredResume.company_name || 'Tailored',
@@ -5043,9 +6061,9 @@ function renderMasterEditor() {
   // Photo thumbnail
   const pBox = document.getElementById('rm-photo-preview');
   if (pBox) {
-    if (resumeMaster.photo_b64) {
-      const src = resumeMaster.photo_b64.startsWith('data:image/') ? resumeMaster.photo_b64 : `data:image/jpeg;base64,${resumeMaster.photo_b64}`;
-      pBox.innerHTML = `<img src="${src}" alt="Formal Photo" class="w-full h-full object-cover object-top">`;
+    const safeSrc = safeDataImageUrl(resumeMaster.photo_b64);
+    if (safeSrc) {
+      pBox.innerHTML = `<img src="${esc(safeSrc)}" alt="Formal Photo" class="w-full h-full object-cover object-top">`;
     } else {
       pBox.textContent = 'No Photo';
     }
@@ -5145,7 +6163,7 @@ function handleResumePhotoUpload(inputEl) {
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       const dataUrl = canvas.toDataURL('image/jpeg', 0.86);
       if (!resumeMaster) resumeMaster = {};
-      resumeMaster.photo_b64 = dataUrl.split(',')[1] || '';
+      resumeMaster.photo_b64 = dataUrl;
       renderMasterEditor();
       toast('Photo ready — click Save Portfolio to store in your encrypted vault.', 'success');
     };
@@ -5167,9 +6185,8 @@ async function importExistingResumePdf(inputEl) {
   try {
     const fd = new FormData();
     fd.append('file', file);
-    const headers = {};
-    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
-    const res = await fetch('/api/resume/import-pdf', { method: 'POST', headers, credentials: 'same-origin', body: fd });
+    const headers = { 'X-Requested-With': 'sjp' };
+    const res = await fetch('/api/resume/import-pdf', { method: 'POST', headers, credentials: 'include', body: fd });
     const data = await res.json();
     if (res.ok && data.success) {
       if (!resumeMaster) resumeMaster = {};
@@ -5247,38 +6264,93 @@ async function saveResumeMaster() {
 // INIT
 // ═══════════════════════════════════════════════════════════════════
 (async function init() {
-  setDrivesFilter('all');
-  setCtcFilter('all');
-  setDrivesSort('newest');
-  setDrivesView('grid');
-
-  // Render cached dashboard & profile immediately if token exists (0ms initial paint)
-  if (authToken) {
-    if (hydrateDashboardCache()) {
-      hideAuthOverlay();
+  // ═══ DELEGATED CLICK HANDLER (Zero inline server-data onclick attributes) ═══
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const action = btn.getAttribute('data-action');
+    if (action === 'review-apply') {
+      const jid = btn.getAttribute('data-job-id') || '';
+      const job = allJobs.find(j => j.id === jid) || {};
+      applyToJob(jid, job.company_name || 'Company', job.job_role || '');
+    } else if (action === 'tailor-job') {
+      openResumeTailorForJob(btn.getAttribute('data-job-id') || '');
+    } else if (action === 'tailor-notice') {
+      openResumeTailorForNotice(btn.getAttribute('data-notice-id') || '');
+    } else if (action === 'open-pdf') {
+      openPdfByAttachment(btn.getAttribute('data-notice-id') || '', btn.getAttribute('data-attachment-id') || '', Number(btn.getAttribute('data-page') || 1));
+    } else if (action === 'download-pdf') {
+      downloadPdfByAttachment(btn.getAttribute('data-notice-id') || '', btn.getAttribute('data-attachment-id') || '');
+    } else if (action === 'retry-pdf') {
+      if (lastPdfContext) openPdfViewer(lastPdfContext.noticeId, lastPdfContext.attachmentId, lastPdfContext.filename, lastPdfContext.pageNum, lastPdfContext.isImage);
+    } else if (action === 'toggle-notice') {
+      toggleNoticeBody(btn.getAttribute('data-notice-id') || '');
+    } else if (action === 'delete-clarif') {
+      deleteClarificationOverride(btn.getAttribute('data-clarif-key') || '');
+    } else if (action === 'resolve-clarif-suggested') {
+      resolveClarifTicket(btn.getAttribute('data-ticket-id') || '', btn.getAttribute('data-answer') || '');
+    } else if (action === 'resolve-clarif-custom') {
+      resolveClarifCustom(btn.getAttribute('data-ticket-id') || '');
+    } else if (action === 'copy-invite') {
+      const code = btn.getAttribute('data-invite-code') || '';
+      if (code) { navigator.clipboard.writeText(code); toast(`Copied invite code ${code}!`, 'success'); }
+    } else if (action === 'modal-option-chip') {
+      selectModalOptionChip(btn);
+    } else if (action === 'save-modal-vault') {
+      saveModalEditsOnly(btn.getAttribute('data-job-id') || '');
+    } else if (action === 'submit-app-modal') {
+      confirmAndSubmitApplication(btn.getAttribute('data-job-id') || '', btn.getAttribute('data-company-name') || 'Company');
+    } else if (action === 'show-more-drives') {
+      drivesVisibleLimit += 60;
+      renderDrives();
+    } else if (action === 'retry-fn') {
+      const fnName = btn.getAttribute('data-retry-fn');
+      if (fnName === 'fetchJobs') fetchJobs();
+      else if (fnName === 'fetchProfile') fetchProfile();
     }
+  });
+
+  // Restore saved Drives preferences or defaults
+  const savedPrefs = loadDrivesPrefs();
+  setDrivesFilter((savedPrefs && savedPrefs.drivesFilter) || 'all', false);
+  setCtcFilter((savedPrefs && savedPrefs.ctcFilter) || 'all', false);
+  setDrivesSort((savedPrefs && savedPrefs.drivesSort) || 'newest', false);
+  setDrivesView((savedPrefs && savedPrefs.drivesView) || 'grid', false);
+  updateOfflineBanner();
+
+  // Render cached dashboard & profile immediately if cached (0ms initial paint, prevents login flash)
+  const hadCache = hydrateDashboardCache();
+  if (hadCache) {
+    hideAuthOverlay();
+    hideBootSplash();
   }
 
-  const { ok, status, data } = await apiFetch('/api/auth/me');
-  if (ok && data && data.authenticated) {
-    currentUser = data.user;
-    if (data.token) {
-      authToken = data.token;
-      localStorage.setItem('sjp_token', authToken);
+  try {
+    const { ok, status, data } = await apiFetch('/api/auth/me');
+    if (ok && data && data.authenticated) {
+      currentUser = data.user;
+      hideAuthOverlay();
+      hideBootSplash();
+      await Promise.all([fetchStatus(), fetchJobs(), fetchProfile(), fetchNotices()]);
+    } else if (status === 401) {
+      currentUser = null;
+      try {
+        localStorage.removeItem('sjp_token');
+        localStorage.removeItem('sjp_dashboard_cache_v1');
+      } catch (e) {}
+      hideBootSplash();
+      showAuthOverlay();
+    } else {
+      hideBootSplash();
     }
-    hideAuthOverlay();
-    await Promise.all([fetchStatus(), fetchJobs(), fetchProfile(), fetchNotices()]);
-  } else if (status === 401 || !authToken) {
-    authToken = '';
-    localStorage.removeItem('sjp_token');
-    localStorage.removeItem('sjp_dashboard_cache_v1');
-    showAuthOverlay();
+  } catch (e) {
+    hideBootSplash();
   }
 
   // Auto-refresh cadence when authenticated
-  setInterval(() => { if (authToken || currentUser) fetchStatus(); }, 20000);
-  setInterval(() => { if (authToken || currentUser) fetchJobs(); }, 60000);
-  setInterval(() => { if (authToken || currentUser) fetchNotices(); }, 90000);
+  setInterval(() => { if (currentUser) fetchStatus(); }, 20000);
+  setInterval(() => { if (currentUser) fetchJobs(); }, 60000);
+  setInterval(() => { if (currentUser) fetchNotices(); }, 90000);
 })();
 </script>
 </body>
@@ -5306,19 +6378,51 @@ def get_current_user():
         user = user_manager.get_user_by_token(token)
         if user:
             return user
-    # Convenient localhost auto-session for the local machine owner only when accessed directly via 127.0.0.1/localhost
-    # and no explicit logout has occurred
-    host = (request.host or "").split(":")[0]
-    if host in ("127.0.0.1", "localhost") and not request.headers.get("X-Forwarded-For"):
-        if request.cookies.get("sjp_logged_out") != "1":
-            users = user_manager.get_all_users()
-            if users:
-                return users[0]
+    # Local owner auto-session ONLY when explicitly enabled via LOCAL_OWNER_AUTOLOGIN=1 outside Render/proxies
+    if (
+        os.getenv("LOCAL_OWNER_AUTOLOGIN", "0") == "1"
+        and os.getenv("RENDER", "").strip().lower() != "true"
+        and request.remote_addr in ("127.0.0.1", "::1")
+        and not request.headers.get("X-Forwarded-For")
+        and request.cookies.get("sjp_logged_out") != "1"
+    ):
+        users = user_manager.get_all_users()
+        if users:
+            return users[0]
     return None
 
 
+def _rate_limited_response(bucket: str, key: str, limit: int, window_sec: int, label: str = "requests"):
+    allowed, retry_after = rate_limiter.check(bucket, key, limit, window_sec)
+    if allowed:
+        return None
+    resp, code = api_error(
+        f"Rate limit exceeded for {label}. Retry in {retry_after}s.",
+        429,
+        "rate_limited",
+        retry_after=retry_after,
+    )
+    resp.headers["Retry-After"] = str(retry_after)
+    return resp, code
+
+
+_superset_cache_lock = threading.Lock()
+_superset_client_cache = {}
+
+
 def _get_superset_for_user(user: dict) -> SupersetClient:
-    return SupersetClient(email=user["email"], password=user["superset_password"])
+    """Returns a cached per-user SupersetClient (20m session reuse, recreated if password changes)."""
+    uid = str(user.get("user_id") or "")
+    pw_hash = hashlib.sha256(str(user.get("superset_password") or "").encode("utf-8")).hexdigest()[:12]
+    cache_key = (uid, pw_hash)
+    now = time.time()
+    with _superset_cache_lock:
+        entry = _superset_client_cache.get(cache_key)
+        if entry and (now - entry["created_at"]) < 1200:
+            return entry["client"]
+        client = SupersetClient(email=user["email"], password=user["superset_password"])
+        _superset_client_cache[cache_key] = {"client": client, "created_at": now}
+        return client
 
 
 @app.route("/")
@@ -5329,22 +6433,29 @@ def index():
 @app.route("/api/health", methods=["GET"])
 def api_health():
     """Instant non-blocking health probe (<1ms, zero PII) for Docker, Render, Railway & Fly.io."""
-    return jsonify({
-        "status": "ok",
-        "daemon_active": daemon_active,
-    })
+    return jsonify({"status": "ok"})
 
 
 @app.route("/api/auth/login", methods=["POST"])
 def auth_login():
+    ip = get_client_ip(request)
+    limited = _rate_limited_response("auth_ip", ip, 5, 60, "login attempts")
+    if limited:
+        return limited
     data = request.get_json(silent=True) or {}
-    email = data.get("email", "")
-    password = data.get("password", "")
+    if not isinstance(data, dict):
+        return api_error("Invalid JSON payload", 400, "invalid_json")
+    email = str(data.get("email") or "").strip().lower()
+    if email:
+        limited_em = _rate_limited_response("auth_email", email, 20, 3600, "account login attempts")
+        if limited_em:
+            return limited_em
+    password = str(data.get("password") or "")
     ok, msg, user, token = user_manager.authenticate_or_register(
         email=email, password=password, is_register=False
     )
     if not ok or not user:
-        return jsonify({"success": False, "message": msg}), 401
+        return api_error(msg, 401, "invalid_credentials")
     log_event(f"User signed in: {user['email']} ({user['full_name']})", "SUCCESS")
     resp = jsonify({
         "success": True,
@@ -5360,23 +6471,35 @@ def auth_login():
         },
     })
     is_https = bool(request.is_secure or request.headers.get("X-Forwarded-Proto") == "https")
-    resp.set_cookie("sjp_token", token, httponly=True, samesite="Lax", secure=is_https, max_age=90 * 86400)
-    resp.set_cookie("sjp_logged_out", "0", max_age=90 * 86400)
+    resp.set_cookie("sjp_token", token, httponly=True, samesite="Lax", secure=is_https, max_age=30 * 86400)
+    resp.set_cookie("sjp_logged_out", "0", httponly=True, samesite="Lax", secure=is_https, max_age=30 * 86400)
     return resp
 
 
 @app.route("/api/auth/register", methods=["POST"])
 def auth_register():
+    ip = get_client_ip(request)
+    limited = _rate_limited_response("auth_ip", ip, 5, 60, "registration attempts")
+    if limited:
+        return limited
     data = request.get_json(silent=True) or {}
-    email = data.get("email", "")
-    password = data.get("password", "")
-    invite_code = data.get("invite_code", "KIIT2027")
+    if not isinstance(data, dict):
+        return api_error("Invalid JSON payload", 400, "invalid_json")
+    email = str(data.get("email") or "").strip().lower()
+    if email:
+        limited_em = _rate_limited_response("auth_email", email, 20, 3600, "account registration attempts")
+        if limited_em:
+            return limited_em
+    password = str(data.get("password") or "")
+    invite_code = str(data.get("invite_code") or "KIIT2027").strip().upper()
+    if invite_code and not INVITE_CODE_RE.match(invite_code):
+        return api_error("Invalid invite code format.", 400, "invalid_invite_code")
     auto_apply = bool(data.get("auto_apply_enabled", False))
     ok, msg, user, token = user_manager.authenticate_or_register(
         email=email, password=password, invite_code=invite_code, is_register=True
     )
     if not ok or not user:
-        return jsonify({"success": False, "message": msg}), 400
+        return api_error(msg, 400, "registration_failed")
     if auto_apply:
         user_manager.set_user_auto_apply(user["user_id"], True)
         user["auto_apply_enabled"] = True
@@ -5395,8 +6518,8 @@ def auth_register():
         },
     })
     is_https = bool(request.is_secure or request.headers.get("X-Forwarded-Proto") == "https")
-    resp.set_cookie("sjp_token", token, httponly=True, samesite="Lax", secure=is_https, max_age=90 * 86400)
-    resp.set_cookie("sjp_logged_out", "0", max_age=90 * 86400)
+    resp.set_cookie("sjp_token", token, httponly=True, samesite="Lax", secure=is_https, max_age=30 * 86400)
+    resp.set_cookie("sjp_logged_out", "0", httponly=True, samesite="Lax", secure=is_https, max_age=30 * 86400)
     return resp
 
 
@@ -5406,34 +6529,39 @@ def auth_me():
     if not user:
         return jsonify({"authenticated": False}), 401
     token = _extract_token()
-    # Auto-upgrade legacy opaque tokens or localhost auto-sessions to 90-day stateless signed tokens
-    if not token or not token.startswith("sjp1."):
-        token = user_manager.create_session(user["user_id"])
+    # Issue/upgrade to 30-day versioned stateless signed token (`sjp2.*`)
+    if not token or not token.startswith("sjp2."):
+        token = user_manager.create_session(user["user_id"], ttl_days=30)
     resp = jsonify({
         "authenticated": True,
-        "token": token,
         "user": {
             "user_id": user["user_id"],
             "email": user["email"],
             "full_name": user["full_name"],
             "roll_number": user["roll_number"],
             "auto_apply_enabled": user["auto_apply_enabled"],
-            "is_admin": user["is_admin"],
+            "is_admin": is_owner_user(user),
         },
     })
     is_https = bool(request.is_secure or request.headers.get("X-Forwarded-Proto") == "https")
-    resp.set_cookie("sjp_token", token, httponly=True, samesite="Lax", secure=is_https, max_age=90 * 86400)
+    resp.set_cookie("sjp_token", token, httponly=True, samesite="Lax", secure=is_https, max_age=30 * 86400)
     return resp
 
 
 @app.route("/api/auth/logout", methods=["POST"])
 def auth_logout():
+    data = request.get_json(silent=True) or {}
     token = _extract_token()
-    if token:
+    if isinstance(data, dict) and data.get("logout_all"):
+        user = get_current_user()
+        if user:
+            user_manager.revoke_all_user_sessions(user["user_id"])
+    elif token:
         user_manager.destroy_session(token)
     resp = jsonify({"success": True})
     resp.delete_cookie("sjp_token")
-    resp.set_cookie("sjp_logged_out", "1", max_age=86400)
+    resp.set_cookie("sjp_logged_out", "1", httponly=True, samesite="Lax", max_age=86400)
+    resp.headers["Clear-Site-Data"] = '"cookies", "storage", "cache"'
     return resp
 
 
@@ -5441,7 +6569,7 @@ def auth_logout():
 def toggle_user_auto_apply():
     user = get_current_user()
     if not user:
-        return jsonify({"error": "Authentication required"}), 401
+        return api_error("Authentication required", 401, "unauthorized")
     data = request.get_json(silent=True) or {}
     if "enabled" in data:
         new_state = bool(data["enabled"])
@@ -5456,13 +6584,26 @@ def toggle_user_auto_apply():
 def handle_invites():
     user = get_current_user()
     if not user:
-        return jsonify({"error": "Authentication required"}), 401
+        return api_error("Authentication required", 401, "unauthorized")
+    if not is_owner_user(user):
+        return api_error("Owner privileges required to manage invite codes.", 403, "forbidden")
     if request.method == "POST":
         data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict):
+            return api_error("Invalid JSON payload", 400, "invalid_json")
+        raw_code = str(data.get("code") or "").strip().upper()
+        if raw_code and not INVITE_CODE_RE.match(raw_code):
+            return api_error("Invite code must be 4-32 uppercase alphanumeric characters or hyphens.", 400, "invalid_invite_code")
+        try:
+            max_uses_val = int(data.get("max_uses", 50))
+        except (TypeError, ValueError):
+            return api_error("max_uses must be a valid integer.", 400, "invalid_max_uses")
+        max_uses_val = max(1, min(50, max_uses_val))
+        label = str(data.get("label") or f"Shared by {user['full_name']}")[:120]
         inv = user_manager.create_invite_code(
-            code=data.get("code", ""),
-            label=data.get("label", f"Shared by {user['full_name']}"),
-            max_uses=int(data.get("max_uses", 50)),
+            code=raw_code,
+            label=label,
+            max_uses=max_uses_val,
         )
         log_event(f"Generated friend invite code: {inv['code']}", "SUCCESS")
         return jsonify({"success": True, "invite": inv})
@@ -5517,7 +6658,9 @@ def get_status():
 def toggle_daemon():
     user = get_current_user()
     if not user:
-        return jsonify({"error": "Authentication required"}), 401
+        return api_error("Authentication required", 401, "unauthorized")
+    if not is_owner_user(user):
+        return api_error("Owner privileges required to toggle the global daemon.", 403, "forbidden")
     global daemon_active
     daemon_active = not daemon_active
     state_str = "ACTIVE" if daemon_active else "PAUSED"
@@ -5529,7 +6672,10 @@ def toggle_daemon():
 def trigger_sync():
     user = get_current_user()
     if not user:
-        return jsonify({"error": "Authentication required"}), 401
+        return api_error("Authentication required", 401, "unauthorized")
+    limited = _rate_limited_response("sync_user", user["user_id"], 4, 60, "sync")
+    if limited:
+        return limited
 
     log_event(f"Manual sync requested by {user['full_name']} ({user['email']}).", "INFO")
     try:
@@ -5615,32 +6761,48 @@ def trigger_sync():
             "timestamp": timestamp,
         })
     except Exception as e:
-        log_event(f"Manual sync failed for {user['email']}: {e}", "ERROR")
-        return jsonify({"success": False, "has_errors": True, "errors": [str(e)], "message": str(e)}), 500
+        log_event(f"Manual sync failed for {user['email']}.", "ERROR")
+        return api_error("Failed to sync with Superset portal.", 500, "sync_error", exc=e, has_errors=True, errors=["Sync failed due to an internal error."])
 
 
 @app.route("/api/jobs")
 def get_jobs():
     user = get_current_user()
     if not user:
-        return jsonify({"error": "Authentication required"}), 401
+        return api_error("Authentication required", 401, "unauthorized")
 
     now = int(time.time())
     cached_jobs, updated_at = user_manager.get_cached_jobs(user["user_id"])
-    if cached_jobs and (now - updated_at) < 45:
-        return jsonify(cached_jobs)
+    norm_cached = [normalize_job(j) for j in (cached_jobs or [])]
+
+    def _jobs_envelope(jobs_list, ts_epoch: int, stale: bool):
+        _, ts_iso, _, _ = parse_ist_datetime(ts_epoch or now)
+        return jsonify({
+            "success": True,
+            "jobs": jobs_list,
+            "total": len(jobs_list),
+            "fetched_at": ts_iso or datetime.now(IST).isoformat(),
+            "stale": stale,
+        })
+
+    if norm_cached and (now - updated_at) < 45:
+        return _jobs_envelope(norm_cached, updated_at, stale=False)
 
     try:
         superset = _get_superset_for_user(user)
         if not superset.login():
-            return jsonify(cached_jobs or [])
+            return _jobs_envelope(norm_cached, updated_at, stale=True)
         jobs = superset.fetch_job_profiles()
-        sorted_jobs = sorted(jobs, key=lambda x: x.get("raw", {}).get("createdAt") or 0, reverse=True)
+        sorted_jobs = sorted(
+            [normalize_job(j) for j in jobs],
+            key=lambda x: x.get("created_at_ms") or 0,
+            reverse=True,
+        )
         user_manager.set_cached_jobs(user["user_id"], sorted_jobs)
-        return jsonify(sorted_jobs)
+        return _jobs_envelope(sorted_jobs, int(time.time()), stale=False)
     except Exception as e:
         logger.error(f"Error fetching jobs for {user['email']}: {e}")
-        return jsonify(cached_jobs or [])
+        return _jobs_envelope(norm_cached, updated_at, stale=True)
 
 
 @app.route("/api/notices", methods=["GET"])
@@ -5698,12 +6860,15 @@ def scan_notices_endpoint():
     """Forces a fresh live scan of Superset homepage notices, shortlist PDFs & /pending_actions."""
     user = get_current_user()
     if not user:
-        return jsonify({"error": "Authentication required"}), 401
+        return api_error("Authentication required", 401, "unauthorized")
+    limited = _rate_limited_response("scan_notices", user["user_id"], 4, 60, "notice scans")
+    if limited:
+        return limited
 
     try:
         superset = _get_superset_for_user(user)
         if not superset.login():
-            return jsonify({"success": False, "message": "Superset portal temporarily unavailable."}), 502
+            return api_error("Superset portal temporarily unavailable.", 502, "upstream_unavailable")
 
         result = scan_notices_for_user(
             superset, user_manager, user, max_pages=2, page_size=25, max_pdfs_to_download=8, send_alerts=True
@@ -5716,8 +6881,8 @@ def scan_notices_endpoint():
         )
         return jsonify(result)
     except Exception as e:
-        log_event(f"Notice PDF scan failed for {user['email']}: {e}", "ERROR")
-        return jsonify({"success": False, "message": str(e)}), 500
+        log_event(f"Notice PDF scan failed for {user['email']}.", "ERROR")
+        return api_error("Notice scan failed due to an internal error.", 500, "scan_error", exc=e)
 
 
 @app.route("/api/notices/<notice_id>/attachments/<attachment_id>/pdf", methods=["GET"])
@@ -5729,16 +6894,18 @@ def proxy_notice_attachment_pdf(notice_id, attachment_id):
     """
     user = get_current_user()
     if not user:
-        return jsonify({"error": "Authentication required"}), 401
+        return api_error("Authentication required", 401, "unauthorized")
+    if not is_valid_identifier(notice_id) or not is_valid_identifier(attachment_id):
+        return api_error("Invalid notice or attachment identifier.", 400, "invalid_id")
 
     try:
         superset = _get_superset_for_user(user)
         if not superset.login():
-            return jsonify({"error": "Superset portal temporarily unavailable"}), 502
+            return api_error("Superset portal temporarily unavailable", 502, "upstream_unavailable")
 
         content_bytes, content_type, _ = superset.download_notice_attachment(notice_id, attachment_id)
         if not content_bytes:
-            return jsonify({"error": "Attachment not available or expired on Superset"}), 404
+            return api_error("Attachment not available or expired on Superset", 404, "not_found")
 
         # Look up clean filename from cached notices if available
         filename = "superset_notice.pdf"
@@ -5768,8 +6935,7 @@ def proxy_notice_attachment_pdf(notice_id, attachment_id):
         resp.headers["X-Content-Type-Options"] = "nosniff"
         return resp
     except Exception as e:
-        logger.error(f"PDF proxy error ({notice_id}/{attachment_id}): {e}")
-        return jsonify({"error": str(e)}), 500
+        return api_error("Failed to fetch notice attachment.", 500, "pdf_proxy_error", exc=e)
 
 
 @app.route("/api/pending-actions", methods=["GET"])
@@ -5813,27 +6979,29 @@ def handle_resume_master():
     """Reads or updates the logged-in student's private master resume portfolio & photo."""
     user = get_current_user()
     if not user:
-        return jsonify({"error": "Authentication required"}), 401
+        return api_error("Authentication required", 401, "unauthorized")
 
     if request.method == "POST":
         data = request.get_json(silent=True) or {}
-        # Cap uploaded photo payload at ~700KB base64 for vault health
-        photo_b64 = str(data.get("photo_b64") or "").strip()
-        if len(photo_b64) > 700_000:
-            return jsonify({"success": False, "message": "Photo too large. Please upload a smaller image."}), 400
+        if not isinstance(data, dict):
+            return api_error("Invalid JSON payload", 400, "invalid_json")
+        # Validate optional formal photo payload (<= 1.5 MB base64 data URL)
+        ok_photo, photo_or_err = validate_photo_data_url(data.get("photo_b64") or "")
+        if not ok_photo:
+            return api_error(photo_or_err, 400, "invalid_photo")
 
         cleaned_master = {
-            "full_name": str(data.get("full_name") or user["full_name"]).strip(),
-            "email": str(data.get("email") or user["email"]).strip(),
-            "phone": str(data.get("phone") or "").strip(),
-            "location": str(data.get("location") or "").strip(),
-            "github": str(data.get("github") or "").strip(),
-            "linkedin": str(data.get("linkedin") or "").strip(),
-            "portfolio": str(data.get("portfolio") or "").strip(),
-            "photo_b64": photo_b64,
-            "skills": data.get("skills") if isinstance(data.get("skills"), list) else [],
-            "projects": data.get("projects") if isinstance(data.get("projects"), list) else [],
-            "certifications": data.get("certifications") if isinstance(data.get("certifications"), list) else [],
+            "full_name": str(data.get("full_name") or user["full_name"]).strip()[:200],
+            "email": str(data.get("email") or user["email"]).strip()[:200],
+            "phone": str(data.get("phone") or "").strip()[:60],
+            "location": str(data.get("location") or "").strip()[:200],
+            "github": str(data.get("github") or "").strip()[:400],
+            "linkedin": str(data.get("linkedin") or "").strip()[:400],
+            "portfolio": str(data.get("portfolio") or "").strip()[:400],
+            "photo_b64": photo_or_err,
+            "skills": data.get("skills")[:40] if isinstance(data.get("skills"), list) else [],
+            "projects": data.get("projects")[:30] if isinstance(data.get("projects"), list) else [],
+            "certifications": data.get("certifications")[:30] if isinstance(data.get("certifications"), list) else [],
         }
         updated_profile = user_manager.update_user_profile(user["user_id"], {"resume_master": cleaned_master})
         log_event(f"Updated master resume portfolio ({len(cleaned_master['projects'])} projects) for {user['full_name']}.", "SUCCESS")
@@ -5958,26 +7126,26 @@ def export_resume_pdf_endpoint():
 def handle_profile():
     user = get_current_user()
     if not user:
-        return jsonify({"error": "Authentication required"}), 401
+        return api_error("Authentication required", 401, "unauthorized")
 
     from attribute_resolver import AttributeResolver
     resolver = AttributeResolver(user_id=user["user_id"], profile_data=user["profile"])
     if request.method == "POST":
         data = request.get_json(silent=True) or {}
         if not isinstance(data, dict):
-            return jsonify({"success": False, "message": "Invalid JSON object"}), 400
-        cleaned = dict(data)
+            return api_error("Invalid JSON object", 400, "invalid_json")
+        delete_clarif = data.get("delete_clarification_key")
+        cleaned = sanitize_profile_patch(data)
         # Protect structured nested blobs from accidental flat-form overwrite
         if "resume_master" in cleaned and not isinstance(cleaned["resume_master"], dict):
             cleaned.pop("resume_master", None)
         if "whatsapp_config" in cleaned and not isinstance(cleaned["whatsapp_config"], dict):
             cleaned.pop("whatsapp_config", None)
-        delete_clarif = cleaned.pop("delete_clarification_key", None)
         if delete_clarif is not None or isinstance(cleaned.get("custom_clarifications"), dict):
             curr_clarifs = dict((resolver.profile or {}).get("custom_clarifications") or {})
             if isinstance(cleaned.get("custom_clarifications"), dict):
                 curr_clarifs.update(cleaned["custom_clarifications"])
-            if delete_clarif and delete_clarif in curr_clarifs:
+            if isinstance(delete_clarif, str) and delete_clarif in curr_clarifs:
                 curr_clarifs.pop(delete_clarif, None)
             cleaned["custom_clarifications"] = curr_clarifs
         resolver.save_profile(cleaned)
@@ -5990,7 +7158,9 @@ def handle_profile():
 def get_job_questions(job_id):
     user = get_current_user()
     if not user:
-        return jsonify({"error": "Authentication required"}), 401
+        return api_error("Authentication required", 401, "unauthorized")
+    if not is_valid_identifier(job_id):
+        return api_error("Invalid job identifier", 400, "invalid_id")
     try:
         from attribute_resolver import AttributeResolver
         resolver = AttributeResolver(user_id=user["user_id"], profile_data=user["profile"])
@@ -5999,30 +7169,38 @@ def get_job_questions(job_id):
             return jsonify([])
         detail_url = f"{superset.base_url}/tnpsuite-core/students/{superset.user_uuid}/job_profiles/{job_id}"
         resp = superset.session.get(detail_url, timeout=10)
+        if resp.status_code == 401 and superset.login(force=True):
+            detail_url = f"{superset.base_url}/tnpsuite-core/students/{superset.user_uuid}/job_profiles/{job_id}"
+            resp = superset.session.get(detail_url, timeout=10)
         if resp.status_code == 200:
             preview = resolver.preview_answers_for_job(resp.json())
             return jsonify(preview)
         return jsonify([])
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return api_error("Failed to load job questions.", 500, "questions_error", exc=e)
 
 
 @app.route("/api/jobs/<job_id>/preview-application")
 def get_job_application_preview(job_id):
     user = get_current_user()
     if not user:
-        return jsonify({"error": "Authentication required"}), 401
+        return api_error("Authentication required", 401, "unauthorized")
+    if not is_valid_identifier(job_id):
+        return api_error("Invalid job identifier", 400, "invalid_id")
     try:
         from attribute_resolver import AttributeResolver
         resolver = AttributeResolver(user_id=user["user_id"], profile_data=user["profile"])
         superset = _get_superset_for_user(user)
         if not superset.login():
-            return jsonify({"error": "Superset portal temporarily unavailable"}), 502
+            return api_error("Superset portal temporarily unavailable", 502, "upstream_unavailable")
 
         detail_url = f"{superset.base_url}/tnpsuite-core/students/{superset.user_uuid}/job_profiles/{job_id}"
         resp = superset.session.get(detail_url, timeout=12)
+        if resp.status_code == 401 and superset.login(force=True):
+            detail_url = f"{superset.base_url}/tnpsuite-core/students/{superset.user_uuid}/job_profiles/{job_id}"
+            resp = superset.session.get(detail_url, timeout=12)
         if resp.status_code != 200:
-            return jsonify({"error": f"Failed to fetch job details: HTTP {resp.status_code}"}), resp.status_code
+            return api_error(f"Failed to fetch job details (HTTP {resp.status_code})", resp.status_code, "upstream_error")
 
         job_data = resp.json()
         default_resume = job_data.get("defaultResume") or {}
@@ -6091,8 +7269,7 @@ def get_job_application_preview(job_id):
             "full_profile": full_profile_safe,
         })
     except Exception as e:
-        logger.error(f"Error previewing application for {job_id}: {e}")
-        return jsonify({"error": str(e)}), 500
+        return api_error("Failed to preview application.", 500, "preview_error", exc=e)
 
 
 @app.route("/api/jobs/<job_id>/save-answers", methods=["POST"])
@@ -6100,24 +7277,27 @@ def save_job_answers_to_vault(job_id):
     """Saves user-edited profile fields & custom question answers to their encrypted vault before applying."""
     user = get_current_user()
     if not user:
-        return jsonify({"error": "Authentication required"}), 401
+        return api_error("Authentication required", 401, "unauthorized")
+    if not is_valid_identifier(job_id):
+        return api_error("Invalid job identifier", 400, "invalid_id")
 
     data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        return api_error("Invalid JSON payload", 400, "invalid_json")
     profile_updates = data.get("profile_updates")
     clarif_updates = data.get("clarifications_updates")
 
     patch_payload = {}
     if isinstance(profile_updates, dict):
-        for k, v in profile_updates.items():
+        sanitized = sanitize_profile_patch(profile_updates)
+        for k, v in sanitized.items():
             if k not in ("resume_master", "whatsapp_config", "custom_clarifications"):
                 patch_payload[k] = v
 
     if isinstance(clarif_updates, dict) and clarif_updates:
         merged_clarifs = dict((user.get("profile") or {}).get("custom_clarifications") or {})
-        for q_text, ans_val in clarif_updates.items():
-            q_clean = str(q_text or "").strip()
-            if q_clean:
-                merged_clarifs[q_clean] = ans_val
+        sanitized_clarifs = sanitize_profile_patch({"custom_clarifications": clarif_updates}).get("custom_clarifications", {})
+        merged_clarifs.update(sanitized_clarifs)
         patch_payload["custom_clarifications"] = merged_clarifs
 
     updated_prof = user_manager.update_user_profile(user["user_id"], patch_payload) if patch_payload else user["profile"]
@@ -6130,11 +7310,18 @@ def save_job_answers_to_vault(job_id):
 def manual_apply(job_id):
     user = get_current_user()
     if not user:
-        return jsonify({"error": "Authentication required"}), 401
+        return api_error("Authentication required", 401, "unauthorized")
+    if not is_valid_identifier(job_id):
+        return api_error("Invalid job identifier", 400, "invalid_id")
+    limited = _rate_limited_response("apply_job", user["user_id"], 10, 60, "applications")
+    if limited:
+        return limited
 
     log_event(f"Application submission initiated by {user['full_name']} for job: {job_id}", "INFO")
     try:
         data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict):
+            return api_error("Invalid JSON payload", 400, "invalid_json")
         custom_answers = data.get("answers")
         selected_resume_id = data.get("resume_id") or Config.DEFAULT_RESUME_NAME
 
@@ -6143,15 +7330,14 @@ def manual_apply(job_id):
         clarif_updates = data.get("clarifications_updates")
         patch_payload = {}
         if isinstance(profile_updates, dict):
-            for k, v in profile_updates.items():
+            sanitized = sanitize_profile_patch(profile_updates)
+            for k, v in sanitized.items():
                 if k not in ("resume_master", "whatsapp_config", "custom_clarifications"):
                     patch_payload[k] = v
         if isinstance(clarif_updates, dict) and clarif_updates:
             merged_clarifs = dict((user.get("profile") or {}).get("custom_clarifications") or {})
-            for q_text, ans_val in clarif_updates.items():
-                q_clean = str(q_text or "").strip()
-                if q_clean:
-                    merged_clarifs[q_clean] = ans_val
+            sanitized_clarifs = sanitize_profile_patch({"custom_clarifications": clarif_updates}).get("custom_clarifications", {})
+            merged_clarifs.update(sanitized_clarifs)
             patch_payload["custom_clarifications"] = merged_clarifs
         if patch_payload:
             user_manager.update_user_profile(user["user_id"], patch_payload)
@@ -6214,16 +7400,15 @@ def manual_apply(job_id):
                 "ai_diagnosis": ai_diag,
             }), 400
     except Exception as e:
-        logger.error(f"Error in manual_apply: {e}")
-        log_event(f"Internal apply error: {e}", "ERROR")
-        return jsonify({"success": False, "message": str(e)}), 500
+        log_event("Internal apply error occurred.", "ERROR")
+        return api_error("Failed to submit application.", 500, "apply_error", exc=e)
 
 
 @app.route("/api/clarifications", methods=["GET"])
 def get_clarifications():
     user = get_current_user()
     if not user:
-        return jsonify({"error": "Authentication required"}), 401
+        return api_error("Authentication required", 401, "unauthorized")
     try:
         am = AmbiguityManager()
         return jsonify({
@@ -6231,88 +7416,97 @@ def get_clarifications():
             "all": am.get_all_tickets(user_id=user["user_id"]),
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return api_error("Failed to load clarifications.", 500, "clarifications_error", exc=e)
 
 
 @app.route("/api/clarifications/resolve", methods=["POST"])
 def resolve_clarification():
     user = get_current_user()
     if not user:
-        return jsonify({"error": "Authentication required"}), 401
+        return api_error("Authentication required", 401, "unauthorized")
     data = request.get_json(silent=True) or {}
     ticket_id = data.get("ticket_id")
     answer = data.get("answer")
     if not ticket_id or answer is None:
-        return jsonify({"success": False, "message": "ticket_id and answer are required"}), 400
+        return api_error("ticket_id and answer are required", 400, "missing_fields")
     try:
         am = AmbiguityManager()
-        ticket = am.resolve_ticket(ticket_id, str(answer), user_id=user["user_id"])
-        log_event(f"User resolved clarification: '{ticket['question_text'][:30]}...' -> '{answer}'", "SUCCESS")
+        ticket = am.resolve_ticket(ticket_id, str(answer)[:2000], user_id=user["user_id"])
+        log_event(f"User resolved clarification: '{ticket['question_text'][:30]}...'", "SUCCESS")
         return jsonify({"success": True, "ticket": ticket})
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+        return api_error("Failed to resolve clarification.", 500, "resolve_error", exc=e)
 
 
 @app.route("/api/errors/live", methods=["GET"])
 def get_live_errors():
     user = get_current_user()
     if not user:
-        return jsonify({"error": "Authentication required"}), 401
+        return api_error("Authentication required", 401, "unauthorized")
     try:
         healer = ErrorHealer()
         return jsonify(healer.get_recent_errors(limit=30))
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return api_error("Failed to load error logs.", 500, "errors_feed_error", exc=e)
 
 
 @app.route("/api/errors/diagnose", methods=["POST"])
 def diagnose_error_api():
     user = get_current_user()
     if not user:
-        return jsonify({"error": "Authentication required"}), 401
+        return api_error("Authentication required", 401, "unauthorized")
+    limited = _rate_limited_response("ai_diagnose", user["user_id"], 20, 60, "error diagnoses")
+    if limited:
+        return limited
     data = request.get_json(silent=True) or {}
     try:
         ai = AIEngine()
         diagnosis = ai.diagnose_error(data)
         return jsonify(diagnosis)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return api_error("Diagnosis failed.", 500, "diagnose_error", exc=e)
 
 
 @app.route("/api/ai/copilot", methods=["POST"])
 def ai_copilot_chat():
     user = get_current_user()
     if not user:
-        return jsonify({"error": "Authentication required"}), 401
+        return api_error("Authentication required", 401, "unauthorized")
+    limited = _rate_limited_response("ai_copilot", user["user_id"], 20, 60, "AI Copilot requests")
+    if limited:
+        return limited
     data = request.get_json(silent=True) or {}
-    query = data.get("query", "").strip()
+    query = str(data.get("query") or "").strip()[:2000]
     if not query:
-        return jsonify({"error": "Query cannot be empty"}), 400
+        return api_error("Query cannot be empty", 400, "empty_query")
     try:
         ai = AIEngine()
         resp = ai.ask_copilot(query)
         return jsonify(resp)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return api_error("AI Copilot unavailable.", 500, "copilot_error", exc=e)
 
 
 @app.route("/api/ai/status", methods=["GET"])
 def get_ai_status():
     user = get_current_user()
     if not user:
-        return jsonify({"error": "Authentication required"}), 401
+        return api_error("Authentication required", 401, "unauthorized")
     try:
         ai = AIEngine()
         return jsonify(ai.get_status())
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return api_error("Failed to check AI status.", 500, "ai_status_error", exc=e)
 
 
 @app.route("/api/telegram/test", methods=["POST"])
 def test_telegram():
     user = get_current_user()
     if not user:
-        return jsonify({"error": "Authentication required"}), 401
+        return api_error("Authentication required", 401, "unauthorized")
+    limited = _rate_limited_response("tg_send", user["user_id"], 4, 60, "Telegram messages")
+    if limited:
+        return limited
     chat_id = user["telegram_chat_id"] or Config.TELEGRAM_CHAT_ID
     notifier = TelegramNotifier(chat_id=chat_id)
     test_msg = (
@@ -6329,25 +7523,28 @@ def test_telegram():
     else:
         err_msg = "Failed to dispatch Telegram message. Check bot token and ensure you have tapped /start."
         log_event(err_msg, "ERROR")
-        return jsonify({"success": False, "message": err_msg}), 500
+        return api_error(err_msg, 500, "telegram_send_failed")
 
 
 @app.route("/api/telegram/send", methods=["POST"])
 def send_telegram_custom():
     user = get_current_user()
     if not user:
-        return jsonify({"error": "Authentication required"}), 401
+        return api_error("Authentication required", 401, "unauthorized")
+    limited = _rate_limited_response("tg_send", user["user_id"], 4, 60, "Telegram messages")
+    if limited:
+        return limited
     data = request.get_json(silent=True) or {}
-    text = data.get("text", "").strip()
+    text = str(data.get("text") or "").strip()[:1500]
     if not text:
-        return jsonify({"success": False, "message": "Message text is required"}), 400
+        return api_error("Message text is required", 400, "empty_message")
     chat_id = user["telegram_chat_id"] or Config.TELEGRAM_CHAT_ID
     notifier = TelegramNotifier(chat_id=chat_id)
     sent = notifier.send_message(f"📢 <b>Superset Pilot Alert:</b>\n\n{text}")
     if sent:
         log_event(f"Custom Telegram message sent: {text[:40]}...", "SUCCESS")
         return jsonify({"success": True})
-    return jsonify({"success": False, "message": "Failed to send Telegram message"}), 500
+    return api_error("Failed to send Telegram message", 500, "telegram_send_failed")
 
 
 # ─── WHATSAPP ALERTS API ────────────────────────────────────────────────────
@@ -6475,7 +7672,7 @@ def api_whatsapp_qr_start():
         _auto_arm_local_qr_for_user(user)
         return jsonify({"success": True, **payload})
     except Exception as e:
-        return jsonify({"success": False, "message": f"WhatsApp QR bridge error: {e}", "connected": False}), 502
+        return api_error("WhatsApp QR bridge error.", 502, "whatsapp_bridge_error", exc=e, connected=False)
 
 
 @app.route("/api/whatsapp/qr/logout", methods=["POST"])
@@ -6490,7 +7687,7 @@ def api_whatsapp_qr_logout():
         log_event(f"Unlinked local WhatsApp Linked Device for {user['full_name']}.", "INFO")
         return jsonify({"success": True, **payload})
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 502
+        return api_error("WhatsApp QR logout error.", 502, "whatsapp_bridge_error", exc=e)
 
 
 @app.route("/api/whatsapp/config", methods=["GET", "POST"])
@@ -6545,28 +7742,35 @@ def api_whatsapp_config():
 def api_whatsapp_test():
     user = get_current_user()
     if not user:
-        return jsonify({"error": "Authentication required"}), 401
+        return api_error("Authentication required", 401, "unauthorized")
+    limited = _rate_limited_response("wa_send", user["user_id"], 4, 60, "WhatsApp messages")
+    if limited:
+        return limited
 
     wa = WhatsAppNotifier.from_user_profile(user)
     if not wa.is_configured():
-        return jsonify({
-            "success": False,
-            "message": "WhatsApp is not configured yet. Enter your phone number and API key, then click Save WhatsApp Config first.",
-        }), 400
+        return api_error(
+            "WhatsApp is not configured yet. Enter your phone number and API key, then click Save WhatsApp Config first.",
+            400,
+            "whatsapp_not_configured",
+        )
 
     ok, detail = wa.send_test_message(student_name=user["full_name"])
     if ok:
         log_event(f"Dispatched verified WhatsApp test alert for {user['full_name']} via {wa.provider}.", "SUCCESS")
         return jsonify({"success": True, "provider": wa.provider, "message": detail})
     log_event(f"WhatsApp test failed ({wa.provider}): {detail}", "ERROR")
-    return jsonify({"success": False, "provider": wa.provider, "message": detail}), 502
+    return api_error(detail, 502, "whatsapp_test_failed", provider=wa.provider)
 
 
 @app.route("/api/whatsapp/send-digest", methods=["POST"])
 def api_whatsapp_send_digest():
     user = get_current_user()
     if not user:
-        return jsonify({"error": "Authentication required"}), 401
+        return api_error("Authentication required", 401, "unauthorized")
+    limited = _rate_limited_response("wa_send", user["user_id"], 4, 60, "WhatsApp digests")
+    if limited:
+        return limited
 
     wa = WhatsAppNotifier.from_user_profile(user)
     if not wa.is_configured():

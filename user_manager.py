@@ -133,6 +133,9 @@ def _get_or_create_secret_key() -> bytes:
         except Exception:
             pass
 
+    if not key_str and os.getenv("RENDER", "").strip().lower() == "true":
+        raise RuntimeError("APP_SECRET_KEY environment variable must be set on Render.")
+
     if not key_str:
         key_str = secrets.token_urlsafe(48)
         os.environ["APP_SECRET_KEY"] = key_str
@@ -229,10 +232,18 @@ def verify_password(password: str, stored_hash: str) -> bool:
 # ZERO-KNOWLEDGE ENCRYPTED CLOUD VAULT SYNC (NETLIFY BLOBS BACKING)
 # ═══════════════════════════════════════════════════════════════════════════
 
-def derive_cloud_vault_credentials(email: str, superset_password: str) -> Tuple[str, str, bytes, bytes]:
+CLOUD_VAULT_V1_ITERATIONS = 120_000
+CLOUD_VAULT_V2_ITERATIONS = 310_000
+
+
+def derive_cloud_vault_credentials(
+    email: str,
+    superset_password: str,
+    iterations: int = CLOUD_VAULT_V2_ITERATIONS,
+) -> Tuple[str, str, bytes, bytes]:
     """
     Derives deterministic per-user cloud storage coordinates & keys from (email, superset_password).
-    The remote blob server receives only ciphertext (`cv1.*`) and SHA-256(write_token).
+    The remote blob server receives only ciphertext (`cv2.*`) and SHA-256(write_token).
     """
     norm_email = (email or "").strip().lower()
     vault_id = hashlib.sha256(f"sjp-cv-id-v1:{norm_email}".encode("utf-8")).hexdigest()
@@ -240,7 +251,7 @@ def derive_cloud_vault_credentials(email: str, superset_password: str) -> Tuple[
         "sha256",
         (superset_password or "").encode("utf-8"),
         f"sjp-cv-salt-v1:{norm_email}".encode("utf-8"),
-        120_000,
+        int(iterations),
         dklen=96,
     )
     enc_key, mac_key, wt_key = master[:32], master[32:64], master[64:96]
@@ -248,24 +259,29 @@ def derive_cloud_vault_credentials(email: str, superset_password: str) -> Tuple[
     return vault_id, write_token, enc_key, mac_key
 
 
+def _derive_v1_credentials(email: str, superset_password: str) -> Tuple[str, str, bytes, bytes]:
+    return derive_cloud_vault_credentials(email, superset_password, iterations=CLOUD_VAULT_V1_ITERATIONS)
+
+
 def encrypt_cloud_vault_blob(email: str, superset_password: str, profile: Dict[str, Any]) -> Tuple[str, str, str]:
-    """Compresses and Encrypt-then-MAC protects a profile dict as a zero-knowledge `cv1.*` blob."""
+    """Compresses and Encrypt-then-MAC protects a profile dict as a zero-knowledge `cv2.*` blob."""
     vault_id, write_token, enc_key, mac_key = derive_cloud_vault_credentials(email, superset_password)
     compressed = zlib.compress(json.dumps(profile, separators=(",", ":")).encode("utf-8"), 9)
     nonce = secrets.token_bytes(16)
     stream = _keystream(enc_key, nonce, len(compressed))
     ciphertext = bytes(a ^ b for a, b in zip(compressed, stream))
     mac = hmac.new(mac_key, nonce + ciphertext, hashlib.sha256).digest()
-    blob = "cv1." + base64.urlsafe_b64encode(nonce + mac + ciphertext).decode("ascii")
+    blob = "cv2." + base64.urlsafe_b64encode(nonce + mac + ciphertext).decode("ascii")
     return vault_id, write_token, blob
 
 
 def decrypt_cloud_vault_blob(email: str, superset_password: str, blob: str) -> Optional[Dict[str, Any]]:
-    """Verifies HMAC and decrypts/decompresses a zero-knowledge `cv1.*` cloud vault blob."""
-    if not blob or not isinstance(blob, str) or not blob.startswith("cv1."):
+    """Verifies HMAC and decrypts/decompresses a zero-knowledge `cv2.*` or legacy `cv1.*` cloud vault blob."""
+    if not blob or not isinstance(blob, str) or not (blob.startswith("cv2.") or blob.startswith("cv1.")):
         return None
+    iterations = CLOUD_VAULT_V2_ITERATIONS if blob.startswith("cv2.") else CLOUD_VAULT_V1_ITERATIONS
     try:
-        _, _, enc_key, mac_key = derive_cloud_vault_credentials(email, superset_password)
+        _, _, enc_key, mac_key = derive_cloud_vault_credentials(email, superset_password, iterations=iterations)
         raw = base64.urlsafe_b64decode(blob[4:].encode("ascii"))
         if len(raw) < 48:
             return None
@@ -293,8 +309,14 @@ def pull_cloud_vault_profile(email: str, superset_password: str, sync_url: str =
     if not url or not email or not superset_password:
         return None
     try:
-        vault_id, _, _, _ = derive_cloud_vault_credentials(email, superset_password)
-        resp = requests.get(url, params={"id": vault_id}, timeout=8)
+        vault_id, v2_write_token, _, _ = derive_cloud_vault_credentials(email, superset_password)
+        _, v1_write_token, _, _ = _derive_v1_credentials(email, superset_password)
+        resp = requests.get(
+            url,
+            params={"id": vault_id},
+            headers={"X-Vault-Token": v2_write_token, "X-Vault-Token-Legacy": v1_write_token},
+            timeout=8,
+        )
         if resp.status_code != 200:
             return None
         data = resp.json()
@@ -313,10 +335,16 @@ def push_cloud_vault_profile(email: str, superset_password: str, profile: Dict[s
     if not url or not email or not superset_password or not isinstance(profile, dict):
         return False
     try:
-        vault_id, write_token, blob = encrypt_cloud_vault_blob(email, superset_password, profile)
+        vault_id, v2_write_token, blob = encrypt_cloud_vault_blob(email, superset_password, profile)
+        _, v1_write_token, _, _ = _derive_v1_credentials(email, superset_password)
         resp = requests.post(
             url,
-            json={"id": vault_id, "payload": blob, "write_token": write_token},
+            json={
+                "id": vault_id,
+                "payload": blob,
+                "write_token": v2_write_token,
+                "legacy_write_token": v1_write_token,
+            },
             timeout=10,
         )
         return resp.status_code == 200 and bool(resp.json().get("success"))
@@ -363,6 +391,7 @@ class UserManager:
                     auto_apply_enabled INTEGER DEFAULT 0,
                     telegram_chat_id TEXT DEFAULT '',
                     is_admin INTEGER DEFAULT 0,
+                    token_version INTEGER DEFAULT 1,
                     created_at INTEGER NOT NULL,
                     last_sync_at TEXT DEFAULT ''
                 );
@@ -424,6 +453,11 @@ class UserManager:
                 );
                 """
             )
+            # Ensure schema migration for token_version on older SQLite vaults
+            try:
+                conn.execute("ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 1")
+            except sqlite3.OperationalError:
+                pass
             # Ensure default invite code KIIT2027 exists
             cur = conn.execute("SELECT code FROM invite_codes WHERE code = ?", ("KIIT2027",))
             if not cur.fetchone():
@@ -542,7 +576,7 @@ class UserManager:
                 logger.warning(f"Could not remove legacy student_profile.json: {e}")
 
     # ═══════════════════════════════════════════════════════════════════
-    # SESSION & USER MANAGEMENT (90-Day Stateless HMAC-SHA256 + Revocation)
+    # SESSION & USER MANAGEMENT (30-Day Stateless HMAC-SHA256 + Revocation)
     # ═══════════════════════════════════════════════════════════════════
 
     @staticmethod
@@ -550,20 +584,25 @@ class UserManager:
         return hmac.new(_get_or_create_secret_key(), b"sjp-stateless-session-v1", hashlib.sha256).digest()
 
     @classmethod
-    def _sign_session_token(cls, email: str, expires_at: int) -> str:
-        payload = {"e": email.strip().lower(), "exp": int(expires_at), "n": secrets.token_hex(8)}
+    def _sign_session_token(cls, email: str, expires_at: int, token_version: int = 1) -> str:
+        payload = {
+            "e": email.strip().lower(),
+            "exp": int(expires_at),
+            "v": int(token_version),
+            "n": secrets.token_hex(8),
+        }
         raw_json = json.dumps(payload, separators=(",", ":")).encode("utf-8")
         payload_b64 = base64.urlsafe_b64encode(raw_json).decode("ascii").rstrip("=")
         sig = hmac.new(cls._session_signing_key(), payload_b64.encode("ascii"), hashlib.sha256).digest()
         sig_b64 = base64.urlsafe_b64encode(sig).decode("ascii").rstrip("=")
-        return f"sjp1.{payload_b64}.{sig_b64}"
+        return f"sjp2.{payload_b64}.{sig_b64}"
 
     @classmethod
-    def _verify_session_token(cls, raw_token: str) -> Optional[str]:
+    def _verify_session_token(cls, raw_token: str) -> Optional[Tuple[str, int]]:
         parts = (raw_token or "").split(".")
-        if len(parts) != 3 or parts[0] != "sjp1":
+        if len(parts) != 3 or parts[0] not in ("sjp1", "sjp2"):
             return None
-        _, payload_b64, sig_b64 = parts
+        prefix, payload_b64, sig_b64 = parts
         expected_sig = base64.urlsafe_b64encode(
             hmac.new(cls._session_signing_key(), payload_b64.encode("ascii"), hashlib.sha256).digest()
         ).decode("ascii").rstrip("=")
@@ -575,17 +614,24 @@ class UserManager:
             if int(data.get("exp", 0)) <= int(time.time()):
                 return None
             email = str(data.get("e") or "").strip().lower()
-            return email or None
+            if not email:
+                return None
+            tok_ver = int(data.get("v", 1)) if prefix == "sjp2" else 1
+            return email, tok_ver
         except Exception:
             return None
 
-    def create_session(self, user_id: str, ttl_days: int = 90) -> str:
+    def create_session(self, user_id: str, ttl_days: int = 30) -> str:
         now = int(time.time())
         expires = now + ttl_days * 86400
         with self._connect() as conn:
-            row = conn.execute("SELECT email FROM users WHERE user_id = ?", (user_id,)).fetchone()
+            row = conn.execute(
+                "SELECT email, COALESCE(token_version, 1) AS token_version FROM users WHERE user_id = ?",
+                (user_id,),
+            ).fetchone()
             email = row["email"] if row else ""
-            raw_token = self._sign_session_token(email, expires) if email else secrets.token_urlsafe(36)
+            tok_ver = int(row["token_version"]) if row else 1
+            raw_token = self._sign_session_token(email, expires, tok_ver) if email else secrets.token_urlsafe(36)
             token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
             conn.execute(
                 "INSERT OR REPLACE INTO sessions (token_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
@@ -593,6 +639,17 @@ class UserManager:
             )
             conn.commit()
         return raw_token
+
+    def revoke_all_user_sessions(self, user_id: str):
+        if not user_id:
+            return
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE users SET token_version = COALESCE(token_version, 1) + 1 WHERE user_id = ?",
+                (user_id,),
+            )
+            conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+            conn.commit()
 
     def destroy_session(self, raw_token: str):
         if not raw_token:
@@ -620,12 +677,18 @@ class UserManager:
                 return None
 
             # 1. Stateless HMAC-SHA256 signed token (survives Render/Docker ephemeral container restarts!)
-            if raw_token.startswith("sjp1."):
-                email = self._verify_session_token(raw_token)
-                if not email:
+            if raw_token.startswith(("sjp1.", "sjp2.")):
+                verified = self._verify_session_token(raw_token)
+                if not verified:
                     return None
+                email, tok_ver = verified
                 row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
-                return self._deserialize_user_row(row) if row else None
+                if not row:
+                    return None
+                user_obj = self._deserialize_user_row(row)
+                if int(user_obj.get("token_version", 1)) != int(tok_ver):
+                    return None
+                return user_obj
 
             # 2. Legacy opaque SQLite session fallback
             row = conn.execute(
@@ -671,6 +734,7 @@ class UserManager:
             "auto_apply_enabled": bool(row["auto_apply_enabled"]),
             "telegram_chat_id": row["telegram_chat_id"] or "",
             "is_admin": bool(row["is_admin"]),
+            "token_version": int(row["token_version"]) if "token_version" in row.keys() and row["token_version"] is not None else 1,
             "created_at": row["created_at"],
             "last_sync_at": row["last_sync_at"] or "",
         }
@@ -748,6 +812,7 @@ class UserManager:
                         (hash_password(pw_clean), encrypt_secret(pw_clean), sc.user_uuid or "", existing["user_id"]),
                     )
                     conn.commit()
+                self.revoke_all_user_sessions(existing["user_id"])
                 user = self.get_user_by_id(existing["user_id"])
                 token = self.create_session(existing["user_id"])
                 return True, f"Welcome back, {user['full_name']}!", user, token

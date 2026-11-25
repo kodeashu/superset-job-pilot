@@ -197,14 +197,18 @@ class TestFlaskResumeApi(unittest.TestCase):
             self.assertEqual(len(r1.get_json()["master"]["projects"]), 4)
 
             # 2. POST tailor resume for custom JD
-            r2 = client.post("/api/resume/tailor", json={
-                "company_name": "Empulz",
-                "role": "Full Stack Developer",
-                "custom_jd": "React, TypeScript, Next.js, Python, PostgreSQL, REST APIs, SaaS HRMS",
-                "max_projects": 3,
-                "include_photo": True,
-                "use_ai": False,
-            })
+            r2 = client.post(
+                "/api/resume/tailor",
+                headers={"X-Requested-With": "sjp"},
+                json={
+                    "company_name": "Empulz",
+                    "role": "Full Stack Developer",
+                    "custom_jd": "React, TypeScript, Next.js, Python, PostgreSQL, REST APIs, SaaS HRMS",
+                    "max_projects": 3,
+                    "include_photo": True,
+                    "use_ai": False,
+                },
+            )
             self.assertEqual(r2.status_code, 200)
             d2 = r2.get_json()
             self.assertTrue(d2["success"])
@@ -212,7 +216,11 @@ class TestFlaskResumeApi(unittest.TestCase):
             html_out = d2["tailored"]["preview_html"]
 
             # 3. POST export PDF
-            r3 = client.post("/api/resume/export-pdf", json={"html": html_out, "company_name": "Empulz"})
+            r3 = client.post(
+                "/api/resume/export-pdf",
+                headers={"X-Requested-With": "sjp"},
+                json={"html": html_out, "company_name": "Empulz"},
+            )
             self.assertIn(r3.status_code, (200, 503))
             if r3.status_code == 200:
                 self.assertEqual(r3.mimetype, "application/pdf")

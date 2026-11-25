@@ -66,7 +66,7 @@ class TestZeroKnowledgeCloudVault(unittest.TestCase):
         vault_id, write_token, blob = encrypt_cloud_vault_blob(email, pw, prof)
         self.assertEqual(len(vault_id), 64)
         self.assertEqual(len(write_token), 64)
-        self.assertTrue(blob.startswith("cv1."))
+        self.assertTrue(blob.startswith(("cv1.", "cv2.")))
 
         restored = decrypt_cloud_vault_blob(email, pw, blob)
         self.assertIsNotNone(restored)
@@ -256,10 +256,14 @@ class TestFlaskPreviewAndSaveAnswersApi(unittest.TestCase):
 
                 # 2. Save user-edited answers & profile fields before applying
                 new_link = "https://drive.google.com/file/d/updated-link/view"
-                rs = client.post("/api/jobs/job-abs/save-answers", json={
-                    "profile_updates": {"resume_link": new_link, "fathers_name": "S. K. Verma"},
-                    "clarifications_updates": {"Profile Applied for": "Azure Application Developer"},
-                })
+                rs = client.post(
+                    "/api/jobs/job-abs/save-answers",
+                    headers={"X-Requested-With": "sjp"},
+                    json={
+                        "profile_updates": {"resume_link": new_link, "fathers_name": "S. K. Verma"},
+                        "clarifications_updates": {"Profile Applied for": "Azure Application Developer"},
+                    },
+                )
                 self.assertEqual(rs.status_code, 200)
                 ds = rs.get_json()
                 self.assertTrue(ds["success"])

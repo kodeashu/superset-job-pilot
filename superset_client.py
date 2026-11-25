@@ -3,10 +3,12 @@ Reverse-engineered for app.joinsuperset.com API specification.
 """
 import json
 import logging
+import time
 from datetime import datetime, timezone
 import pytz
 import requests
 from config import Config
+from normalizers import normalize_job
 
 logger = logging.getLogger(__name__)
 IST = pytz.timezone("Asia/Kolkata")
@@ -31,6 +33,7 @@ class SupersetClient:
         self.user_id = None
         self.student_name = None
         self.organization = None
+        self._login_ts = 0.0
 
         if self.session_key:
             self._apply_session_headers(self.session_key)
@@ -42,10 +45,19 @@ class SupersetClient:
             "x-superset-tenant-qualifier": "ONBOARDED",
         })
 
-    def login(self) -> bool:
+    def login(self, force: bool = False) -> bool:
         """
         Authenticates against Superset /tnpsuite-core/login endpoint.
+        Reuses an active session within the 20-minute TTL unless `force=True`.
         """
+        if (
+            not force
+            and self.session_key
+            and self.user_uuid
+            and (time.time() - getattr(self, "_login_ts", 0.0)) < 1200
+        ):
+            return True
+
         if not self.email or not self.password:
             logger.warning("No credentials provided for Superset login.")
             return False
@@ -59,7 +71,7 @@ class SupersetClient:
         try:
             logger.info(f"Connecting to Superset as {self.email}...")
             resp = self.session.post(login_url, json=payload, timeout=15)
-            
+
             if resp.status_code == 200:
                 data = resp.json()
                 self.session_key = data.get("sessionKey")
@@ -67,6 +79,7 @@ class SupersetClient:
                 self.user_id = data.get("userId")
                 self.student_name = data.get("name")
                 self._apply_session_headers(self.session_key)
+                self._login_ts = time.time()
                 logger.info(f"Successfully authenticated as {self.student_name} (UUID: {self.user_uuid})")
                 return True
             else:
@@ -88,6 +101,9 @@ class SupersetClient:
         url = f"{self.base_url}/tnpsuite-core/students/{self.user_uuid}/job_profiles"
         try:
             resp = self.session.get(url, timeout=15)
+            if resp.status_code == 401 and self.login(force=True):
+                url = f"{self.base_url}/tnpsuite-core/students/{self.user_uuid}/job_profiles"
+                resp = self.session.get(url, timeout=15)
             if resp.status_code == 200:
                 raw_jobs = resp.json()
                 if isinstance(raw_jobs, list):
@@ -318,7 +334,7 @@ class SupersetClient:
 
         profile_url = f"{self.base_url}/join/#/signup/student/jobprofiles/{job_id}" if job_id else self.base_url
 
-        return {
+        return normalize_job({
             "id": job_id,
             "company_name": company,
             "job_role": role,
@@ -335,7 +351,7 @@ class SupersetClient:
             "app_status": app_status,
             "profile_url": profile_url,
             "raw": raw,
-        }
+        })
 
     # ═══════════════════════════════════════════════════════════════════
     # HOMEPAGE NOTICES, SHORTLIST PDF ATTACHMENTS & PENDING OFFERS

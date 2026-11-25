@@ -43,6 +43,7 @@ def main():
     wa_cfg = prof.pop("whatsapp_config", None)
 
     sess = requests.Session()
+    sess.headers.update({"X-Requested-With": "sjp"})
     print(f"1/5 Authenticating against {base_url}...")
     r_login = sess.post(
         f"{base_url}/api/auth/login",
@@ -54,7 +55,7 @@ def main():
         sys.exit(1)
 
     token = r_login.json().get("token", "")
-    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json", "X-Requested-With": "sjp"}
 
     print(f"2/5 Transferring full profile ({len(prof)} fields)...")
     r_prof = sess.post(f"{base_url}/api/profile", json=prof, headers=headers, timeout=30)
